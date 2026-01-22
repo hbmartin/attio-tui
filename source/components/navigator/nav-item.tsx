@@ -10,7 +10,7 @@ interface NavItemProps {
 function getCategoryLabel(category: NavigatorCategory): string {
   switch (category.type) {
     case "object":
-      return category.objectSlug as string;
+      return category.objectSlug;
     case "list":
       return `List: ${category.listId}`;
     case "notes":

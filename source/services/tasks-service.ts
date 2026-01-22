@@ -1,21 +1,6 @@
 import type { AttioClient } from "attio-ts-sdk";
 import { getV2Tasks } from "attio-ts-sdk";
-
-export interface TaskInfo {
-  readonly id: string;
-  readonly content: string;
-  readonly deadlineAt: string | null;
-  readonly isCompleted: boolean;
-  readonly assignees: readonly {
-    readonly actorType: string;
-    readonly actorId: string;
-  }[];
-  readonly linkedRecords: readonly {
-    readonly targetObject: string;
-    readonly targetRecordId: string;
-  }[];
-  readonly createdAt: string;
-}
+import type { TaskInfo } from "../types/attio.js";
 
 export interface QueryTasksResult {
   readonly tasks: readonly TaskInfo[];
@@ -33,19 +18,22 @@ export async function fetchTasks(
     readonly isCompleted?: boolean;
   } = {},
 ): Promise<QueryTasksResult> {
-  const {
-    limit = 25,
-    cursor,
-    linkedObject,
-    linkedRecordId,
-    isCompleted,
-  } = options;
+  const { limit, cursor, linkedObject, linkedRecordId, isCompleted } = options;
+  let parsedOffset: number | undefined = cursor
+    ? Number.parseInt(cursor, 10)
+    : 0;
+
+  if (parsedOffset !== undefined && Number.isNaN(parsedOffset)) {
+    parsedOffset = undefined;
+  }
+
+  const effectiveLimit = Math.max(1, Number(limit) || 25);
 
   const response = await getV2Tasks({
     client,
     query: {
-      limit,
-      ...(cursor ? { offset: Number.parseInt(cursor, 10) } : {}),
+      limit: effectiveLimit,
+      ...(parsedOffset !== undefined ? { offset: parsedOffset } : {}),
       ...(linkedObject ? { linked_object: linkedObject } : {}),
       ...(linkedRecordId ? { linked_record_id: linkedRecordId } : {}),
       ...(isCompleted !== undefined ? { is_completed: isCompleted } : {}),
@@ -74,9 +62,10 @@ export async function fetchTasks(
   }));
 
   // Calculate next cursor based on offset
-  const currentOffset = cursor ? Number.parseInt(cursor, 10) : 0;
   const nextCursor =
-    tasks.length === limit ? String(currentOffset + limit) : null;
+    parsedOffset !== undefined && tasks.length === effectiveLimit
+      ? String(parsedOffset + tasks.length)
+      : null;
 
   return {
     tasks,

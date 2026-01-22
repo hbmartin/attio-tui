@@ -1,14 +1,18 @@
+import type {
+  ListInfo,
+  MeetingInfo,
+  NoteInfo,
+  RecordInfo,
+  TaskInfo,
+  WebhookInfo,
+} from "./attio.js";
 import type { ListId, ObjectSlug } from "./ids.js";
 
 // The three panes in the TUI layout
 export type PaneId = "navigator" | "results" | "detail";
 
 // Order of panes for Tab navigation
-export const PANE_ORDER: readonly PaneId[] = [
-  "navigator",
-  "results",
-  "detail",
-] as const;
+export const PANE_ORDER: readonly PaneId[] = ["navigator", "results", "detail"];
 
 // Discriminated union for navigator categories
 export type NavigatorCategory =
@@ -27,7 +31,7 @@ export const DETAIL_TABS: readonly DetailTab[] = [
   "json",
   "sdk",
   "actions",
-] as const;
+];
 
 // Maximum number of commands visible in the command palette
 export const COMMAND_PALETTE_MAX_VISIBLE = 10;
@@ -49,12 +53,21 @@ export interface ResultsState {
 }
 
 // Generic result item - will be refined in entities.ts
-export interface ResultItem {
+interface ResultItemBase<TType extends NavigatorCategory["type"], TData> {
+  readonly type: TType;
   readonly id: string;
   readonly title: string;
   readonly subtitle?: string;
-  readonly data: unknown;
+  readonly data: TData;
 }
+
+export type ResultItem =
+  | ResultItemBase<"object", RecordInfo>
+  | ResultItemBase<"list", ListInfo>
+  | ResultItemBase<"notes", NoteInfo>
+  | ResultItemBase<"tasks", TaskInfo>
+  | ResultItemBase<"meetings", MeetingInfo>
+  | ResultItemBase<"webhooks", WebhookInfo>;
 
 // Detail pane state
 export interface DetailState {

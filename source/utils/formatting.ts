@@ -1,108 +1,90 @@
+import type { RecordValue } from "../types/attio.js";
+
 // Format various Attio value types for display
-
-export function formatValue(value: unknown): string {
-  if (value === null || value === undefined) {
-    return "-";
+export function formatValue(
+  value: RecordValue | readonly RecordValue[],
+): string {
+  if (Array.isArray(value)) {
+    if (value.length === 0) {
+      return "-";
+    }
+    return value.map((item) => formatRecordValue(item)).join(", ");
   }
 
-  if (typeof value === "string") {
-    return value;
+  return formatRecordValue(value);
+}
+
+function formatRecordValue(value: RecordValue): string {
+  if ("currency_value" in value && typeof value.currency_value === "number") {
+    const code = "currency_code" in value ? value.currency_code : undefined;
+    return code
+      ? `${code} ${value.currency_value.toLocaleString()}`
+      : value.currency_value.toLocaleString();
   }
 
-  if (typeof value === "number") {
-    return String(value);
+  if ("value" in value) {
+    return formatPrimitive(value.value);
   }
 
+  if ("email_address" in value && typeof value.email_address === "string") {
+    return value.email_address;
+  }
+
+  if ("original_phone_number" in value) {
+    return value.original_phone_number;
+  }
+
+  if ("domain" in value) {
+    return value.domain;
+  }
+
+  if ("option" in value) {
+    return value.option.title || "-";
+  }
+
+  if ("status" in value) {
+    return value.status.title || "-";
+  }
+
+  if ("full_name" in value && typeof value.full_name === "string") {
+    return value.full_name;
+  }
+
+  if ("first_name" in value || "last_name" in value) {
+    const firstName = "first_name" in value ? value.first_name : undefined;
+    const lastName = "last_name" in value ? value.last_name : undefined;
+    const name = [firstName, lastName].filter(Boolean).join(" ");
+    if (name) {
+      return name;
+    }
+  }
+
+  if ("target_object" in value && "target_record_id" in value) {
+    return `${value.target_object}/${value.target_record_id}`;
+  }
+
+  if ("line_1" in value || "city" in value || "country_code" in value) {
+    const parts = [
+      "line_1" in value ? value.line_1 : undefined,
+      "line_2" in value ? value.line_2 : undefined,
+      "city" in value ? value.city : undefined,
+      "state" in value ? value.state : undefined,
+      "postcode" in value ? value.postcode : undefined,
+      "country_code" in value ? value.country_code : undefined,
+    ].filter(Boolean);
+
+    return parts.join(", ") || "-";
+  }
+
+  return JSON.stringify(value);
+}
+
+function formatPrimitive(value: string | number | boolean): string {
   if (typeof value === "boolean") {
     return value ? "Yes" : "No";
   }
 
-  if (Array.isArray(value)) {
-    return value.map((v) => formatValue(v)).join(", ");
-  }
-
-  if (typeof value === "object") {
-    return formatObjectValue(value as Record<string, unknown>);
-  }
-
   return String(value);
-}
-
-function formatObjectValue(obj: Record<string, unknown>): string {
-  // Text, number, boolean values
-  if ("value" in obj) {
-    return formatValue(obj["value"]);
-  }
-
-  // Email
-  if ("email_address" in obj) {
-    return String(obj["email_address"]);
-  }
-
-  // Phone
-  if ("phone_number" in obj) {
-    return String(obj["phone_number"]);
-  }
-
-  // Domain
-  if ("domain" in obj) {
-    return String(obj["domain"]);
-  }
-
-  // Currency
-  if ("currency_value" in obj) {
-    const amount = obj["currency_value"] as number;
-    const code = obj["currency_code"] as string | undefined;
-    return code
-      ? `${code} ${amount.toLocaleString()}`
-      : amount.toLocaleString();
-  }
-
-  // Select option
-  if ("option" in obj) {
-    const option = obj["option"] as { title?: string };
-    return option.title ?? "-";
-  }
-
-  // Status
-  if ("status" in obj) {
-    const status = obj["status"] as { title?: string };
-    return status.title ?? "-";
-  }
-
-  // Person reference
-  if ("person" in obj) {
-    const person = obj["person"] as {
-      first_name?: string;
-      last_name?: string;
-      email_address?: string;
-    };
-    const name = [person.first_name, person.last_name]
-      .filter(Boolean)
-      .join(" ");
-    return name || person.email_address || "-";
-  }
-
-  // Record reference
-  if ("target_object" in obj && "target_record_id" in obj) {
-    return `${obj["target_object"]}/${obj["target_record_id"]}`;
-  }
-
-  // Location
-  if ("line_1" in obj || "city" in obj || "country_code" in obj) {
-    const parts = [
-      obj["line_1"],
-      obj["line_2"],
-      obj["city"],
-      obj["state"],
-      obj["postcode"],
-      obj["country_code"],
-    ].filter(Boolean);
-    return parts.join(", ") || "-";
-  }
-
-  // Fallback to JSON
-  return JSON.stringify(obj);
 }
 
 // Format a date string for display
@@ -133,20 +115,43 @@ export function formatDateTime(dateString: string | null | undefined): string {
   return date.toLocaleString();
 }
 
+export interface FormatMeetingTimeOptions {
+  readonly startAt: string;
+  readonly endAt: string;
+}
+
 // Format a meeting time range with date and time
-export function formatMeetingTime(startAt: string, endAt: string): string {
+// Returns empty string if either date is invalid
+// For same-day meetings: "DATE STARTTIME - ENDTIME"
+// For cross-day meetings: "STARTDATE STARTTIME - ENDDATE ENDTIME"
+export function formatMeetingTime({
+  startAt,
+  endAt,
+}: FormatMeetingTimeOptions): string {
   const start = new Date(startAt);
   const end = new Date(endAt);
-  const dateStr = start.toLocaleDateString();
-  const startTime = start.toLocaleTimeString([], {
+
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+    return "";
+  }
+
+  const timeOptions: Intl.DateTimeFormatOptions = {
     hour: "2-digit",
     minute: "2-digit",
-  });
-  const endTime = end.toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-  return `${dateStr} ${startTime} - ${endTime}`;
+  };
+
+  const startDateStr = start.toLocaleDateString();
+  const endDateStr = end.toLocaleDateString();
+  const startTime = start.toLocaleTimeString([], timeOptions);
+  const endTime = end.toLocaleTimeString([], timeOptions);
+
+  const isSameDay = startDateStr === endDateStr;
+
+  if (isSameDay) {
+    return `${startDateStr} ${startTime} - ${endTime}`;
+  }
+
+  return `${startDateStr} ${startTime} - ${endDateStr} ${endTime}`;
 }
 
 // Format a relative time (e.g., "2 hours ago")

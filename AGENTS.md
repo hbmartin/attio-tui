@@ -43,5 +43,4 @@
 - **Avoid uninformative method names** - don't use words like "handle" or "process" in names, use descriptive verbs
 - **Avoid type guard functions** - prefer using the SDK types
 - **Avoid creating duplicative types** - prefer to use typescript's `Pick` or `Omit` (if using Zod use `.extend`)
-- **Never use Parameters<typeof ...>** - prefer destructuring or param object typing
 - **Prefer well typed dispatch objects to switch statements**

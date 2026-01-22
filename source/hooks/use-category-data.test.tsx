@@ -1,14 +1,16 @@
+import process from "node:process";
 import type { AttioClient } from "attio-ts-sdk";
 import { createAttioClient } from "attio-ts-sdk";
 import { Text } from "ink";
 import { render } from "ink-testing-library";
 import { useEffect } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { ListInfo, QueryListsResult } from "../services/lists-service.js";
+import type { QueryListsResult } from "../services/lists-service.js";
 import { fetchLists } from "../services/lists-service.js";
-import type { NoteInfo, QueryNotesResult } from "../services/notes-service.js";
+import type { QueryNotesResult } from "../services/notes-service.js";
 import { fetchNotes } from "../services/notes-service.js";
 import { queryRecords } from "../services/objects-service.js";
+import type { ListInfo, NoteInfo } from "../types/attio.js";
 import { type ObjectSlug, parseObjectSlug } from "../types/ids.js";
 import type { NavigatorCategory, ResultItem } from "../types/navigation.js";
 import { useCategoryData } from "./use-category-data.js";

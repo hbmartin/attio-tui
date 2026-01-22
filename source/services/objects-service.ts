@@ -4,37 +4,18 @@ import {
   getV2ObjectsByObjectRecordsByRecordId,
   postV2ObjectsByObjectRecordsQuery,
 } from "attio-ts-sdk";
+import type { AttioTypes, ObjectInfo, RecordInfo } from "../types/attio.js";
 import type { ObjectSlug } from "../types/ids.js";
-
-export interface ObjectInfo {
-  readonly id: string;
-  readonly apiSlug: string;
-  readonly singularNoun: string;
-  readonly pluralNoun: string;
-}
-
-export interface RecordInfo {
-  readonly id: string;
-  readonly objectId: string;
-  readonly values: Record<string, unknown>;
-  readonly createdAt: string;
-}
 
 export interface QueryRecordsResult {
   readonly records: readonly RecordInfo[];
   readonly nextCursor: string | null;
 }
+type RecordPayloadBase =
+  | Pick<AttioTypes.RecordPayload, "id" | "values" | "created_at">
+  | Pick<AttioTypes.RecordDetailPayload, "id" | "values" | "created_at">;
 
-interface RecordPayload {
-  readonly id: {
-    readonly record_id: string;
-    readonly object_id: string;
-  };
-  readonly values: Record<string, unknown>;
-  readonly created_at: string;
-}
-
-function toRecordInfo(record: RecordPayload): RecordInfo {
+function toRecordInfo(record: RecordPayloadBase): RecordInfo {
   return {
     id: record.id.record_id,
     objectId: record.id.object_id,

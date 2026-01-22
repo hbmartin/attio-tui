@@ -5,41 +5,51 @@ import {
   patchV2WebhooksByWebhookId,
   postV2Webhooks,
 } from "attio-ts-sdk";
-
-// Webhook subscription info - filter and eventType stored as-is from SDK
-export interface WebhookSubscription {
-  readonly eventType: string;
-  readonly filter: unknown;
-}
-
-export interface WebhookInfo {
-  readonly id: string;
-  readonly targetUrl: string;
-  readonly status: "active" | "paused";
-  readonly subscriptions: readonly WebhookSubscription[];
-  readonly createdAt: string;
-}
+import type {
+  AttioTypes,
+  WebhookCreateSubscriptionInput,
+  WebhookInfo,
+  WebhookUpdateSubscriptionInput,
+} from "../types/attio.js";
 
 export interface QueryWebhooksResult {
   readonly webhooks: readonly WebhookInfo[];
   readonly nextCursor: string | null;
 }
 
+interface WebhookSubscriptionInput {
+  readonly eventType: WebhookCreateSubscriptionInput["event_type"];
+  readonly filter?: WebhookCreateSubscriptionInput["filter"];
+}
+
 export interface CreateWebhookInput {
-  readonly targetUrl: string;
-  readonly subscriptions: readonly {
-    readonly eventType: string;
-    readonly filter?: unknown;
-  }[];
+  readonly targetUrl: AttioTypes.WebhookPayloadBase["target_url"];
+  readonly subscriptions: readonly WebhookSubscriptionInput[];
+}
+
+interface WebhookUpdateSubscriptionInputShape {
+  readonly eventType: WebhookUpdateSubscriptionInput["event_type"];
+  readonly filter?: WebhookUpdateSubscriptionInput["filter"];
 }
 
 export interface UpdateWebhookInput {
-  readonly targetUrl?: string;
-  readonly status?: "active" | "paused";
-  readonly subscriptions?: readonly {
-    readonly eventType: string;
-    readonly filter?: unknown;
-  }[];
+  readonly targetUrl?: AttioTypes.WebhookPayloadBase["target_url"];
+  readonly subscriptions?: readonly WebhookUpdateSubscriptionInputShape[];
+}
+
+type WebhookPayload = AttioTypes.WebhookPayloadBase;
+
+function toWebhookInfo(webhook: WebhookPayload): WebhookInfo {
+  return {
+    id: webhook.id.webhook_id,
+    targetUrl: webhook.target_url,
+    status: webhook.status,
+    subscriptions: webhook.subscriptions.map((subscription) => ({
+      eventType: subscription.event_type,
+      filter: subscription.filter,
+    })),
+    createdAt: webhook.created_at,
+  };
 }
 
 // Fetch webhooks with pagination
@@ -67,16 +77,7 @@ export async function fetchWebhooks(
   }
 
   const data = response.data?.data ?? [];
-  const webhooks = data.map((webhook) => ({
-    id: webhook.id.webhook_id,
-    targetUrl: webhook.target_url,
-    status: webhook.status as "active" | "paused",
-    subscriptions: webhook.subscriptions.map((s) => ({
-      eventType: s.event_type,
-      filter: s.filter,
-    })),
-    createdAt: webhook.created_at,
-  }));
+  const webhooks = data.map((webhook) => toWebhookInfo(webhook));
 
   const currentOffset = cursor ? Number.parseInt(cursor, 10) : 0;
   const nextCursor =
@@ -93,11 +94,11 @@ export async function createWebhook(
   client: AttioClient,
   input: CreateWebhookInput,
 ): Promise<WebhookInfo> {
-  // Cast to bypass strict SDK typing - eventType comes from user input
-  const subscriptions = input.subscriptions.map((s) => ({
-    event_type: s.eventType,
-    filter: s.filter ?? null,
-  })) as Parameters<typeof postV2Webhooks>[0]["body"]["data"]["subscriptions"];
+  const subscriptions: WebhookCreateSubscriptionInput[] =
+    input.subscriptions.map((subscription) => ({
+      event_type: subscription.eventType,
+      filter: subscription.filter ?? null,
+    }));
 
   const response = await postV2Webhooks({
     client,
@@ -120,16 +121,7 @@ export async function createWebhook(
     throw new Error("No webhook data returned");
   }
 
-  return {
-    id: webhook.id.webhook_id,
-    targetUrl: webhook.target_url,
-    status: webhook.status as "active" | "paused",
-    subscriptions: webhook.subscriptions.map((s) => ({
-      eventType: s.event_type,
-      filter: s.filter,
-    })),
-    createdAt: webhook.created_at,
-  };
+  return toWebhookInfo(webhook);
 }
 
 // Update an existing webhook
@@ -138,15 +130,11 @@ export async function updateWebhook(
   webhookId: string,
   input: UpdateWebhookInput,
 ): Promise<WebhookInfo> {
-  // Build subscriptions with cast if provided
-  const subscriptions = input.subscriptions
-    ? (input.subscriptions.map((s) => ({
-        event_type: s.eventType,
-        filter: s.filter ?? null,
-      })) as Parameters<
-        typeof patchV2WebhooksByWebhookId
-      >[0]["body"]["data"]["subscriptions"])
-    : undefined;
+  const subscriptions: WebhookUpdateSubscriptionInput[] | undefined =
+    input.subscriptions?.map((subscription) => ({
+      event_type: subscription.eventType,
+      filter: subscription.filter ?? null,
+    }));
 
   const response = await patchV2WebhooksByWebhookId({
     client,
@@ -154,7 +142,6 @@ export async function updateWebhook(
     body: {
       data: {
         ...(input.targetUrl ? { target_url: input.targetUrl } : {}),
-        ...(input.status ? { status: input.status } : {}),
         ...(subscriptions ? { subscriptions } : {}),
       },
     },
@@ -171,16 +158,7 @@ export async function updateWebhook(
     throw new Error("No webhook data returned");
   }
 
-  return {
-    id: webhook.id.webhook_id,
-    targetUrl: webhook.target_url,
-    status: webhook.status as "active" | "paused",
-    subscriptions: webhook.subscriptions.map((s) => ({
-      eventType: s.event_type,
-      filter: s.filter,
-    })),
-    createdAt: webhook.created_at,
-  };
+  return toWebhookInfo(webhook);
 }
 
 // Delete a webhook

@@ -27,7 +27,7 @@ export function DetailPane({
   const renderTabContent = () => {
     switch (activeTab) {
       case "summary":
-        return <SummaryView item={item} category={category} />;
+        return <SummaryView item={item} />;
       case "json":
         return <JsonView item={item} />;
       case "sdk":

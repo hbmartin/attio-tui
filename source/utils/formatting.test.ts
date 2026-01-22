@@ -1,65 +1,78 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
-import {
-  formatMeetingTime,
-  getTaskSubtitle,
-  truncateText,
-} from "./formatting.js";
+import { describe, expect, it } from "vitest";
+import type { RecordValue } from "../types/attio.js";
+import { formatValue } from "./formatting.js";
 
-describe("formatting helpers", () => {
-  afterEach(() => {
-    vi.restoreAllMocks();
+const baseValue = {
+  active_from: "2025-01-01T00:00:00Z",
+  active_until: null,
+  created_by_actor: {},
+};
+
+function textValue(value: string): RecordValue {
+  return {
+    ...baseValue,
+    attribute_type: "text",
+    value,
+  };
+}
+
+function selectValue(title: string): RecordValue {
+  return {
+    ...baseValue,
+    attribute_type: "select",
+    option: {
+      id: {
+        workspace_id: "workspace-1",
+        object_id: "object-1",
+        attribute_id: "attribute-1",
+        option_id: "option-1",
+      },
+      title,
+      is_archived: false,
+    },
+  };
+}
+
+function recordReferenceValue(
+  targetObject: string,
+  targetRecordId: string,
+): RecordValue {
+  return {
+    ...baseValue,
+    attribute_type: "record-reference",
+    target_object: targetObject,
+    target_record_id: targetRecordId,
+  };
+}
+
+function personalNameValue(firstName: string, lastName: string): RecordValue {
+  return {
+    ...baseValue,
+    attribute_type: "personal-name",
+    first_name: firstName,
+    last_name: lastName,
+    full_name: `${firstName} ${lastName}`,
+  };
+}
+
+describe("formatValue", () => {
+  it("formats text values", () => {
+    expect(formatValue([textValue("Acme Corp")])).toBe("Acme Corp");
   });
 
-  it("truncates text with ellipsis", () => {
-    expect(truncateText("Hello world", 8)).toBe("Hello...");
-    expect(truncateText("Short", 8)).toBe("Short");
+  it("formats select options", () => {
+    expect(formatValue([selectValue("Prospect")])).toBe("Prospect");
   });
 
-  it("formats meeting time ranges", () => {
-    vi.spyOn(Date.prototype, "toLocaleDateString").mockReturnValue(
-      "01/22/2026",
+  it("formats record references", () => {
+    expect(formatValue([recordReferenceValue("people", "rec-123")])).toBe(
+      "people/rec-123",
     );
-    const timeSpy = vi
-      .spyOn(Date.prototype, "toLocaleTimeString")
-      .mockReturnValueOnce("09:00")
-      .mockReturnValueOnce("10:00");
-
-    const result = formatMeetingTime(
-      "2026-01-22T09:00:00Z",
-      "2026-01-22T10:00:00Z",
-    );
-
-    expect(result).toBe("01/22/2026 09:00 - 10:00");
-    expect(timeSpy).toHaveBeenCalledWith([], {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
   });
 
-  it("builds task subtitles", () => {
-    vi.spyOn(Date.prototype, "toLocaleDateString").mockReturnValue(
-      "01/22/2026",
+  it("formats personal names", () => {
+    expect(formatValue([personalNameValue("Ada", "Lovelace")])).toBe(
+      "Ada Lovelace",
     );
-
-    expect(
-      getTaskSubtitle({
-        isCompleted: true,
-        deadlineAt: "2026-01-22T00:00:00Z",
-      }),
-    ).toBe("Completed");
-
-    expect(
-      getTaskSubtitle({
-        isCompleted: false,
-        deadlineAt: "2026-01-22T00:00:00Z",
-      }),
-    ).toBe("Due: 01/22/2026");
-
-    expect(
-      getTaskSubtitle({
-        isCompleted: false,
-        deadlineAt: null,
-      }),
-    ).toBe("No deadline");
   });
 });

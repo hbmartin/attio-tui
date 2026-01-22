@@ -6,7 +6,6 @@ import { fetchNotes } from "../services/notes-service.js";
 import { queryRecords } from "../services/objects-service.js";
 import { fetchTasks } from "../services/tasks-service.js";
 import { fetchWebhooks } from "../services/webhooks-service.js";
-import { getRecordSubtitle, getRecordTitle } from "../types/entities.js";
 import type { ObjectSlug } from "../types/ids.js";
 import type { NavigatorCategory, ResultItem } from "../types/navigation.js";
 import {
@@ -14,6 +13,7 @@ import {
   getTaskSubtitle,
   truncateText,
 } from "../utils/formatting.js";
+import { getRecordSubtitle, getRecordTitle } from "../utils/record-values.js";
 import { usePaginatedData } from "./use-paginated-data.js";
 
 interface UseCategoryDataOptions {
@@ -55,6 +55,7 @@ export function useCategoryData({
           const result = await queryRecords(client, categorySlug, { cursor });
           return {
             items: result.records.map((record) => ({
+              type: "object",
               id: record.id,
               title: getRecordTitle(record.values),
               subtitle: getRecordSubtitle(record.values),
@@ -68,6 +69,7 @@ export function useCategoryData({
           const result = await fetchLists(client, { cursor });
           return {
             items: result.lists.map((list) => ({
+              type: "list",
               id: list.id,
               title: list.name,
               subtitle: `Parent: ${list.parentObject}`,
@@ -81,6 +83,7 @@ export function useCategoryData({
           const result = await fetchNotes(client, { cursor });
           return {
             items: result.notes.map((note) => ({
+              type: "notes",
               id: note.id,
               title: note.title || "Untitled Note",
               subtitle: truncateText(note.contentPlaintext, 50),
@@ -94,6 +97,7 @@ export function useCategoryData({
           const result = await fetchTasks(client, { cursor });
           return {
             items: result.tasks.map((task) => ({
+              type: "tasks",
               id: task.id,
               title: truncateText(task.content, 50),
               subtitle: getTaskSubtitle(task),
@@ -107,9 +111,13 @@ export function useCategoryData({
           const result = await fetchMeetings(client, { cursor });
           return {
             items: result.meetings.map((meeting) => ({
+              type: "meetings",
               id: meeting.id,
               title: meeting.title || "Untitled Meeting",
-              subtitle: formatMeetingTime(meeting.startAt, meeting.endAt),
+              subtitle: formatMeetingTime({
+                startAt: meeting.startAt,
+                endAt: meeting.endAt,
+              }),
               data: meeting,
             })),
             nextCursor: result.nextCursor,
@@ -120,6 +128,7 @@ export function useCategoryData({
           const result = await fetchWebhooks(client, { cursor });
           return {
             items: result.webhooks.map((webhook) => ({
+              type: "webhooks",
               id: webhook.id,
               title: webhook.targetUrl,
               subtitle: `${webhook.status} - ${webhook.subscriptions.length} subscriptions`,

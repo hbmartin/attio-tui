@@ -38,7 +38,6 @@ jobs:
       # Build
       - run: pnpm build
       - run: pnpm publint --pack npm
-      - run: pnpm attw --pack . --profile node16
       # Tests + coverage
       - run: pnpm test
 

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { parseObjectSlug } from "../types/ids.js";
+import type { NoteInfo } from "../types/attio.js";
 import type { NavigatorCategory, ResultItem } from "../types/navigation.js";
 import {
   type AppAction,
@@ -193,9 +194,27 @@ describe("appReducer", () => {
   });
 
   describe("results", () => {
+    const makeNoteInfo = (id: string, title: string): NoteInfo => ({
+      id,
+      parentObject: "companies",
+      parentRecordId: "record-1",
+      title,
+      contentPlaintext: "Sample note",
+      createdAt: "2025-01-01T00:00:00Z",
+      createdByType: "user",
+      createdById: "user-1",
+    });
+
+    const makeNoteItem = (id: string, title: string): ResultItem => ({
+      type: "notes",
+      id,
+      title,
+      data: makeNoteInfo(id, title),
+    });
+
     const testItems: ResultItem[] = [
-      { id: "1", title: "Item 1", data: {} },
-      { id: "2", title: "Item 2", data: {} },
+      makeNoteItem("1", "Item 1"),
+      makeNoteItem("2", "Item 2"),
     ];
 
     it("should set results", () => {
@@ -222,7 +241,7 @@ describe("appReducer", () => {
           },
         },
       };
-      const newItems: ResultItem[] = [{ id: "3", title: "Item 3", data: {} }];
+      const newItems: ResultItem[] = [makeNoteItem("3", "Item 3")];
       const action: AppAction = {
         type: "APPEND_RESULTS",
         items: newItems,
@@ -314,7 +333,7 @@ describe("appReducer", () => {
     });
 
     it("should set detail item", () => {
-      const item: ResultItem = { id: "test", title: "Test", data: {} };
+      const item: ResultItem = makeNoteItem("test", "Test");
       const action: AppAction = { type: "SET_DETAIL_ITEM", item };
       const result = appReducer(initialState, action);
       expect(result.navigation.detail.item).toEqual(item);
