@@ -13,18 +13,20 @@ export function ApiKeyPrompt({ onSubmit, error }: ApiKeyPromptProps) {
 
   useInput((input, key) => {
     if (key.return) {
-      if (!apiKey.trim()) {
+      const trimmedKey = apiKey.trim();
+
+      if (!trimmedKey) {
         setValidationError("API key is required");
         return;
       }
 
-      if (!isValidApiKey(apiKey.trim())) {
+      if (!isValidApiKey(trimmedKey)) {
         setValidationError("Invalid API key format");
         return;
       }
 
       setValidationError(undefined);
-      onSubmit(apiKey.trim());
+      onSubmit(trimmedKey);
       return;
     }
 
