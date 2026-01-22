@@ -20,7 +20,9 @@
       "Bash(gh pr view:*)",
       "Bash(gh api:*)",
       "Bash(pnpm exec attw:*)",
-      "Bash(du:*)"
+      "Bash(du:*)",
+      "Bash(npx biome:*)",
+      "Bash(pnpm build)"
     ]
   }
 }

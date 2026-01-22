@@ -1,0 +1,392 @@
+import {
+  createInitialNavigationState,
+  DETAIL_TABS,
+  type DetailTab,
+  type NavigationState,
+  type NavigatorCategory,
+  PANE_ORDER,
+  type PaneId,
+  type ResultItem,
+} from "../types/navigation.js";
+
+// Discriminated union for all app actions
+export type AppAction =
+  // Pane focus
+  | { readonly type: "FOCUS_PANE"; readonly paneId: PaneId }
+  | { readonly type: "FOCUS_NEXT_PANE" }
+  | { readonly type: "FOCUS_PREVIOUS_PANE" }
+  // Navigator
+  | {
+      readonly type: "SET_CATEGORIES";
+      readonly categories: readonly NavigatorCategory[];
+    }
+  | { readonly type: "SELECT_CATEGORY"; readonly index: number }
+  | { readonly type: "NAVIGATE_CATEGORY"; readonly direction: "up" | "down" }
+  | { readonly type: "SET_NAVIGATOR_LOADING"; readonly loading: boolean }
+  // Results
+  | {
+      readonly type: "SET_RESULTS";
+      readonly items: readonly ResultItem[];
+      readonly hasNextPage: boolean;
+    }
+  | {
+      readonly type: "APPEND_RESULTS";
+      readonly items: readonly ResultItem[];
+      readonly hasNextPage: boolean;
+    }
+  | { readonly type: "SELECT_RESULT"; readonly index: number }
+  | { readonly type: "NAVIGATE_RESULT"; readonly direction: "up" | "down" }
+  | { readonly type: "SET_RESULTS_LOADING"; readonly loading: boolean }
+  | { readonly type: "SET_SEARCH_QUERY"; readonly query: string }
+  // Detail
+  | { readonly type: "SET_DETAIL_TAB"; readonly tab: DetailTab }
+  | { readonly type: "NAVIGATE_TAB"; readonly direction: "previous" | "next" }
+  | { readonly type: "SET_DETAIL_ITEM"; readonly item: ResultItem | undefined }
+  // Command palette
+  | { readonly type: "OPEN_COMMAND_PALETTE" }
+  | { readonly type: "CLOSE_COMMAND_PALETTE" }
+  | { readonly type: "SET_COMMAND_QUERY"; readonly query: string }
+  | { readonly type: "NAVIGATE_COMMAND"; readonly direction: "up" | "down" }
+  | { readonly type: "SELECT_COMMAND" };
+
+export interface AppState {
+  readonly navigation: NavigationState;
+  readonly debugEnabled: boolean;
+}
+
+export function createInitialAppState(): AppState {
+  return {
+    navigation: createInitialNavigationState(),
+    debugEnabled: false,
+  };
+}
+
+function navigateIndex(
+  current: number,
+  direction: "up" | "down",
+  maxIndex: number,
+): number {
+  if (direction === "up") {
+    return Math.max(0, current - 1);
+  }
+  return Math.min(maxIndex, current + 1);
+}
+
+function navigateTabIndex(
+  current: DetailTab,
+  direction: "previous" | "next",
+): DetailTab {
+  const currentIndex = DETAIL_TABS.indexOf(current);
+  if (direction === "previous") {
+    const newIndex =
+      (currentIndex - 1 + DETAIL_TABS.length) % DETAIL_TABS.length;
+    return DETAIL_TABS[newIndex] ?? "summary";
+  }
+  const newIndex = (currentIndex + 1) % DETAIL_TABS.length;
+  return DETAIL_TABS[newIndex] ?? "summary";
+}
+
+function navigatePaneIndex(
+  current: PaneId,
+  direction: "next" | "previous",
+): PaneId {
+  const currentIndex = PANE_ORDER.indexOf(current);
+  if (direction === "previous") {
+    const newIndex = (currentIndex - 1 + PANE_ORDER.length) % PANE_ORDER.length;
+    return PANE_ORDER[newIndex] ?? "navigator";
+  }
+  const newIndex = (currentIndex + 1) % PANE_ORDER.length;
+  return PANE_ORDER[newIndex] ?? "navigator";
+}
+
+export function appReducer(state: AppState, action: AppAction): AppState {
+  switch (action.type) {
+    // Pane focus
+    case "FOCUS_PANE":
+      return {
+        ...state,
+        navigation: {
+          ...state.navigation,
+          focusedPane: action.paneId,
+        },
+      };
+
+    case "FOCUS_NEXT_PANE":
+      return {
+        ...state,
+        navigation: {
+          ...state.navigation,
+          focusedPane: navigatePaneIndex(state.navigation.focusedPane, "next"),
+        },
+      };
+
+    case "FOCUS_PREVIOUS_PANE":
+      return {
+        ...state,
+        navigation: {
+          ...state.navigation,
+          focusedPane: navigatePaneIndex(
+            state.navigation.focusedPane,
+            "previous",
+          ),
+        },
+      };
+
+    // Navigator
+    case "SET_CATEGORIES":
+      return {
+        ...state,
+        navigation: {
+          ...state.navigation,
+          navigator: {
+            ...state.navigation.navigator,
+            categories: action.categories,
+            selectedIndex: 0,
+            loading: false,
+          },
+        },
+      };
+
+    case "SELECT_CATEGORY":
+      return {
+        ...state,
+        navigation: {
+          ...state.navigation,
+          navigator: {
+            ...state.navigation.navigator,
+            selectedIndex: action.index,
+          },
+        },
+      };
+
+    case "NAVIGATE_CATEGORY": {
+      const maxIndex = state.navigation.navigator.categories.length - 1;
+      return {
+        ...state,
+        navigation: {
+          ...state.navigation,
+          navigator: {
+            ...state.navigation.navigator,
+            selectedIndex: navigateIndex(
+              state.navigation.navigator.selectedIndex,
+              action.direction,
+              maxIndex,
+            ),
+          },
+        },
+      };
+    }
+
+    case "SET_NAVIGATOR_LOADING":
+      return {
+        ...state,
+        navigation: {
+          ...state.navigation,
+          navigator: {
+            ...state.navigation.navigator,
+            loading: action.loading,
+          },
+        },
+      };
+
+    // Results
+    case "SET_RESULTS":
+      return {
+        ...state,
+        navigation: {
+          ...state.navigation,
+          results: {
+            ...state.navigation.results,
+            items: action.items,
+            hasNextPage: action.hasNextPage,
+            selectedIndex: 0,
+            loading: false,
+          },
+        },
+      };
+
+    case "APPEND_RESULTS":
+      return {
+        ...state,
+        navigation: {
+          ...state.navigation,
+          results: {
+            ...state.navigation.results,
+            items: [...state.navigation.results.items, ...action.items],
+            hasNextPage: action.hasNextPage,
+            loading: false,
+          },
+        },
+      };
+
+    case "SELECT_RESULT":
+      return {
+        ...state,
+        navigation: {
+          ...state.navigation,
+          results: {
+            ...state.navigation.results,
+            selectedIndex: action.index,
+          },
+        },
+      };
+
+    case "NAVIGATE_RESULT": {
+      const maxIndex = state.navigation.results.items.length - 1;
+      return {
+        ...state,
+        navigation: {
+          ...state.navigation,
+          results: {
+            ...state.navigation.results,
+            selectedIndex: navigateIndex(
+              state.navigation.results.selectedIndex,
+              action.direction,
+              maxIndex,
+            ),
+          },
+        },
+      };
+    }
+
+    case "SET_RESULTS_LOADING":
+      return {
+        ...state,
+        navigation: {
+          ...state.navigation,
+          results: {
+            ...state.navigation.results,
+            loading: action.loading,
+          },
+        },
+      };
+
+    case "SET_SEARCH_QUERY":
+      return {
+        ...state,
+        navigation: {
+          ...state.navigation,
+          results: {
+            ...state.navigation.results,
+            searchQuery: action.query,
+          },
+        },
+      };
+
+    // Detail
+    case "SET_DETAIL_TAB":
+      return {
+        ...state,
+        navigation: {
+          ...state.navigation,
+          detail: {
+            ...state.navigation.detail,
+            activeTab: action.tab,
+          },
+        },
+      };
+
+    case "NAVIGATE_TAB":
+      return {
+        ...state,
+        navigation: {
+          ...state.navigation,
+          detail: {
+            ...state.navigation.detail,
+            activeTab: navigateTabIndex(
+              state.navigation.detail.activeTab,
+              action.direction,
+            ),
+          },
+        },
+      };
+
+    case "SET_DETAIL_ITEM":
+      return {
+        ...state,
+        navigation: {
+          ...state.navigation,
+          detail: {
+            ...state.navigation.detail,
+            item: action.item,
+          },
+        },
+      };
+
+    // Command palette
+    case "OPEN_COMMAND_PALETTE":
+      return {
+        ...state,
+        navigation: {
+          ...state.navigation,
+          commandPalette: {
+            ...state.navigation.commandPalette,
+            isOpen: true,
+            query: "",
+            selectedIndex: 0,
+          },
+        },
+      };
+
+    case "CLOSE_COMMAND_PALETTE":
+      return {
+        ...state,
+        navigation: {
+          ...state.navigation,
+          commandPalette: {
+            ...state.navigation.commandPalette,
+            isOpen: false,
+            query: "",
+            selectedIndex: 0,
+          },
+        },
+      };
+
+    case "SET_COMMAND_QUERY":
+      return {
+        ...state,
+        navigation: {
+          ...state.navigation,
+          commandPalette: {
+            ...state.navigation.commandPalette,
+            query: action.query,
+            selectedIndex: 0,
+          },
+        },
+      };
+
+    case "NAVIGATE_COMMAND": {
+      // Max index will be determined by filtered commands
+      const maxIndex = 9; // Show max 10 commands
+      return {
+        ...state,
+        navigation: {
+          ...state.navigation,
+          commandPalette: {
+            ...state.navigation.commandPalette,
+            selectedIndex: navigateIndex(
+              state.navigation.commandPalette.selectedIndex,
+              action.direction,
+              maxIndex,
+            ),
+          },
+        },
+      };
+    }
+
+    case "SELECT_COMMAND":
+      // Command selection logic will be handled in the component
+      return {
+        ...state,
+        navigation: {
+          ...state.navigation,
+          commandPalette: {
+            ...state.navigation.commandPalette,
+            isOpen: false,
+            query: "",
+            selectedIndex: 0,
+          },
+        },
+      };
+  }
+}

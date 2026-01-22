@@ -1,29 +1,34 @@
 #!/usr/bin/env node
-import React from 'react';
-import {render} from 'ink';
-import meow from 'meow';
-import App from './app.js';
+import { render } from "ink";
+import meow from "meow";
+import App from "./app.js";
 
-const cli = meow(
-	`
+// TODO: Use cli.flags.debug in Milestone 7
+const _cli = meow(
+  `
 	Usage
 	  $ attio-tui
 
 	Options
-		--name  Your name
+		--debug  Enable debug mode
 
-	Examples
-	  $ attio-tui --name=Jane
-	  Hello, Jane
+	Navigation
+		Tab/Shift+Tab  Switch between panes
+		j/k            Navigate up/down
+		h/l            Navigate left/right
+		Enter          Select item
+		:              Open command palette
+		q              Quit
 `,
-	{
-		importMeta: import.meta,
-		flags: {
-			name: {
-				type: 'string',
-			},
-		},
-	},
+  {
+    importMeta: import.meta,
+    flags: {
+      debug: {
+        type: "boolean",
+        default: false,
+      },
+    },
+  },
 );
 
-render(<App name={cli.flags.name} />);
+render(<App />);

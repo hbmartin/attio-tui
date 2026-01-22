@@ -434,6 +434,40 @@
           }
         }
       }
+    },
+    {
+      // Ink CLI entry point requires default export
+      "includes": ["source/app.tsx", "source/cli.tsx"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noDefaultExport": "off"
+          }
+        }
+      }
+    },
+    {
+      // TUI components use exhaustive discriminated unions where default case is not needed
+      "includes": ["source/**/*.tsx", "source/**/*.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "useDefaultSwitchClause": "off",
+            "useExportsLast": "off",
+            "useComponentExportOnlyModules": "off"
+          },
+          "complexity": {
+            "noExcessiveLinesPerFunction": "off"
+          },
+          "nursery": {
+            "noUnnecessaryConditions": "off"
+          },
+          "security": {
+            // Action identifiers like "openInBrowser" are false positives
+            "noSecrets": "off"
+          }
+        }
+      }
     }
   ]
 }
