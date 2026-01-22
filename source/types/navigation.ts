@@ -75,6 +75,21 @@ export interface NavigationState {
   readonly commandPalette: CommandPaletteState;
 }
 
+// Generate a stable key for a NavigatorCategory
+export function getNavigatorCategoryKey(category: NavigatorCategory): string {
+  switch (category.type) {
+    case "object":
+      return `object-${category.objectSlug}`;
+    case "list":
+      return `list-${category.listId}`;
+    case "notes":
+    case "tasks":
+    case "meetings":
+    case "webhooks":
+      return category.type;
+  }
+}
+
 // Initial navigation state factory
 export function createInitialNavigationState(): NavigationState {
   return {
