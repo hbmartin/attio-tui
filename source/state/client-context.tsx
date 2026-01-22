@@ -4,12 +4,18 @@ import { useAttioClient } from "../hooks/use-attio-client.js";
 import { useConfig } from "../hooks/use-config.js";
 import type { AppConfig } from "../schemas/config-schema.js";
 
+export type ConfigState =
+  | { readonly status: "loading" }
+  | { readonly status: "error"; readonly error: string }
+  | {
+      readonly status: "ready";
+      readonly config: AppConfig;
+      readonly isConfigured: boolean;
+    };
+
 interface ClientContextValue {
   readonly client: AttioClient | undefined;
-  readonly isConfigured: boolean;
-  readonly config: AppConfig;
-  readonly configLoading: boolean;
-  readonly configError: string | undefined;
+  readonly configState: ConfigState;
   readonly setApiKey: (apiKey: string) => void;
 }
 
@@ -29,16 +35,23 @@ export function ClientProvider({ children }: ClientProviderProps) {
 
   const { client, isConfigured } = useAttioClient({ config });
 
+  const configState: ConfigState = useMemo(() => {
+    if (configLoading) {
+      return { status: "loading" };
+    }
+    if (configError) {
+      return { status: "error", error: configError };
+    }
+    return { status: "ready", config, isConfigured };
+  }, [configLoading, configError, config, isConfigured]);
+
   const value = useMemo(
     () => ({
       client,
-      isConfigured,
-      config,
-      configLoading,
-      configError,
+      configState,
       setApiKey,
     }),
-    [client, isConfigured, config, configLoading, configError, setApiKey],
+    [client, configState, setApiKey],
   );
 
   return (
@@ -60,6 +73,6 @@ export function useAttio(): AttioClient | undefined {
 }
 
 export function useIsConfigured(): boolean {
-  const { isConfigured } = useClient();
-  return isConfigured;
+  const { configState } = useClient();
+  return configState.status === "ready" && configState.isConfigured;
 }

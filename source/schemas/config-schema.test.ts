@@ -96,20 +96,47 @@ describe("parseConfig", () => {
 });
 
 describe("isValidApiKey", () => {
-  it("should accept valid API key", () => {
-    expect(isValidApiKey("abcdefghij1234567890")).toBe(true);
+  // Valid Attio key: "at_" prefix + 48 hex characters (total 51 chars)
+  const validKey = "at_0123456789abcdef0123456789abcdef0123456789abcdef";
+
+  it("should accept valid Attio API key with at_ prefix and hex chars", () => {
+    expect(isValidApiKey(validKey)).toBe(true);
   });
 
-  it("should accept API key with underscores and dashes", () => {
-    expect(isValidApiKey("abc_def-ghi_123-456-789")).toBe(true);
+  it("should accept longer API keys", () => {
+    expect(isValidApiKey(`${validKey}00`)).toBe(true);
+  });
+
+  it("should reject key without at_ prefix", () => {
+    expect(
+      isValidApiKey("0123456789abcdef0123456789abcdef0123456789abcdef01"),
+    ).toBe(false);
+  });
+
+  it("should reject key with wrong prefix", () => {
+    expect(
+      isValidApiKey("sk_0123456789abcdef0123456789abcdef0123456789abcdef"),
+    ).toBe(false);
   });
 
   it("should reject short API key", () => {
-    expect(isValidApiKey("short")).toBe(false);
+    expect(isValidApiKey("at_short")).toBe(false);
+  });
+
+  it("should reject key with non-hex characters after prefix", () => {
+    expect(
+      isValidApiKey("at_0123456789abcdefg123456789abcdef0123456789abcdef"),
+    ).toBe(false);
+  });
+
+  it("should reject key with uppercase hex characters", () => {
+    expect(
+      isValidApiKey("at_0123456789ABCDEF0123456789abcdef0123456789abcdef"),
+    ).toBe(false);
   });
 
   it("should reject API key with special characters", () => {
-    expect(isValidApiKey("abc@def#ghi$123!456")).toBe(false);
+    expect(isValidApiKey("at_abc@def#ghi$123!456")).toBe(false);
   });
 
   it("should reject empty API key", () => {

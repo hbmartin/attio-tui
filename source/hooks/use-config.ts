@@ -1,4 +1,5 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import process from "node:process";
 import { useCallback, useEffect, useState } from "react";
 import {
   type AppConfig,
@@ -65,20 +66,18 @@ export function useConfig(): UseConfigResult {
   }, []);
 
   // Save config updates
-  const saveConfig = useCallback(
-    (updates: Partial<AppConfig>) => {
-      const newConfig = { ...config, ...updates };
-      setConfig(newConfig);
-
+  const saveConfig = useCallback((updates: Partial<AppConfig>) => {
+    setConfig((prev) => {
+      const newConfig = { ...prev, ...updates };
       try {
         saveConfigToDisk(newConfig);
       } catch (err) {
         const message = err instanceof Error ? err.message : "Unknown error";
         setError(`Failed to save config: ${message}`);
       }
-    },
-    [config],
-  );
+      return newConfig;
+    });
+  }, []);
 
   // Convenience method to set API key
   const setApiKey = useCallback(
@@ -108,5 +107,11 @@ export function loadConfig(): AppConfig {
 
 // Synchronous config saving
 export function saveConfig(config: AppConfig): void {
-  saveConfigToDisk(config);
+  try {
+    saveConfigToDisk(config);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    // Log to stderr to avoid interfering with TUI rendering
+    process.stderr.write(`Failed to save config: ${message}\n`);
+  }
 }

@@ -9,6 +9,7 @@ import { ResultsPane } from "./components/results/results-pane.js";
 import { ApiKeyPrompt } from "./components/setup/api-key-prompt.js";
 import { DEFAULT_COMMANDS, filterCommands } from "./constants/commands.js";
 import { useActionHandler } from "./hooks/use-action-handler.js";
+import { useCategoryData } from "./hooks/use-category-data.js";
 import { useKeyboard } from "./hooks/use-keyboard.js";
 import { ClientProvider, useClient } from "./state/client-context.js";
 import { AppProvider, useApp } from "./state/context.js";
@@ -50,8 +51,24 @@ function getCategoryLabel(
   }
 }
 
+// Get category type for data loading
+function getCategoryType(category: NavigatorCategory | undefined): string {
+  return category?.type ?? "object";
+}
+
+// Get category slug for objects
+function getCategorySlug(
+  category: NavigatorCategory | undefined,
+): string | undefined {
+  if (category?.type === "object") {
+    return category.objectSlug as string;
+  }
+  return;
+}
+
 function MainApp() {
   const { state, dispatch } = useApp();
+  const { client } = useClient();
   const { exit } = useInkApp();
 
   const { navigation } = state;
@@ -60,11 +77,39 @@ function MainApp() {
 
   // Get selected category
   const selectedCategory = navigator.categories[navigator.selectedIndex];
+  const categoryType = getCategoryType(selectedCategory);
+  const categorySlug = getCategorySlug(selectedCategory);
+
+  // Load data for the current category
+  const {
+    items: categoryItems,
+    loading: categoryLoading,
+    error: categoryError,
+    hasNextPage,
+  } = useCategoryData({
+    client,
+    categoryType,
+    categorySlug,
+  });
 
   // Initialize categories on mount
   useEffect(() => {
     dispatch({ type: "SET_CATEGORIES", categories: getStaticCategories() });
   }, [dispatch]);
+
+  // Update results when category data changes
+  useEffect(() => {
+    dispatch({
+      type: "SET_RESULTS",
+      items: categoryItems,
+      hasNextPage,
+    });
+  }, [categoryItems, hasNextPage, dispatch]);
+
+  // Update results loading state
+  useEffect(() => {
+    dispatch({ type: "SET_RESULTS_LOADING", loading: categoryLoading });
+  }, [categoryLoading, dispatch]);
 
   // Update detail item when result selection changes
   useEffect(() => {
@@ -111,6 +156,7 @@ function MainApp() {
             loading={results.loading}
             hasNextPage={results.hasNextPage}
             categoryLabel={getCategoryLabel(selectedCategory)}
+            error={categoryError}
           />
         }
         detail={
@@ -142,33 +188,27 @@ function MainApp() {
 }
 
 function AppWithClient() {
-  const { isConfigured, configLoading, configError, setApiKey } = useClient();
+  const { configState, setApiKey } = useClient();
 
-  // Show loading state while config is loading
-  if (configLoading) {
-    return (
-      <Box padding={1}>
-        <Text color="yellow">Loading configuration...</Text>
-      </Box>
-    );
+  switch (configState.status) {
+    case "loading":
+      return (
+        <Box padding={1}>
+          <Text color="yellow">Loading configuration...</Text>
+        </Box>
+      );
+    case "error":
+      return (
+        <Box padding={1}>
+          <Text color="red">Error: {configState.error}</Text>
+        </Box>
+      );
+    case "ready":
+      if (!configState.isConfigured) {
+        return <ApiKeyPrompt onSubmit={setApiKey} />;
+      }
+      return <MainApp />;
   }
-
-  // Show error if config failed to load
-  if (configError) {
-    return (
-      <Box padding={1}>
-        <Text color="red">Error: {configError}</Text>
-      </Box>
-    );
-  }
-
-  // Show API key prompt if not configured
-  if (!isConfigured) {
-    return <ApiKeyPrompt onSubmit={setApiKey} />;
-  }
-
-  // Show main app when configured
-  return <MainApp />;
 }
 
 export default function App() {

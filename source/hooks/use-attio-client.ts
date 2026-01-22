@@ -11,19 +11,31 @@ interface UseAttioClientResult {
   readonly isConfigured: boolean;
 }
 
+/**
+ * Builds an AttioClient from config if apiKey is present.
+ * Shared helper for both hook and non-hook contexts.
+ */
+export function buildAttioClientFromConfig(
+  config: AppConfig,
+): AttioClient | undefined {
+  if (!config.apiKey) {
+    return;
+  }
+
+  return createAttioClient({
+    apiKey: config.apiKey,
+    baseUrl: config.baseUrl,
+  });
+}
+
 export function useAttioClient({
   config,
 }: UseAttioClientOptions): UseAttioClientResult {
-  const client = useMemo(() => {
-    if (!config.apiKey) {
-      return;
-    }
-
-    return createAttioClient({
-      apiKey: config.apiKey,
-      baseUrl: config.baseUrl,
-    });
-  }, [config.apiKey, config.baseUrl]);
+  const { apiKey, baseUrl, debugEnabled } = config;
+  const client = useMemo(
+    () => buildAttioClientFromConfig({ apiKey, baseUrl, debugEnabled }),
+    [apiKey, baseUrl, debugEnabled],
+  );
 
   return {
     client,
@@ -33,12 +45,5 @@ export function useAttioClient({
 
 // Create client directly for non-hook contexts
 export function createClient(config: AppConfig): AttioClient | undefined {
-  if (!config.apiKey) {
-    return;
-  }
-
-  return createAttioClient({
-    apiKey: config.apiKey,
-    baseUrl: config.baseUrl,
-  });
+  return buildAttioClientFromConfig(config);
 }

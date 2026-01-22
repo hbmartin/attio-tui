@@ -10,6 +10,7 @@ interface ResultsPaneProps {
   readonly loading: boolean;
   readonly hasNextPage: boolean;
   readonly categoryLabel?: string;
+  readonly error?: string;
 }
 
 interface ResultsContentProps {
@@ -18,6 +19,7 @@ interface ResultsContentProps {
   readonly focused: boolean;
   readonly loading: boolean;
   readonly hasNextPage: boolean;
+  readonly error?: string;
 }
 
 function ResultsContent({
@@ -26,9 +28,14 @@ function ResultsContent({
   focused,
   loading,
   hasNextPage,
+  error,
 }: ResultsContentProps) {
-  if (loading) {
+  if (loading && items.length === 0) {
     return <Text color="yellow">Loading...</Text>;
+  }
+
+  if (error) {
+    return <Text color="red">Error: {error}</Text>;
   }
 
   if (items.length === 0) {
@@ -45,7 +52,12 @@ function ResultsContent({
           focused={focused}
         />
       ))}
-      {hasNextPage && (
+      {loading && (
+        <Box marginTop={1}>
+          <Text color="yellow">Loading more...</Text>
+        </Box>
+      )}
+      {!loading && hasNextPage && (
         <Box marginTop={1}>
           <Text dimColor={true} italic={true}>
             Scroll for more...
@@ -63,6 +75,7 @@ export function ResultsPane({
   loading,
   hasNextPage,
   categoryLabel,
+  error,
 }: ResultsPaneProps) {
   const title = categoryLabel ? `Results: ${categoryLabel}` : "Results";
 
@@ -74,6 +87,7 @@ export function ResultsPane({
         focused={focused}
         loading={loading}
         hasNextPage={hasNextPage}
+        error={error}
       />
     </Pane>
   );
