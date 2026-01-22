@@ -125,6 +125,10 @@ export interface AttioRecord {
   readonly created_at: string;
 }
 
+export interface RecordValues {
+  readonly [key: string]: unknown;
+}
+
 // Attio List
 export interface AttioList {
   readonly id: { readonly list_id: ListId };
@@ -204,8 +208,23 @@ export interface AttioMeeting {
   }[];
 }
 
-// Helper to extract display name from a record
-export function getRecordDisplayName(record: AttioRecord): string {
+const RecordValueSchema = z.record(z.string(), z.unknown());
+
+function getFirstRecordValue(
+  values: RecordValues,
+  field: string,
+): RecordValues | undefined {
+  const fieldValues = values[field];
+  if (!Array.isArray(fieldValues) || fieldValues.length === 0) {
+    return;
+  }
+
+  const parsed = RecordValueSchema.safeParse(fieldValues[0]);
+  return parsed.success ? parsed.data : undefined;
+}
+
+// Helper to extract display name from record values
+export function getRecordTitle(values: RecordValues): string {
   // Try common name attributes based on object type
   const nameAttributes = [
     "name",
@@ -216,22 +235,26 @@ export function getRecordDisplayName(record: AttioRecord): string {
   ];
 
   for (const attr of nameAttributes) {
-    const values = record.values[attr];
-    const firstValue = values?.[0];
+    const firstValue = getFirstRecordValue(values, attr);
     if (firstValue && "value" in firstValue) {
-      const val = firstValue["value" as keyof typeof firstValue];
+      const val = firstValue["value"];
       if (typeof val === "string") {
         return val;
       }
     }
   }
 
-  // Fallback to record ID
-  return record.id.record_id;
+  return "Unnamed";
 }
 
-// Helper to extract subtitle from a record
-export function getRecordSubtitle(record: AttioRecord): string {
+// Helper to extract display name from a record
+export function getRecordDisplayName(record: AttioRecord): string {
+  const title = getRecordTitle(record.values);
+  return title === "Unnamed" ? record.id.record_id : title;
+}
+
+// Helper to extract subtitle from record values
+export function getRecordSubtitle(values: RecordValues): string {
   // Try common subtitle attributes
   const subtitleAttributes = [
     "email_addresses",
@@ -241,20 +264,21 @@ export function getRecordSubtitle(record: AttioRecord): string {
   ];
 
   for (const attr of subtitleAttributes) {
-    const values = record.values[attr];
-    const firstValue = values?.[0];
+    const firstValue = getFirstRecordValue(values, attr);
     if (firstValue && "email_address" in firstValue) {
-      const emailAddr = firstValue[
-        "email_address" as keyof typeof firstValue
-      ] as string;
-      return emailAddr;
+      const emailAddr = firstValue["email_address"];
+      if (typeof emailAddr === "string") {
+        return emailAddr;
+      }
     }
     if (firstValue && "domain" in firstValue) {
-      const domain = firstValue["domain" as keyof typeof firstValue] as string;
-      return domain;
+      const domain = firstValue["domain"];
+      if (typeof domain === "string") {
+        return domain;
+      }
     }
     if (firstValue && "value" in firstValue) {
-      const val = firstValue["value" as keyof typeof firstValue];
+      const val = firstValue["value"];
       if (typeof val === "string") {
         return val;
       }

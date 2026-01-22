@@ -1,18 +1,25 @@
 import type { AttioClient } from "attio-ts-sdk";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback } from "react";
 import { fetchLists } from "../services/lists-service.js";
 import { fetchMeetings } from "../services/meetings-service.js";
 import { fetchNotes } from "../services/notes-service.js";
 import { queryRecords } from "../services/objects-service.js";
 import { fetchTasks } from "../services/tasks-service.js";
 import { fetchWebhooks } from "../services/webhooks-service.js";
-import { parseObjectSlug } from "../types/ids.js";
-import type { ResultItem } from "../types/navigation.js";
+import { getRecordSubtitle, getRecordTitle } from "../types/entities.js";
+import type { ObjectSlug } from "../types/ids.js";
+import type { NavigatorCategory, ResultItem } from "../types/navigation.js";
+import {
+  formatMeetingTime,
+  getTaskSubtitle,
+  truncateText,
+} from "../utils/formatting.js";
+import { usePaginatedData } from "./use-paginated-data.js";
 
 interface UseCategoryDataOptions {
   readonly client: AttioClient | undefined;
-  readonly categoryType: string;
-  readonly categorySlug?: string;
+  readonly categoryType: NavigatorCategory["type"];
+  readonly categorySlug?: ObjectSlug;
 }
 
 interface UseCategoryDataResult {
@@ -24,18 +31,18 @@ interface UseCategoryDataResult {
   readonly refresh: () => Promise<void>;
 }
 
+interface CategoryDataPage {
+  readonly items: readonly ResultItem[];
+  readonly nextCursor: string | null;
+}
+
 export function useCategoryData({
   client,
   categoryType,
   categorySlug,
 }: UseCategoryDataOptions): UseCategoryDataResult {
-  const [items, setItems] = useState<readonly ResultItem[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | undefined>();
-  const [nextCursor, setNextCursor] = useState<string | null>(null);
-
   const fetchData = useCallback(
-    async (cursor?: string) => {
+    async (cursor?: string): Promise<CategoryDataPage> => {
       if (!client) {
         return { items: [], nextCursor: null };
       }
@@ -45,11 +52,7 @@ export function useCategoryData({
           if (!categorySlug) {
             return { items: [], nextCursor: null };
           }
-          const result = await queryRecords(
-            client,
-            parseObjectSlug(categorySlug),
-            { cursor },
-          );
+          const result = await queryRecords(client, categorySlug, { cursor });
           return {
             items: result.records.map((record) => ({
               id: record.id,
@@ -62,16 +65,15 @@ export function useCategoryData({
         }
 
         case "list": {
-          // Lists use the lists service
-          const lists = await fetchLists(client);
+          const result = await fetchLists(client, { cursor });
           return {
-            items: lists.map((list) => ({
+            items: result.lists.map((list) => ({
               id: list.id,
               title: list.name,
               subtitle: `Parent: ${list.parentObject}`,
               data: list,
             })),
-            nextCursor: null,
+            nextCursor: result.nextCursor,
           };
         }
 
@@ -115,15 +117,15 @@ export function useCategoryData({
         }
 
         case "webhooks": {
-          const webhooks = await fetchWebhooks(client);
+          const result = await fetchWebhooks(client, { cursor });
           return {
-            items: webhooks.map((webhook) => ({
+            items: result.webhooks.map((webhook) => ({
               id: webhook.id,
               title: webhook.targetUrl,
               subtitle: `${webhook.status} - ${webhook.subscriptions.length} subscriptions`,
               data: webhook,
             })),
-            nextCursor: null,
+            nextCursor: result.nextCursor,
           };
         }
 
@@ -134,157 +136,18 @@ export function useCategoryData({
     [client, categoryType, categorySlug],
   );
 
-  // Initial load
-  useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      setError(undefined);
-      try {
-        const result = await fetchData();
-        setItems(result.items);
-        setNextCursor(result.nextCursor);
-      } catch (err) {
-        const message = err instanceof Error ? err.message : "Unknown error";
-        setError(message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    load().catch(() => {
-      // Error is already handled in the load function
+  const { data, loading, error, hasNextPage, loadMore, refresh } =
+    usePaginatedData<ResultItem>({
+      fetchFn: fetchData,
+      enabled: Boolean(client),
     });
-  }, [fetchData]);
-
-  // Load more
-  const loadMore = useCallback(async () => {
-    if (!nextCursor || loading) {
-      return;
-    }
-
-    try {
-      const result = await fetchData(nextCursor);
-      setItems((prev) => [...prev, ...result.items]);
-      setNextCursor(result.nextCursor);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Unknown error";
-      setError(message);
-    }
-  }, [fetchData, nextCursor, loading]);
-
-  // Refresh
-  const refresh = useCallback(async () => {
-    setItems([]);
-    setNextCursor(null);
-    setLoading(true);
-    setError(undefined);
-
-    try {
-      const result = await fetchData();
-      setItems(result.items);
-      setNextCursor(result.nextCursor);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Unknown error";
-      setError(message);
-    } finally {
-      setLoading(false);
-    }
-  }, [fetchData]);
 
   return {
-    items,
+    items: data,
     loading,
     error,
-    hasNextPage: Boolean(nextCursor),
+    hasNextPage,
     loadMore,
     refresh,
   };
-}
-
-// Helper functions
-function getRecordTitle(values: Record<string, unknown>): string {
-  const nameFields = [
-    "name",
-    "full_name",
-    "title",
-    "first_name",
-    "company_name",
-  ];
-  for (const field of nameFields) {
-    const fieldValues = values[field];
-    if (Array.isArray(fieldValues) && fieldValues.length > 0) {
-      const firstValue = fieldValues[0] as Record<string, unknown>;
-      if (firstValue && "value" in firstValue) {
-        return String(firstValue["value"]);
-      }
-    }
-  }
-  return "Unnamed";
-}
-
-function getRecordSubtitle(values: Record<string, unknown>): string {
-  const subtitleFields = [
-    "email_addresses",
-    "domains",
-    "description",
-    "job_title",
-  ];
-  for (const field of subtitleFields) {
-    const fieldValues = values[field];
-    if (Array.isArray(fieldValues) && fieldValues.length > 0) {
-      const firstValue = fieldValues[0] as Record<string, unknown>;
-      if (firstValue) {
-        if ("email_address" in firstValue) {
-          return String(firstValue["email_address"]);
-        }
-        if ("domain" in firstValue) {
-          return String(firstValue["domain"]);
-        }
-        if ("value" in firstValue) {
-          return String(firstValue["value"]);
-        }
-      }
-    }
-  }
-  return "";
-}
-
-function truncateText(text: string, maxLength: number): string {
-  if (text.length <= maxLength) {
-    return text;
-  }
-  return `${text.slice(0, maxLength - 3)}...`;
-}
-
-function formatDeadline(dateString: string): string {
-  const date = new Date(dateString);
-  return date.toLocaleDateString();
-}
-
-function formatMeetingTime(startAt: string, endAt: string): string {
-  const start = new Date(startAt);
-  const end = new Date(endAt);
-  const dateStr = start.toLocaleDateString();
-  const startTime = start.toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-  const endTime = end.toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-  return `${dateStr} ${startTime} - ${endTime}`;
-}
-
-function getTaskSubtitle(task: {
-  isCompleted: boolean;
-  deadlineAt: string | null;
-}): string {
-  if (task.isCompleted) {
-    return "Completed";
-  }
-  if (task.deadlineAt) {
-    return `Due: ${formatDeadline(task.deadlineAt)}`;
-  }
-  return "No deadline";
 }

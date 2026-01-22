@@ -11,9 +11,13 @@ import { DEFAULT_COMMANDS, filterCommands } from "./constants/commands.js";
 import { useActionHandler } from "./hooks/use-action-handler.js";
 import { useCategoryData } from "./hooks/use-category-data.js";
 import { useKeyboard } from "./hooks/use-keyboard.js";
-import { ClientProvider, useClient } from "./state/client-context.js";
+import {
+  ClientProvider,
+  type ConfigState,
+  useClient,
+} from "./state/client-context.js";
 import { AppProvider, useApp } from "./state/context.js";
-import { parseObjectSlug } from "./types/ids.js";
+import { type ObjectSlug, parseObjectSlug } from "./types/ids.js";
 import type { NavigatorCategory } from "./types/navigation.js";
 
 // Static categories for the skeleton - will be replaced with dynamic loading
@@ -37,7 +41,7 @@ function getCategoryLabel(
   }
   switch (category.type) {
     case "object":
-      return category.objectSlug as string;
+      return category.objectSlug;
     case "list":
       return "List";
     case "notes":
@@ -52,16 +56,18 @@ function getCategoryLabel(
 }
 
 // Get category type for data loading
-function getCategoryType(category: NavigatorCategory | undefined): string {
+function getCategoryType(
+  category: NavigatorCategory | undefined,
+): NavigatorCategory["type"] {
   return category?.type ?? "object";
 }
 
 // Get category slug for objects
 function getCategorySlug(
   category: NavigatorCategory | undefined,
-): string | undefined {
+): ObjectSlug | undefined {
   if (category?.type === "object") {
-    return category.objectSlug as string;
+    return category.objectSlug;
   }
   return;
 }
@@ -190,25 +196,27 @@ function MainApp() {
 function AppWithClient() {
   const { configState, setApiKey } = useClient();
 
-  switch (configState.status) {
-    case "loading":
-      return (
-        <Box padding={1}>
-          <Text color="yellow">Loading configuration...</Text>
-        </Box>
-      );
-    case "error":
-      return (
-        <Box padding={1}>
-          <Text color="red">Error: {configState.error}</Text>
-        </Box>
-      );
-    case "ready":
-      if (!configState.isConfigured) {
-        return <ApiKeyPrompt onSubmit={setApiKey} />;
-      }
-      return <MainApp />;
-  }
+  const errorMessage =
+    configState.status === "error" ? configState.error : "Unknown error";
+  const isConfigured =
+    configState.status === "ready" ? configState.isConfigured : false;
+
+  const renderByStatus = {
+    loading: () => (
+      <Box padding={1}>
+        <Text color="yellow">Loading configuration...</Text>
+      </Box>
+    ),
+    error: () => (
+      <Box padding={1}>
+        <Text color="red">Error: {errorMessage}</Text>
+      </Box>
+    ),
+    ready: () =>
+      isConfigured ? <MainApp /> : <ApiKeyPrompt onSubmit={setApiKey} />,
+  } satisfies Record<ConfigState["status"], () => JSX.Element>;
+
+  return renderByStatus[configState.status]();
 }
 
 export default function App() {

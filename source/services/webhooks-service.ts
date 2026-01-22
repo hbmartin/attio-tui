@@ -6,40 +6,9 @@ import {
   postV2Webhooks,
 } from "attio-ts-sdk";
 
-// Webhook event types from the SDK
-type WebhookEventType =
-  | "call-recording.created"
-  | "comment.created"
-  | "comment.resolved"
-  | "comment.unresolved"
-  | "comment.deleted"
-  | "list.created"
-  | "list.updated"
-  | "list.deleted"
-  | "list-attribute.created"
-  | "list-attribute.updated"
-  | "list-attribute.deleted"
-  | "list-entry.created"
-  | "list-entry.updated"
-  | "list-entry.deleted"
-  | "note.created"
-  | "note.updated"
-  | "note.deleted"
-  | "object.created"
-  | "object.updated"
-  | "object.deleted"
-  | "object-attribute.created"
-  | "object-attribute.updated"
-  | "object-attribute.deleted"
-  | "record.created"
-  | "record.merged"
-  | "record.updated"
-  | "record.deleted"
-  | "workspace-member.created";
-
-// The filter can be complex - we just store it as-is
+// Webhook subscription info - filter and eventType stored as-is from SDK
 export interface WebhookSubscription {
-  readonly eventType: WebhookEventType;
+  readonly eventType: string;
   readonly filter: unknown;
 }
 
@@ -51,10 +20,15 @@ export interface WebhookInfo {
   readonly createdAt: string;
 }
 
+export interface QueryWebhooksResult {
+  readonly webhooks: readonly WebhookInfo[];
+  readonly nextCursor: string | null;
+}
+
 export interface CreateWebhookInput {
   readonly targetUrl: string;
   readonly subscriptions: readonly {
-    readonly eventType: WebhookEventType;
+    readonly eventType: string;
     readonly filter?: unknown;
   }[];
 }
@@ -63,16 +37,28 @@ export interface UpdateWebhookInput {
   readonly targetUrl?: string;
   readonly status?: "active" | "paused";
   readonly subscriptions?: readonly {
-    readonly eventType: WebhookEventType;
+    readonly eventType: string;
     readonly filter?: unknown;
   }[];
 }
 
-// Fetch all webhooks
+// Fetch webhooks with pagination
 export async function fetchWebhooks(
   client: AttioClient,
-): Promise<readonly WebhookInfo[]> {
-  const response = await getV2Webhooks({ client });
+  options: {
+    readonly limit?: number;
+    readonly cursor?: string;
+  } = {},
+): Promise<QueryWebhooksResult> {
+  const { limit = 25, cursor } = options;
+
+  const response = await getV2Webhooks({
+    client,
+    query: {
+      limit,
+      ...(cursor ? { offset: Number.parseInt(cursor, 10) } : {}),
+    },
+  });
 
   if (response.error) {
     throw new Error(
@@ -81,7 +67,7 @@ export async function fetchWebhooks(
   }
 
   const data = response.data?.data ?? [];
-  return data.map((webhook) => ({
+  const webhooks = data.map((webhook) => ({
     id: webhook.id.webhook_id,
     targetUrl: webhook.target_url,
     status: webhook.status as "active" | "paused",
@@ -91,6 +77,15 @@ export async function fetchWebhooks(
     })),
     createdAt: webhook.created_at,
   }));
+
+  const currentOffset = cursor ? Number.parseInt(cursor, 10) : 0;
+  const nextCursor =
+    webhooks.length === limit ? String(currentOffset + limit) : null;
+
+  return {
+    webhooks,
+    nextCursor,
+  };
 }
 
 // Create a new webhook
@@ -98,15 +93,18 @@ export async function createWebhook(
   client: AttioClient,
   input: CreateWebhookInput,
 ): Promise<WebhookInfo> {
+  // Cast to bypass strict SDK typing - eventType comes from user input
+  const subscriptions = input.subscriptions.map((s) => ({
+    event_type: s.eventType,
+    filter: s.filter ?? null,
+  })) as Parameters<typeof postV2Webhooks>[0]["body"]["data"]["subscriptions"];
+
   const response = await postV2Webhooks({
     client,
     body: {
       data: {
         target_url: input.targetUrl,
-        subscriptions: input.subscriptions.map((s) => ({
-          event_type: s.eventType,
-          filter: (s.filter ?? null) as null,
-        })),
+        subscriptions,
       },
     },
   });
@@ -140,6 +138,16 @@ export async function updateWebhook(
   webhookId: string,
   input: UpdateWebhookInput,
 ): Promise<WebhookInfo> {
+  // Build subscriptions with cast if provided
+  const subscriptions = input.subscriptions
+    ? (input.subscriptions.map((s) => ({
+        event_type: s.eventType,
+        filter: s.filter ?? null,
+      })) as Parameters<
+        typeof patchV2WebhooksByWebhookId
+      >[0]["body"]["data"]["subscriptions"])
+    : undefined;
+
   const response = await patchV2WebhooksByWebhookId({
     client,
     path: { webhook_id: webhookId },
@@ -147,14 +155,7 @@ export async function updateWebhook(
       data: {
         ...(input.targetUrl ? { target_url: input.targetUrl } : {}),
         ...(input.status ? { status: input.status } : {}),
-        ...(input.subscriptions
-          ? {
-              subscriptions: input.subscriptions.map((s) => ({
-                event_type: s.eventType,
-                filter: (s.filter ?? null) as null,
-              })),
-            }
-          : {}),
+        ...(subscriptions ? { subscriptions } : {}),
       },
     },
   });

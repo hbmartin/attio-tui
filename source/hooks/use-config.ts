@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import process from "node:process";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   type AppConfig,
   DEFAULT_CONFIG,
@@ -47,6 +47,7 @@ export function useConfig(): UseConfigResult {
   const [config, setConfig] = useState<AppConfig>(DEFAULT_CONFIG);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | undefined>();
+  const latestConfigRef = useRef<AppConfig>(DEFAULT_CONFIG);
 
   // Load config on mount
   useEffect(() => {
@@ -55,28 +56,33 @@ export function useConfig(): UseConfigResult {
 
     try {
       const loadedConfig = loadConfigFromDisk();
+      latestConfigRef.current = loadedConfig;
       setConfig(loadedConfig);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unknown error";
       setError(`Failed to load config: ${message}`);
+      latestConfigRef.current = DEFAULT_CONFIG;
       setConfig(DEFAULT_CONFIG);
     } finally {
       setLoading(false);
     }
   }, []);
 
+  useEffect(() => {
+    latestConfigRef.current = config;
+  }, [config]);
+
   // Save config updates
   const saveConfig = useCallback((updates: Partial<AppConfig>) => {
-    setConfig((prev) => {
-      const newConfig = { ...prev, ...updates };
-      try {
-        saveConfigToDisk(newConfig);
-      } catch (err) {
-        const message = err instanceof Error ? err.message : "Unknown error";
-        setError(`Failed to save config: ${message}`);
-      }
-      return newConfig;
-    });
+    const newConfig = { ...latestConfigRef.current, ...updates };
+    latestConfigRef.current = newConfig;
+    setConfig(() => newConfig);
+    try {
+      saveConfigToDisk(newConfig);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      setError(`Failed to save config: ${message}`);
+    }
   }, []);
 
   // Convenience method to set API key

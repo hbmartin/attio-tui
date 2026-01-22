@@ -17,13 +17,41 @@ export interface ListEntryInfo {
   readonly createdAt: string;
 }
 
+export interface QueryListsResult {
+  readonly lists: readonly ListInfo[];
+  readonly nextCursor: string | null;
+}
+
 export interface QueryListEntriesResult {
   readonly entries: readonly ListEntryInfo[];
   readonly nextCursor: string | null;
 }
 
-// Fetch all lists in the workspace
-export async function fetchLists(
+const listCache = new WeakMap<AttioClient, readonly ListInfo[]>();
+const DEFAULT_LIST_LIMIT = 25;
+
+function normalizeLimit(limit: number | undefined): number {
+  if (limit !== undefined && Number.isFinite(limit) && limit > 0) {
+    return limit;
+  }
+  return DEFAULT_LIST_LIMIT;
+}
+
+function parseCursorOffset(cursor: string | undefined): number | undefined {
+  if (cursor === undefined) {
+    return;
+  }
+
+  const parsed = Number.parseInt(cursor, 10);
+
+  if (Number.isNaN(parsed) || !Number.isInteger(parsed) || parsed < 0) {
+    return;
+  }
+
+  return parsed;
+}
+
+async function fetchAllLists(
   client: AttioClient,
 ): Promise<readonly ListInfo[]> {
   const response = await getV2Lists({ client });
@@ -34,13 +62,49 @@ export async function fetchLists(
 
   const lists = response.data?.data ?? [];
 
-  return lists.map((list) => ({
+  const mapped = lists.map((list) => ({
     id: list.id.list_id,
     apiSlug: list.api_slug,
     name: list.name,
     // parent_object is an array (legacy support), take first or join
     parentObject: list.parent_object[0] ?? "",
   }));
+
+  listCache.set(client, mapped);
+  return mapped;
+}
+
+// Fetch lists in the workspace with pagination
+export async function fetchLists(
+  client: AttioClient,
+  options: {
+    readonly limit?: number;
+    readonly cursor?: string;
+  } = {},
+): Promise<QueryListsResult> {
+  const { limit, cursor } = options;
+  const normalizedLimit = normalizeLimit(limit);
+  const offset = parseCursorOffset(cursor);
+
+  const lists =
+    cursor === undefined || offset === undefined
+      ? await fetchAllLists(client)
+      : (listCache.get(client) ?? (await fetchAllLists(client)));
+
+  const currentOffset = offset ?? 0;
+  const pagedLists = lists.slice(
+    currentOffset,
+    currentOffset + normalizedLimit,
+  );
+  const nextCursor =
+    currentOffset + normalizedLimit < lists.length
+      ? String(currentOffset + normalizedLimit)
+      : null;
+
+  return {
+    lists: pagedLists,
+    nextCursor,
+  };
 }
 
 // Query entries for a specific list
@@ -52,14 +116,16 @@ export async function queryListEntries(
     readonly cursor?: string;
   } = {},
 ): Promise<QueryListEntriesResult> {
-  const { limit = 25, cursor } = options;
+  const { limit, cursor } = options;
+  const normalizedLimit = normalizeLimit(limit);
+  const offset = parseCursorOffset(cursor);
 
   const response = await postV2ListsByListEntriesQuery({
     client,
     path: { list: listId as string },
     body: {
-      limit,
-      ...(cursor ? { offset: Number.parseInt(cursor, 10) } : {}),
+      limit: normalizedLimit,
+      ...(offset !== undefined ? { offset } : {}),
     },
   });
 
@@ -79,9 +145,11 @@ export async function queryListEntries(
   }));
 
   // Calculate next cursor based on offset
-  const currentOffset = cursor ? Number.parseInt(cursor, 10) : 0;
+  const currentOffset = offset ?? 0;
   const nextCursor =
-    entries.length === limit ? String(currentOffset + limit) : null;
+    entries.length === normalizedLimit
+      ? String(currentOffset + normalizedLimit)
+      : null;
 
   return {
     entries,

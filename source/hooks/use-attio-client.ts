@@ -11,39 +11,48 @@ interface UseAttioClientResult {
   readonly isConfigured: boolean;
 }
 
+interface AttioClientConfigInput {
+  readonly apiKey: AppConfig["apiKey"];
+  readonly baseUrl: AppConfig["baseUrl"];
+}
+
 /**
  * Builds an AttioClient from config if apiKey is present.
  * Shared helper for both hook and non-hook contexts.
  */
 export function buildAttioClientFromConfig(
-  config: AppConfig,
+  config: AttioClientConfigInput,
 ): AttioClient | undefined {
-  if (!config.apiKey) {
+  const { apiKey, baseUrl } = config;
+  if (!apiKey) {
     return;
   }
 
   return createAttioClient({
-    apiKey: config.apiKey,
-    baseUrl: config.baseUrl,
+    apiKey,
+    baseUrl,
   });
 }
 
 export function useAttioClient({
   config,
 }: UseAttioClientOptions): UseAttioClientResult {
-  const { apiKey, baseUrl, debugEnabled } = config;
+  const { apiKey, baseUrl } = config;
   const client = useMemo(
-    () => buildAttioClientFromConfig({ apiKey, baseUrl, debugEnabled }),
-    [apiKey, baseUrl, debugEnabled],
+    () => buildAttioClientFromConfig({ apiKey, baseUrl }),
+    [apiKey, baseUrl],
   );
 
   return {
     client,
-    isConfigured: Boolean(config.apiKey),
+    isConfigured: Boolean(apiKey),
   };
 }
 
 // Create client directly for non-hook contexts
 export function createClient(config: AppConfig): AttioClient | undefined {
-  return buildAttioClientFromConfig(config);
+  return buildAttioClientFromConfig({
+    apiKey: config.apiKey,
+    baseUrl: config.baseUrl,
+  });
 }
