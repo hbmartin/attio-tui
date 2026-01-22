@@ -1,4 +1,5 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import process from "node:process";
 import { useCallback, useEffect, useState } from "react";
 import {
   type AppConfig,
@@ -108,5 +109,11 @@ export function loadConfig(): AppConfig {
 
 // Synchronous config saving
 export function saveConfig(config: AppConfig): void {
-  saveConfigToDisk(config);
+  try {
+    saveConfigToDisk(config);
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unknown error";
+    // Log to stderr to avoid interfering with TUI rendering
+    process.stderr.write(`Failed to save config: ${message}\n`);
+  }
 }
