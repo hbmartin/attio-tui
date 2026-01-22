@@ -1,4 +1,5 @@
 import {
+  COMMAND_PALETTE_MAX_VISIBLE,
   createInitialNavigationState,
   DETAIL_TABS,
   type DetailTab,
@@ -357,8 +358,7 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       };
 
     case "NAVIGATE_COMMAND": {
-      // Max index will be determined by filtered commands
-      const maxIndex = 9; // Show max 10 commands
+      const maxIndex = COMMAND_PALETTE_MAX_VISIBLE - 1;
       return {
         ...state,
         navigation: {

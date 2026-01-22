@@ -29,6 +29,9 @@ export const DETAIL_TABS: readonly DetailTab[] = [
   "actions",
 ] as const;
 
+// Maximum number of commands visible in the command palette
+export const COMMAND_PALETTE_MAX_VISIBLE = 10;
+
 // Navigator state
 export interface NavigatorState {
   readonly categories: readonly NavigatorCategory[];

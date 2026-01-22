@@ -1,5 +1,6 @@
 import { Box, Text } from "ink";
 import type { Command } from "../../types/commands.js";
+import { COMMAND_PALETTE_MAX_VISIBLE } from "../../types/navigation.js";
 
 interface CommandListProps {
   readonly commands: readonly Command[];
@@ -13,7 +14,7 @@ export function CommandList({ commands, selectedIndex }: CommandListProps) {
 
   return (
     <Box flexDirection="column">
-      {commands.slice(0, 10).map((command, index) => {
+      {commands.slice(0, COMMAND_PALETTE_MAX_VISIBLE).map((command, index) => {
         const isSelected = index === selectedIndex;
         const backgroundColor = isSelected ? "blue" : undefined;
         const textColor = isSelected ? "white" : undefined;
