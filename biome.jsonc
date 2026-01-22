@@ -458,7 +458,9 @@
           },
           "complexity": {
             "noExcessiveLinesPerFunction": "off",
-            "noExcessiveCognitiveComplexity": "off"
+            "noExcessiveCognitiveComplexity": "off",
+            // TypeScript noPropertyAccessFromIndexSignature requires bracket notation
+            "useLiteralKeys": "off"
           },
           "nursery": {
             "noUnnecessaryConditions": "off",

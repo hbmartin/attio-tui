@@ -66,20 +66,18 @@ export function useConfig(): UseConfigResult {
   }, []);
 
   // Save config updates
-  const saveConfig = useCallback(
-    (updates: Partial<AppConfig>) => {
-      const newConfig = { ...config, ...updates };
-      setConfig(newConfig);
-
+  const saveConfig = useCallback((updates: Partial<AppConfig>) => {
+    setConfig((prev) => {
+      const newConfig = { ...prev, ...updates };
       try {
         saveConfigToDisk(newConfig);
       } catch (err) {
         const message = err instanceof Error ? err.message : "Unknown error";
         setError(`Failed to save config: ${message}`);
       }
-    },
-    [config],
-  );
+      return newConfig;
+    });
+  }, []);
 
   // Convenience method to set API key
   const setApiKey = useCallback(

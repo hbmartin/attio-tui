@@ -25,7 +25,8 @@
       "Bash(pnpm build)",
       "Bash(git:*)",
       "Bash(git add:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(pnpm biome check:*)"
     ]
   }
 }
