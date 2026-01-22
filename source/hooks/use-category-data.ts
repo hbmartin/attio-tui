@@ -1,5 +1,5 @@
 import type { AttioClient } from "attio-ts-sdk";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback } from "react";
 import { fetchLists } from "../services/lists-service.js";
 import { fetchMeetings } from "../services/meetings-service.js";
 import { fetchNotes } from "../services/notes-service.js";
@@ -8,6 +8,7 @@ import { fetchTasks } from "../services/tasks-service.js";
 import { fetchWebhooks } from "../services/webhooks-service.js";
 import { parseObjectSlug } from "../types/ids.js";
 import type { ResultItem } from "../types/navigation.js";
+import { usePaginatedData } from "./use-paginated-data.js";
 
 interface UseCategoryDataOptions {
   readonly client: AttioClient | undefined;
@@ -24,18 +25,18 @@ interface UseCategoryDataResult {
   readonly refresh: () => Promise<void>;
 }
 
+interface CategoryDataPage {
+  readonly items: readonly ResultItem[];
+  readonly nextCursor: string | null;
+}
+
 export function useCategoryData({
   client,
   categoryType,
   categorySlug,
 }: UseCategoryDataOptions): UseCategoryDataResult {
-  const [items, setItems] = useState<readonly ResultItem[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | undefined>();
-  const [nextCursor, setNextCursor] = useState<string | null>(null);
-
   const fetchData = useCallback(
-    async (cursor?: string) => {
+    async (cursor?: string): Promise<CategoryDataPage> => {
       if (!client) {
         return { items: [], nextCursor: null };
       }
@@ -134,68 +135,17 @@ export function useCategoryData({
     [client, categoryType, categorySlug],
   );
 
-  // Initial load
-  useEffect(() => {
-    const load = async () => {
-      setLoading(true);
-      setError(undefined);
-      try {
-        const result = await fetchData();
-        setItems(result.items);
-        setNextCursor(result.nextCursor);
-      } catch (err) {
-        const message = err instanceof Error ? err.message : "Unknown error";
-        setError(message);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    load().catch(() => {
-      // Error is already handled in the load function
+  const { data, loading, error, hasNextPage, loadMore, refresh } =
+    usePaginatedData<ResultItem>({
+      fetchFn: fetchData,
+      enabled: Boolean(client),
     });
-  }, [fetchData]);
-
-  // Load more
-  const loadMore = useCallback(async () => {
-    if (!nextCursor || loading) {
-      return;
-    }
-
-    try {
-      const result = await fetchData(nextCursor);
-      setItems((prev) => [...prev, ...result.items]);
-      setNextCursor(result.nextCursor);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Unknown error";
-      setError(message);
-    }
-  }, [fetchData, nextCursor, loading]);
-
-  // Refresh
-  const refresh = useCallback(async () => {
-    setItems([]);
-    setNextCursor(null);
-    setLoading(true);
-    setError(undefined);
-
-    try {
-      const result = await fetchData();
-      setItems(result.items);
-      setNextCursor(result.nextCursor);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Unknown error";
-      setError(message);
-    } finally {
-      setLoading(false);
-    }
-  }, [fetchData]);
 
   return {
-    items,
+    items: data,
     loading,
     error,
-    hasNextPage: Boolean(nextCursor),
+    hasNextPage,
     loadMore,
     refresh,
   };

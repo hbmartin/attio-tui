@@ -1,5 +1,9 @@
 import type { AttioClient } from "attio-ts-sdk";
-import { getV2Objects, postV2ObjectsByObjectRecordsQuery } from "attio-ts-sdk";
+import {
+  getV2Objects,
+  getV2ObjectsByObjectRecordsByRecordId,
+  postV2ObjectsByObjectRecordsQuery,
+} from "attio-ts-sdk";
 import type { ObjectSlug } from "../types/ids.js";
 
 export interface ObjectInfo {
@@ -19,6 +23,24 @@ export interface RecordInfo {
 export interface QueryRecordsResult {
   readonly records: readonly RecordInfo[];
   readonly nextCursor: string | null;
+}
+
+interface RecordPayload {
+  readonly id: {
+    readonly record_id: string;
+    readonly object_id: string;
+  };
+  readonly values: Record<string, unknown>;
+  readonly created_at: string;
+}
+
+function toRecordInfo(record: RecordPayload): RecordInfo {
+  return {
+    id: record.id.record_id,
+    objectId: record.id.object_id,
+    values: record.values,
+    createdAt: record.created_at,
+  };
 }
 
 // Fetch all objects in the workspace
@@ -62,7 +84,7 @@ export async function queryRecords(
 
   const response = await postV2ObjectsByObjectRecordsQuery({
     client,
-    path: { object: objectSlug as string },
+    path: { object: objectSlug },
     body: {
       limit,
       ...(cursor ? { offset: Number.parseInt(cursor, 10) } : {}),
@@ -77,12 +99,7 @@ export async function queryRecords(
   }
 
   const data = response.data?.data ?? [];
-  const records = data.map((record) => ({
-    id: record.id.record_id,
-    objectId: record.id.object_id,
-    values: record.values as Record<string, unknown>,
-    createdAt: record.created_at,
-  }));
+  const records = data.map((record) => toRecordInfo(record));
 
   // Calculate next cursor based on offset
   const currentOffset = cursor ? Number.parseInt(cursor, 10) : 0;
@@ -101,9 +118,24 @@ export async function getRecord(
   objectSlug: ObjectSlug,
   recordId: string,
 ): Promise<RecordInfo | undefined> {
-  const { records } = await queryRecords(client, objectSlug, { limit: 1 });
+  const response = await getV2ObjectsByObjectRecordsByRecordId({
+    client,
+    path: {
+      object: objectSlug,
+      record_id: recordId,
+    },
+  });
 
-  // Note: This is a simplified implementation. In a real app, you'd use
-  // a direct record fetch endpoint if available.
-  return records.find((r) => r.id === recordId);
+  if (response.error) {
+    if (response.error.status_code === 404) {
+      return;
+    }
+
+    throw new Error(
+      `Failed to fetch record: ${JSON.stringify(response.error)}`,
+    );
+  }
+
+  const record = response.data?.data;
+  return record ? toRecordInfo(record) : undefined;
 }
