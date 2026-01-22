@@ -160,7 +160,7 @@ describe("queryListEntries", () => {
   });
 
   it("omits invalid cursor and enforces positive limit", async () => {
-    const listId = parseListId("11111111-1111-1111-1111-111111111111");
+    const listId = parseListId("11111111-1111-1111-8111-111111111111");
 
     mockQueryListEntries.mockResolvedValue(
       buildSuccess({ data: [buildEntry(listId, "entry-1")] }),
@@ -174,12 +174,13 @@ describe("queryListEntries", () => {
     const [call] = mockQueryListEntries.mock.calls;
 
     expect(call?.[0].path).toEqual({ list: listId });
-    expect(call?.[0].body).toEqual({ limit: 25 });
+    // Requests DEFAULT_LIST_LIMIT + 1 to detect hasMore
+    expect(call?.[0].body).toEqual({ limit: 26 });
     expect(result.nextCursor).toBeNull();
   });
 
   it("passes valid cursor offsets through to the API", async () => {
-    const listId = parseListId("22222222-2222-2222-2222-222222222222");
+    const listId = parseListId("22222222-2222-2222-8222-222222222222");
 
     mockQueryListEntries.mockResolvedValue(
       buildSuccess({ data: [buildEntry(listId, "entry-1")] }),
@@ -190,6 +191,49 @@ describe("queryListEntries", () => {
     const [call] = mockQueryListEntries.mock.calls;
 
     expect(call?.[0].path).toEqual({ list: listId });
-    expect(call?.[0].body).toEqual({ limit: 1, offset: 5 });
+    // Requests limit + 1 to detect hasMore
+    expect(call?.[0].body).toEqual({ limit: 2, offset: 5 });
+  });
+
+  it("returns null nextCursor when total rows equal limit (no extra row)", async () => {
+    const listId = parseListId("33333333-3333-3333-8333-333333333333");
+
+    // API returns exactly 2 rows when we requested 3 (limit=2, request=limit+1)
+    // This means there are no more pages
+    mockQueryListEntries.mockResolvedValue(
+      buildSuccess({
+        data: [buildEntry(listId, "entry-1"), buildEntry(listId, "entry-2")],
+      }),
+    );
+
+    const result = await queryListEntries(client, listId, { limit: 2 });
+
+    expect(result.entries).toHaveLength(2);
+    expect(result.nextCursor).toBeNull();
+  });
+
+  it("returns nextCursor when more rows exist (extra row returned)", async () => {
+    const listId = parseListId("44444444-4444-4444-8444-444444444444");
+
+    // API returns 3 rows when we requested 3 (limit=2, request=limit+1)
+    // This means there are more pages - we should trim and signal hasMore
+    mockQueryListEntries.mockResolvedValue(
+      buildSuccess({
+        data: [
+          buildEntry(listId, "entry-1"),
+          buildEntry(listId, "entry-2"),
+          buildEntry(listId, "entry-3"),
+        ],
+      }),
+    );
+
+    const result = await queryListEntries(client, listId, { limit: 2 });
+
+    // Should only return 2 entries (trimmed)
+    expect(result.entries).toHaveLength(2);
+    expect(result.entries[0]?.id).toBe("entry-1");
+    expect(result.entries[1]?.id).toBe("entry-2");
+    // Should have nextCursor since there was an extra row
+    expect(result.nextCursor).toBe("2");
   });
 });

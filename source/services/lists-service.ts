@@ -1,21 +1,7 @@
 import type { AttioClient } from "attio-ts-sdk";
 import { getV2Lists, postV2ListsByListEntriesQuery } from "attio-ts-sdk";
+import type { ListEntryInfo, ListInfo } from "../types/attio.js";
 import type { ListId } from "../types/ids.js";
-
-export interface ListInfo {
-  readonly id: string;
-  readonly apiSlug: string;
-  readonly name: string;
-  readonly parentObject: string;
-}
-
-export interface ListEntryInfo {
-  readonly id: string;
-  readonly listId: string;
-  readonly parentRecordId: string;
-  readonly values: Record<string, unknown>;
-  readonly createdAt: string;
-}
 
 export interface QueryListsResult {
   readonly lists: readonly ListInfo[];
@@ -120,11 +106,12 @@ export async function queryListEntries(
   const normalizedLimit = normalizeLimit(limit);
   const offset = parseCursorOffset(cursor);
 
+  // Request one extra row to detect if more pages exist
   const response = await postV2ListsByListEntriesQuery({
     client,
-    path: { list: listId as string },
+    path: { list: listId },
     body: {
-      limit: normalizedLimit,
+      limit: normalizedLimit + 1,
       ...(offset !== undefined ? { offset } : {}),
     },
   });
@@ -136,20 +123,20 @@ export async function queryListEntries(
   }
 
   const data = response.data?.data ?? [];
-  const entries = data.map((entry) => ({
+  const hasMore = data.length > normalizedLimit;
+  const trimmedData = hasMore ? data.slice(0, normalizedLimit) : data;
+
+  const entries = trimmedData.map((entry) => ({
     id: entry.id.entry_id,
     listId: entry.id.list_id,
     parentRecordId: entry.parent_record_id,
-    values: entry.entry_values as Record<string, unknown>,
+    values: entry.entry_values,
     createdAt: entry.created_at,
   }));
 
-  // Calculate next cursor based on offset
+  // Calculate next cursor only when more data exists
   const currentOffset = offset ?? 0;
-  const nextCursor =
-    entries.length === normalizedLimit
-      ? String(currentOffset + normalizedLimit)
-      : null;
+  const nextCursor = hasMore ? String(currentOffset + normalizedLimit) : null;
 
   return {
     entries,
