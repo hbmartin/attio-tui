@@ -170,6 +170,26 @@ describe("appReducer", () => {
       const result = appReducer(initialState, action);
       expect(result.navigation.navigator.loading).toBe(true);
     });
+
+    it("should not go negative when navigating down with empty list", () => {
+      const state: AppState = {
+        ...initialState,
+        navigation: {
+          ...initialState.navigation,
+          navigator: {
+            ...initialState.navigation.navigator,
+            categories: [],
+            selectedIndex: 0,
+          },
+        },
+      };
+      const action: AppAction = {
+        type: "NAVIGATE_CATEGORY",
+        direction: "down",
+      };
+      const result = appReducer(state, action);
+      expect(result.navigation.navigator.selectedIndex).toBe(0);
+    });
   });
 
   describe("results", () => {
@@ -234,6 +254,23 @@ describe("appReducer", () => {
       const action: AppAction = { type: "SET_SEARCH_QUERY", query: "test" };
       const result = appReducer(initialState, action);
       expect(result.navigation.results.searchQuery).toBe("test");
+    });
+
+    it("should not go negative when navigating down with empty list", () => {
+      const state: AppState = {
+        ...initialState,
+        navigation: {
+          ...initialState.navigation,
+          results: {
+            ...initialState.navigation.results,
+            items: [],
+            selectedIndex: 0,
+          },
+        },
+      };
+      const action: AppAction = { type: "NAVIGATE_RESULT", direction: "down" };
+      const result = appReducer(state, action);
+      expect(result.navigation.results.selectedIndex).toBe(0);
     });
   });
 

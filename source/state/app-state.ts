@@ -69,7 +69,8 @@ function navigateIndex(
   if (direction === "up") {
     return Math.max(0, current - 1);
   }
-  return Math.min(maxIndex, current + 1);
+  // Ensure index never goes negative (handles empty list where maxIndex = -1)
+  return Math.max(0, Math.min(maxIndex, current + 1));
 }
 
 function navigateTabIndex(
