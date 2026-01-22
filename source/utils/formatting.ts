@@ -133,6 +133,22 @@ export function formatDateTime(dateString: string | null | undefined): string {
   return date.toLocaleString();
 }
 
+// Format a meeting time range with date and time
+export function formatMeetingTime(startAt: string, endAt: string): string {
+  const start = new Date(startAt);
+  const end = new Date(endAt);
+  const dateStr = start.toLocaleDateString();
+  const startTime = start.toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  const endTime = end.toLocaleTimeString([], {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  return `${dateStr} ${startTime} - ${endTime}`;
+}
+
 // Format a relative time (e.g., "2 hours ago")
 export function formatRelativeTime(
   dateString: string | null | undefined,
@@ -147,6 +163,9 @@ export function formatRelativeTime(
   }
 
   const now = new Date();
+  if (date.getTime() > now.getTime()) {
+    return formatDate(dateString);
+  }
   const diffMs = now.getTime() - date.getTime();
   const diffSec = Math.floor(diffMs / 1000);
   const diffMin = Math.floor(diffSec / 60);
@@ -169,10 +188,34 @@ export function formatRelativeTime(
   return formatDate(dateString);
 }
 
+export interface TaskSubtitleOptions {
+  readonly isCompleted: boolean;
+  readonly deadlineAt: string | null;
+}
+
+// Build a task subtitle based on completion and deadline
+export function getTaskSubtitle({
+  isCompleted,
+  deadlineAt,
+}: TaskSubtitleOptions): string {
+  if (isCompleted) {
+    return "Completed";
+  }
+  if (deadlineAt) {
+    return `Due: ${formatDate(deadlineAt)}`;
+  }
+  return "No deadline";
+}
+
 // Truncate a string to a maximum length
 export function truncate(str: string, maxLength: number): string {
   if (str.length <= maxLength) {
     return str;
   }
   return `${str.slice(0, maxLength - 3)}...`;
+}
+
+// Backwards-compatible helper for truncating text
+export function truncateText(text: string, maxLength: number): string {
+  return truncate(text, maxLength);
 }

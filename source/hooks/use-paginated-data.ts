@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 interface PaginatedResult<T> {
   readonly items: readonly T[];
@@ -31,6 +31,7 @@ export function usePaginatedData<T>({
   const [error, setError] = useState<string | undefined>();
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [isPrefetching, setIsPrefetching] = useState(false);
+  const loadMoreInFlightRef = useRef(false);
 
   // Initial fetch
   const fetchInitial = useCallback(async () => {
@@ -55,11 +56,17 @@ export function usePaginatedData<T>({
 
   // Load more data
   const loadMore = useCallback(async () => {
-    if (!nextCursor || loading || isPrefetching) {
+    if (
+      !nextCursor ||
+      loading ||
+      isPrefetching ||
+      loadMoreInFlightRef.current
+    ) {
       return;
     }
 
     setIsPrefetching(true);
+    loadMoreInFlightRef.current = true;
 
     try {
       const result = await fetchFn(nextCursor);
@@ -70,6 +77,7 @@ export function usePaginatedData<T>({
       setError(message);
     } finally {
       setIsPrefetching(false);
+      loadMoreInFlightRef.current = false;
     }
   }, [fetchFn, nextCursor, loading, isPrefetching]);
 

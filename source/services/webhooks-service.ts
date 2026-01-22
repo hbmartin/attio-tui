@@ -20,6 +20,11 @@ export interface WebhookInfo {
   readonly createdAt: string;
 }
 
+export interface QueryWebhooksResult {
+  readonly webhooks: readonly WebhookInfo[];
+  readonly nextCursor: string | null;
+}
+
 export interface CreateWebhookInput {
   readonly targetUrl: string;
   readonly subscriptions: readonly {
@@ -37,11 +42,23 @@ export interface UpdateWebhookInput {
   }[];
 }
 
-// Fetch all webhooks
+// Fetch webhooks with pagination
 export async function fetchWebhooks(
   client: AttioClient,
-): Promise<readonly WebhookInfo[]> {
-  const response = await getV2Webhooks({ client });
+  options: {
+    readonly limit?: number;
+    readonly cursor?: string;
+  } = {},
+): Promise<QueryWebhooksResult> {
+  const { limit = 25, cursor } = options;
+
+  const response = await getV2Webhooks({
+    client,
+    query: {
+      limit,
+      ...(cursor ? { offset: Number.parseInt(cursor, 10) } : {}),
+    },
+  });
 
   if (response.error) {
     throw new Error(
@@ -50,7 +67,7 @@ export async function fetchWebhooks(
   }
 
   const data = response.data?.data ?? [];
-  return data.map((webhook) => ({
+  const webhooks = data.map((webhook) => ({
     id: webhook.id.webhook_id,
     targetUrl: webhook.target_url,
     status: webhook.status as "active" | "paused",
@@ -60,6 +77,15 @@ export async function fetchWebhooks(
     })),
     createdAt: webhook.created_at,
   }));
+
+  const currentOffset = cursor ? Number.parseInt(cursor, 10) : 0;
+  const nextCursor =
+    webhooks.length === limit ? String(currentOffset + limit) : null;
+
+  return {
+    webhooks,
+    nextCursor,
+  };
 }
 
 // Create a new webhook

@@ -97,46 +97,63 @@ describe("parseConfig", () => {
 
 describe("isValidApiKey", () => {
   // Valid Attio key: "at_" prefix + 48 hex characters (total 51 chars)
-  const validKey = "at_0123456789abcdef0123456789abcdef0123456789abcdef";
+  interface ApiKeyTestData {
+    validKey: string;
+    missingPrefixKey: string;
+    wrongPrefixKey: string;
+    shortKey: string;
+    nonHexKey: string;
+    uppercaseHexKey: string;
+    specialCharKey: string;
+  }
+
+  const hexChunk = "0123456789abcdef";
+
+  const buildHex = (length: number): string => {
+    const repeated = hexChunk.repeat(Math.ceil(length / hexChunk.length));
+    return repeated.slice(0, length);
+  };
+
+  const apiKeyTestData: ApiKeyTestData = {
+    validKey: `at_${buildHex(48)}`,
+    missingPrefixKey: buildHex(48),
+    wrongPrefixKey: `sk_${buildHex(48)}`,
+    shortKey: `at_${buildHex(8)}`,
+    nonHexKey: `at_${buildHex(47)}g`,
+    uppercaseHexKey: `at_${buildHex(47)}A`,
+    specialCharKey: `at_${["abc", "@", "def", "#", "ghi", "$", "123", "!", "456"].join("")}`,
+  };
 
   it("should accept valid Attio API key with at_ prefix and hex chars", () => {
-    expect(isValidApiKey(validKey)).toBe(true);
+    expect(isValidApiKey(apiKeyTestData.validKey)).toBe(true);
   });
 
   it("should accept longer API keys", () => {
-    expect(isValidApiKey(`${validKey}00`)).toBe(true);
+    expect(isValidApiKey(`${apiKeyTestData.validKey}00`)).toBe(true);
   });
 
   it("should reject key without at_ prefix", () => {
-    expect(
-      isValidApiKey("0123456789abcdef0123456789abcdef0123456789abcdef01"),
-    ).toBe(false);
+    expect(isValidApiKey(apiKeyTestData.missingPrefixKey)).toBe(false);
   });
 
   it("should reject key with wrong prefix", () => {
-    expect(
-      isValidApiKey("sk_0123456789abcdef0123456789abcdef0123456789abcdef"),
-    ).toBe(false);
+    expect(isValidApiKey(apiKeyTestData.wrongPrefixKey)).toBe(false);
   });
 
   it("should reject short API key", () => {
-    expect(isValidApiKey("at_short")).toBe(false);
+    expect(isValidApiKey(apiKeyTestData.shortKey)).toBe(false);
   });
 
   it("should reject key with non-hex characters after prefix", () => {
-    expect(
-      isValidApiKey("at_0123456789abcdefg123456789abcdef0123456789abcdef"),
-    ).toBe(false);
+    expect(isValidApiKey(apiKeyTestData.nonHexKey)).toBe(false);
   });
 
   it("should reject key with uppercase hex characters", () => {
-    expect(
-      isValidApiKey("at_0123456789ABCDEF0123456789abcdef0123456789abcdef"),
-    ).toBe(false);
+    expect(isValidApiKey(apiKeyTestData.uppercaseHexKey)).toBe(false);
   });
 
   it("should reject API key with special characters", () => {
-    expect(isValidApiKey("at_abc@def#ghi$123!456")).toBe(false);
+    expect(isValidApiKey(apiKeyTestData.specialCharKey)).toBe(false);
   });
 
   it("should reject empty API key", () => {

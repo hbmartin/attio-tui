@@ -4,11 +4,13 @@ import { Text } from "ink";
 import { render } from "ink-testing-library";
 import { useEffect } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { ListInfo } from "../services/lists-service.js";
+import type { ListInfo, QueryListsResult } from "../services/lists-service.js";
 import { fetchLists } from "../services/lists-service.js";
 import type { NoteInfo, QueryNotesResult } from "../services/notes-service.js";
 import { fetchNotes } from "../services/notes-service.js";
-import type { ResultItem } from "../types/navigation.js";
+import { queryRecords } from "../services/objects-service.js";
+import { type ObjectSlug, parseObjectSlug } from "../types/ids.js";
+import type { NavigatorCategory, ResultItem } from "../types/navigation.js";
 import { useCategoryData } from "./use-category-data.js";
 
 vi.mock("../services/lists-service.js", () => ({
@@ -59,8 +61,8 @@ async function waitForCondition(
 
 interface CategoryOptions {
   readonly client: AttioClient | undefined;
-  readonly categoryType: string;
-  readonly categorySlug?: string;
+  readonly categoryType: NavigatorCategory["type"];
+  readonly categorySlug?: ObjectSlug;
 }
 
 interface CategorySnapshot {
@@ -97,6 +99,7 @@ function CategoryHarness({
 
 const mockFetchLists = vi.mocked(fetchLists);
 const mockFetchNotes = vi.mocked(fetchNotes);
+const mockQueryRecords = vi.mocked(queryRecords);
 
 const TEST_API_KEY = "attio_test_key_1234567890";
 
@@ -116,7 +119,12 @@ describe("useCategoryData", () => {
       },
     ];
 
-    mockFetchLists.mockResolvedValueOnce(lists);
+    const listResult: QueryListsResult = {
+      lists,
+      nextCursor: null,
+    };
+
+    mockFetchLists.mockResolvedValueOnce(listResult);
 
     let latest: CategorySnapshot | undefined;
 
@@ -143,7 +151,9 @@ describe("useCategoryData", () => {
       expect(latest.items[0]?.title).toBe("Growth Prospects");
       expect(latest.items[0]?.subtitle).toBe("Parent: companies");
       expect(latest.hasNextPage).toBe(false);
-      expect(mockFetchLists).toHaveBeenCalledWith(client);
+      expect(mockFetchLists).toHaveBeenCalledWith(client, {
+        cursor: undefined,
+      });
     } finally {
       instance.cleanup();
     }
@@ -227,6 +237,54 @@ describe("useCategoryData", () => {
       expect(latest.items[0]?.title).toBe("First Note");
       expect(latest.hasNextPage).toBe(true);
       expect(mockFetchNotes).toHaveBeenCalledTimes(3);
+    } finally {
+      instance.cleanup();
+    }
+  });
+
+  it("queries object records with branded slugs", async () => {
+    const client = createAttioClient({ apiKey: TEST_API_KEY });
+    const objectSlug = parseObjectSlug("companies");
+
+    mockQueryRecords.mockResolvedValueOnce({
+      records: [
+        {
+          id: "record-1",
+          objectId: "object-1",
+          values: {
+            name: [{ value: "Acme Corp" }],
+          },
+          createdAt: "2025-01-01T00:00:00Z",
+        },
+      ],
+      nextCursor: null,
+    });
+
+    let latest: CategorySnapshot | undefined;
+
+    const instance = render(
+      <CategoryHarness
+        options={{ client, categoryType: "object", categorySlug: objectSlug }}
+        onUpdate={(snapshot) => {
+          latest = snapshot;
+        }}
+      />,
+    );
+
+    try {
+      await waitForCondition(
+        () => Boolean(latest) && latest?.items.length === 1,
+      );
+
+      if (!latest) {
+        throw new Error("Expected hook state to be available");
+      }
+
+      expect(latest.items[0]?.title).toBe("Acme Corp");
+      expect(latest.hasNextPage).toBe(false);
+      expect(mockQueryRecords).toHaveBeenCalledWith(client, objectSlug, {
+        cursor: undefined,
+      });
     } finally {
       instance.cleanup();
     }
