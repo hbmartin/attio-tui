@@ -1,4 +1,5 @@
 import {
+  COMMAND_PALETTE_MAX_VISIBLE,
   createInitialNavigationState,
   DETAIL_TABS,
   type DetailTab,
@@ -69,7 +70,8 @@ function navigateIndex(
   if (direction === "up") {
     return Math.max(0, current - 1);
   }
-  return Math.min(maxIndex, current + 1);
+  // Ensure index never goes negative (handles empty list where maxIndex = -1)
+  return Math.max(0, Math.min(maxIndex, current + 1));
 }
 
 function navigateTabIndex(
@@ -356,8 +358,7 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       };
 
     case "NAVIGATE_COMMAND": {
-      // Max index will be determined by filtered commands
-      const maxIndex = 9; // Show max 10 commands
+      const maxIndex = COMMAND_PALETTE_MAX_VISIBLE - 1;
       return {
         ...state,
         navigation: {

@@ -1,5 +1,8 @@
 import { Box, Text } from "ink";
-import type { NavigatorCategory } from "../../types/navigation.js";
+import {
+  getNavigatorCategoryKey,
+  type NavigatorCategory,
+} from "../../types/navigation.js";
 import { Pane } from "../layout/pane.js";
 import { NavItem } from "./nav-item.js";
 
@@ -28,7 +31,7 @@ function NavigatorContent({
     <Box flexDirection="column">
       {categories.map((category, index) => (
         <NavItem
-          key={`${category.type}-${index}`}
+          key={getNavigatorCategoryKey(category)}
           category={category}
           selected={index === selectedIndex}
           focused={focused}

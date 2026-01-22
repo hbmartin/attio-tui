@@ -29,6 +29,9 @@ export const DETAIL_TABS: readonly DetailTab[] = [
   "actions",
 ] as const;
 
+// Maximum number of commands visible in the command palette
+export const COMMAND_PALETTE_MAX_VISIBLE = 10;
+
 // Navigator state
 export interface NavigatorState {
   readonly categories: readonly NavigatorCategory[];
@@ -73,6 +76,21 @@ export interface NavigationState {
   readonly results: ResultsState;
   readonly detail: DetailState;
   readonly commandPalette: CommandPaletteState;
+}
+
+// Generate a stable key for a NavigatorCategory
+export function getNavigatorCategoryKey(category: NavigatorCategory): string {
+  switch (category.type) {
+    case "object":
+      return `object-${category.objectSlug}`;
+    case "list":
+      return `list-${category.listId}`;
+    case "notes":
+    case "tasks":
+    case "meetings":
+    case "webhooks":
+      return category.type;
+  }
 }
 
 // Initial navigation state factory

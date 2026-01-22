@@ -1,4 +1,4 @@
-import { Box, useApp as useInkApp } from "ink";
+import { Box, Text, useApp as useInkApp } from "ink";
 import { useEffect } from "react";
 import { CommandPalette } from "./components/command-palette/command-palette.js";
 import { DetailPane } from "./components/detail/detail-pane.js";
@@ -6,9 +6,11 @@ import { StatusBar } from "./components/layout/status-bar.js";
 import { ThreePaneLayout } from "./components/layout/three-pane-layout.js";
 import { Navigator } from "./components/navigator/navigator.js";
 import { ResultsPane } from "./components/results/results-pane.js";
+import { ApiKeyPrompt } from "./components/setup/api-key-prompt.js";
 import { DEFAULT_COMMANDS, filterCommands } from "./constants/commands.js";
 import { useActionHandler } from "./hooks/use-action-handler.js";
 import { useKeyboard } from "./hooks/use-keyboard.js";
+import { ClientProvider, useClient } from "./state/client-context.js";
 import { AppProvider, useApp } from "./state/context.js";
 import { parseObjectSlug } from "./types/ids.js";
 import type { NavigatorCategory } from "./types/navigation.js";
@@ -48,7 +50,7 @@ function getCategoryLabel(
   }
 }
 
-function AppContent() {
+function MainApp() {
   const { state, dispatch } = useApp();
   const { exit } = useInkApp();
 
@@ -139,10 +141,42 @@ function AppContent() {
   );
 }
 
+function AppWithClient() {
+  const { isConfigured, configLoading, configError, setApiKey } = useClient();
+
+  // Show loading state while config is loading
+  if (configLoading) {
+    return (
+      <Box padding={1}>
+        <Text color="yellow">Loading configuration...</Text>
+      </Box>
+    );
+  }
+
+  // Show error if config failed to load
+  if (configError) {
+    return (
+      <Box padding={1}>
+        <Text color="red">Error: {configError}</Text>
+      </Box>
+    );
+  }
+
+  // Show API key prompt if not configured
+  if (!isConfigured) {
+    return <ApiKeyPrompt onSubmit={setApiKey} />;
+  }
+
+  // Show main app when configured
+  return <MainApp />;
+}
+
 export default function App() {
   return (
-    <AppProvider>
-      <AppContent />
-    </AppProvider>
+    <ClientProvider>
+      <AppProvider>
+        <AppWithClient />
+      </AppProvider>
+    </ClientProvider>
   );
 }

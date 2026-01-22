@@ -22,7 +22,10 @@
       "Bash(pnpm exec attw:*)",
       "Bash(du:*)",
       "Bash(npx biome:*)",
-      "Bash(pnpm build)"
+      "Bash(pnpm build)",
+      "Bash(git:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ]
   }
 }

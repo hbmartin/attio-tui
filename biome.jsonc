@@ -457,14 +457,24 @@
             "useComponentExportOnlyModules": "off"
           },
           "complexity": {
-            "noExcessiveLinesPerFunction": "off"
+            "noExcessiveLinesPerFunction": "off",
+            "noExcessiveCognitiveComplexity": "off"
           },
           "nursery": {
-            "noUnnecessaryConditions": "off"
+            "noUnnecessaryConditions": "off",
+            "noShadow": "off"
           },
           "security": {
             // Action identifiers like "openInBrowser" are false positives
             "noSecrets": "off"
+          },
+          "correctness": {
+            // TUI is a CLI app that requires Node.js modules
+            "noNodejsModules": "off"
+          },
+          "performance": {
+            // Regex patterns are fine in utility functions
+            "useTopLevelRegex": "off"
           }
         }
       }

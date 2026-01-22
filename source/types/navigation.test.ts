@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
+import { parseListId, parseObjectSlug } from "./ids.js";
 import {
   createInitialNavigationState,
   DETAIL_TABS,
+  getNavigatorCategoryKey,
   PANE_ORDER,
 } from "./navigation.js";
 
@@ -67,5 +69,73 @@ describe("createInitialNavigationState", () => {
     expect(state1).not.toBe(state2);
     expect(state1.navigator).not.toBe(state2.navigator);
     expect(state1.results).not.toBe(state2.results);
+  });
+});
+
+describe("getNavigatorCategoryKey", () => {
+  it("should return key for object category", () => {
+    const category = {
+      type: "object" as const,
+      objectSlug: parseObjectSlug("companies"),
+    };
+    expect(getNavigatorCategoryKey(category)).toBe("object-companies");
+  });
+
+  it("should return key for list category", () => {
+    const category = {
+      type: "list" as const,
+      listId: parseListId("550e8400-e29b-41d4-a716-446655440000"),
+    };
+    expect(getNavigatorCategoryKey(category)).toBe(
+      "list-550e8400-e29b-41d4-a716-446655440000",
+    );
+  });
+
+  it("should return type for notes category", () => {
+    const category = { type: "notes" as const };
+    expect(getNavigatorCategoryKey(category)).toBe("notes");
+  });
+
+  it("should return type for tasks category", () => {
+    const category = { type: "tasks" as const };
+    expect(getNavigatorCategoryKey(category)).toBe("tasks");
+  });
+
+  it("should return type for meetings category", () => {
+    const category = { type: "meetings" as const };
+    expect(getNavigatorCategoryKey(category)).toBe("meetings");
+  });
+
+  it("should return type for webhooks category", () => {
+    const category = { type: "webhooks" as const };
+    expect(getNavigatorCategoryKey(category)).toBe("webhooks");
+  });
+
+  it("should return unique keys for different objects", () => {
+    const cat1 = {
+      type: "object" as const,
+      objectSlug: parseObjectSlug("companies"),
+    };
+    const cat2 = {
+      type: "object" as const,
+      objectSlug: parseObjectSlug("people"),
+    };
+    expect(getNavigatorCategoryKey(cat1)).not.toBe(
+      getNavigatorCategoryKey(cat2),
+    );
+  });
+
+  it("should return unique keys for different lists", () => {
+    const cat1 = {
+      type: "list" as const,
+      listId: parseListId("550e8400-e29b-41d4-a716-446655440000"),
+    };
+    const cat2 = {
+      type: "list" as const,
+      listId: parseListId("550e8400-e29b-41d4-a716-446655440001"),
+    };
+    expect(getNavigatorCategoryKey(cat1)).not.toBe(
+      getNavigatorCategoryKey(cat2),
+    );
   });
 });
