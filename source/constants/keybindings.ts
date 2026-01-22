@@ -58,7 +58,6 @@ export const GLOBAL_KEYBINDINGS: readonly KeyBinding[] = [
 
   // App control
   { key: "q", action: "quit" },
-  { key: "c", ctrl: true, action: "quit" },
 ] as const;
 
 // List navigation keybindings - active when a list pane is focused
