@@ -1,0 +1,109 @@
+import type { Command } from "../types/commands.js";
+
+export const DEFAULT_COMMANDS: readonly Command[] = [
+  // Navigation commands
+  {
+    id: "goto-companies",
+    label: "Go to Companies",
+    description: "Navigate to companies list",
+    action: { type: "navigation", target: "companies" },
+  },
+  {
+    id: "goto-people",
+    label: "Go to People",
+    description: "Navigate to people list",
+    action: { type: "navigation", target: "people" },
+  },
+  {
+    id: "goto-notes",
+    label: "Go to Notes",
+    description: "Navigate to notes",
+    action: { type: "navigation", target: "notes" },
+  },
+  {
+    id: "goto-tasks",
+    label: "Go to Tasks",
+    description: "Navigate to tasks",
+    action: { type: "navigation", target: "tasks" },
+  },
+  {
+    id: "goto-meetings",
+    label: "Go to Meetings",
+    description: "Navigate to meetings",
+    action: { type: "navigation", target: "meetings" },
+  },
+  {
+    id: "goto-webhooks",
+    label: "Go to Webhooks",
+    description: "Navigate to webhook management",
+    action: { type: "navigation", target: "webhooks" },
+  },
+
+  // Action commands
+  {
+    id: "copy-id",
+    label: "Copy ID",
+    description: "Copy selected item ID to clipboard",
+    shortcut: "Ctrl+C",
+    action: { type: "action", actionId: "copyId" },
+  },
+  {
+    id: "open-browser",
+    label: "Open in Browser",
+    description: "Open selected item in Attio web app",
+    shortcut: "Ctrl+O",
+    action: { type: "action", actionId: "openInBrowser" },
+  },
+  {
+    id: "refresh",
+    label: "Refresh",
+    description: "Refresh current data",
+    shortcut: "Ctrl+R",
+    action: { type: "action", actionId: "refresh" },
+  },
+  {
+    id: "export-json",
+    label: "Export JSON",
+    description: "Export selected item as JSON file",
+    action: { type: "action", actionId: "exportJson" },
+  },
+  {
+    id: "help",
+    label: "Help",
+    description: "Show keyboard shortcuts and help",
+    action: { type: "action", actionId: "help" },
+  },
+  {
+    id: "quit",
+    label: "Quit",
+    description: "Exit the application",
+    shortcut: "q",
+    action: { type: "action", actionId: "quit" },
+  },
+
+  // Toggle commands
+  {
+    id: "toggle-debug",
+    label: "Toggle Debug Panel",
+    description: "Show/hide debug information",
+    shortcut: "Ctrl+D",
+    action: { type: "toggle", toggleId: "debug" },
+  },
+] as const;
+
+// Filter commands based on search query
+export function filterCommands(
+  commands: readonly Command[],
+  query: string,
+): readonly Command[] {
+  if (!query.trim()) {
+    return commands;
+  }
+
+  const lowerQuery = query.toLowerCase();
+  return commands.filter(
+    (cmd) =>
+      cmd.label.toLowerCase().includes(lowerQuery) ||
+      cmd.description.toLowerCase().includes(lowerQuery),
+  );
+}

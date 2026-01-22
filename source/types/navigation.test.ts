@@ -1,0 +1,71 @@
+import { describe, expect, it } from "vitest";
+import {
+  createInitialNavigationState,
+  DETAIL_TABS,
+  PANE_ORDER,
+} from "./navigation.js";
+
+describe("PANE_ORDER", () => {
+  it("should have three panes", () => {
+    expect(PANE_ORDER).toHaveLength(3);
+  });
+
+  it("should start with navigator", () => {
+    expect(PANE_ORDER[0]).toBe("navigator");
+  });
+
+  it("should have results in middle", () => {
+    expect(PANE_ORDER[1]).toBe("results");
+  });
+
+  it("should end with detail", () => {
+    expect(PANE_ORDER[2]).toBe("detail");
+  });
+});
+
+describe("DETAIL_TABS", () => {
+  it("should have four tabs", () => {
+    expect(DETAIL_TABS).toHaveLength(4);
+  });
+
+  it("should include summary, json, sdk, actions", () => {
+    expect(DETAIL_TABS).toContain("summary");
+    expect(DETAIL_TABS).toContain("json");
+    expect(DETAIL_TABS).toContain("sdk");
+    expect(DETAIL_TABS).toContain("actions");
+  });
+
+  it("should start with summary", () => {
+    expect(DETAIL_TABS[0]).toBe("summary");
+  });
+});
+
+describe("createInitialNavigationState", () => {
+  it("should return valid initial state", () => {
+    const state = createInitialNavigationState();
+
+    expect(state.focusedPane).toBe("navigator");
+    expect(state.navigator.categories).toEqual([]);
+    expect(state.navigator.selectedIndex).toBe(0);
+    expect(state.navigator.loading).toBe(true);
+    expect(state.results.items).toEqual([]);
+    expect(state.results.selectedIndex).toBe(0);
+    expect(state.results.loading).toBe(false);
+    expect(state.results.hasNextPage).toBe(false);
+    expect(state.results.searchQuery).toBe("");
+    expect(state.detail.activeTab).toBe("summary");
+    expect(state.detail.item).toBeUndefined();
+    expect(state.commandPalette.isOpen).toBe(false);
+    expect(state.commandPalette.query).toBe("");
+    expect(state.commandPalette.selectedIndex).toBe(0);
+  });
+
+  it("should create independent instances", () => {
+    const state1 = createInitialNavigationState();
+    const state2 = createInitialNavigationState();
+
+    expect(state1).not.toBe(state2);
+    expect(state1.navigator).not.toBe(state2.navigator);
+    expect(state1.results).not.toBe(state2.results);
+  });
+});

@@ -1,0 +1,104 @@
+import type { ListId, ObjectSlug } from "./ids.js";
+
+// The three panes in the TUI layout
+export type PaneId = "navigator" | "results" | "detail";
+
+// Order of panes for Tab navigation
+export const PANE_ORDER: readonly PaneId[] = [
+  "navigator",
+  "results",
+  "detail",
+] as const;
+
+// Discriminated union for navigator categories
+export type NavigatorCategory =
+  | { readonly type: "object"; readonly objectSlug: ObjectSlug }
+  | { readonly type: "list"; readonly listId: ListId }
+  | { readonly type: "notes" }
+  | { readonly type: "tasks" }
+  | { readonly type: "meetings" }
+  | { readonly type: "webhooks" };
+
+// Detail pane tabs
+export type DetailTab = "summary" | "json" | "sdk" | "actions";
+
+export const DETAIL_TABS: readonly DetailTab[] = [
+  "summary",
+  "json",
+  "sdk",
+  "actions",
+] as const;
+
+// Navigator state
+export interface NavigatorState {
+  readonly categories: readonly NavigatorCategory[];
+  readonly selectedIndex: number;
+  readonly loading: boolean;
+}
+
+// Results pane state
+export interface ResultsState {
+  readonly items: readonly ResultItem[];
+  readonly selectedIndex: number;
+  readonly loading: boolean;
+  readonly hasNextPage: boolean;
+  readonly searchQuery: string;
+}
+
+// Generic result item - will be refined in entities.ts
+export interface ResultItem {
+  readonly id: string;
+  readonly title: string;
+  readonly subtitle?: string;
+  readonly data: unknown;
+}
+
+// Detail pane state
+export interface DetailState {
+  readonly activeTab: DetailTab;
+  readonly item: ResultItem | undefined;
+}
+
+// Command palette state
+export interface CommandPaletteState {
+  readonly isOpen: boolean;
+  readonly query: string;
+  readonly selectedIndex: number;
+}
+
+// Application navigation state
+export interface NavigationState {
+  readonly focusedPane: PaneId;
+  readonly navigator: NavigatorState;
+  readonly results: ResultsState;
+  readonly detail: DetailState;
+  readonly commandPalette: CommandPaletteState;
+}
+
+// Initial navigation state factory
+export function createInitialNavigationState(): NavigationState {
+  return {
+    focusedPane: "navigator",
+    navigator: {
+      categories: [],
+      selectedIndex: 0,
+      loading: true,
+    },
+    results: {
+      items: [],
+      selectedIndex: 0,
+      loading: false,
+      hasNextPage: false,
+      searchQuery: "",
+    },
+    detail: {
+      activeTab: "summary",
+      item: undefined,
+    },
+    commandPalette: {
+      isOpen: false,
+      query: "",
+      selectedIndex: 0,
+    },
+  };
+}
