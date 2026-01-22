@@ -151,9 +151,9 @@ function MeetingSummary({ data }: { readonly data: MeetingInfo }) {
               Participants
             </Text>
           </Box>
-          {data.participants.slice(0, 5).map((participant) => {
+          {data.participants.slice(0, 5).map((participant, idx) => {
             const participantKey = [
-              participant.emailAddress ?? "unknown",
+              participant.emailAddress ?? `idx-${idx}`,
               participant.status,
               participant.isOrganizer ? "organizer" : "attendee",
             ].join(":");
