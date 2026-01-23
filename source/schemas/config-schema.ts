@@ -26,5 +26,5 @@ export function parseConfig(input: unknown): AppConfig {
 
 // Validate API key (accepts any non-empty string)
 export function isValidApiKey(key: string): boolean {
-  return key.length > 0;
+  return key.trim().length > 0;
 }
