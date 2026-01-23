@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { getWebhookUrlValidation, WebhookUrlStep } from "./webhook-url-step.js";
 
 describe("getWebhookUrlValidation", () => {
-  it("trims input and validates schemes", () => {
+  it("trims input and validates full URLs", () => {
     const valid = getWebhookUrlValidation("  https://example.com  ");
     expect(valid.trimmed).toBe("https://example.com");
     expect(valid.hasValue).toBe(true);
@@ -13,6 +13,14 @@ describe("getWebhookUrlValidation", () => {
     expect(invalid.trimmed).toBe("example.com");
     expect(invalid.hasValue).toBe(true);
     expect(invalid.isValidUrl).toBe(false);
+
+    const invalidProtocol = getWebhookUrlValidation("ftp://example.com");
+    expect(invalidProtocol.hasValue).toBe(true);
+    expect(invalidProtocol.isValidUrl).toBe(false);
+
+    const invalidHostname = getWebhookUrlValidation("https://");
+    expect(invalidHostname.hasValue).toBe(true);
+    expect(invalidHostname.isValidUrl).toBe(false);
 
     const empty = getWebhookUrlValidation("   ");
     expect(empty.trimmed).toBe("");
@@ -33,7 +41,7 @@ describe("WebhookUrlStep", () => {
 
     try {
       expect(instance.lastFrame()).toContain(
-        "URL should start with http:// or https://",
+        "URL must be a valid http:// or https:// address",
       );
     } finally {
       instance.cleanup();
