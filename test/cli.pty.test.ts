@@ -249,6 +249,8 @@ class PtySession {
     }
 
     const envOverrides: Record<string, string> = {
+      // Ink suppresses interactive output in CI unless CI is explicitly false.
+      CI: "false",
       HOME: this.tempHome,
       TERM: "xterm-256color",
       // Disable color for more predictable output matching
