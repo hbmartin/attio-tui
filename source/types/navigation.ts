@@ -52,7 +52,7 @@ export interface ResultsState {
   readonly searchQuery: string;
 }
 
-// Generic result item - will be refined in entities.ts
+// Result items are typed by category and backed by SDK-derived entity shapes
 interface ResultItemBase<TType extends NavigatorCategory["type"], TData> {
   readonly type: TType;
   readonly id: string;

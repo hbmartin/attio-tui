@@ -56,7 +56,7 @@ describe("fetchNotes", () => {
     mockGetV2Notes.mockReset();
   });
 
-  it("falls back to offset 0 for non-numeric cursors", async () => {
+  it("omits offset for non-numeric cursors", async () => {
     mockGetV2Notes.mockResolvedValue(
       buildSuccess({ data: [buildNote("note-1"), buildNote("note-2")] }),
     );
@@ -65,7 +65,7 @@ describe("fetchNotes", () => {
 
     expect(mockGetV2Notes).toHaveBeenCalledWith({
       client,
-      query: { limit: 2, offset: 0 },
+      query: { limit: 2 },
     });
     expect(result.nextCursor).toBe("2");
   });

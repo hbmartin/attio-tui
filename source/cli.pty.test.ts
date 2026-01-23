@@ -37,6 +37,14 @@ function stripAnsi(text: string): string {
   return text.replace(ANSI_PATTERN, "");
 }
 
+function isErrnoException(err: unknown): err is NodeJS.ErrnoException {
+  return (
+    err instanceof Error &&
+    "code" in err &&
+    typeof (err as Record<string, unknown>)["code"] === "string"
+  );
+}
+
 function buildEnv(overrides: Record<string, string>): Record<string, string> {
   const env: Record<string, string> = {};
   for (const [key, value] of Object.entries(process.env)) {
@@ -67,10 +75,7 @@ async function ensureSpawnHelperExecutable(): Promise<void> {
     try {
       await chmod(helperPath, 0o755);
     } catch (chmodError: unknown) {
-      if (
-        chmodError instanceof Error &&
-        (chmodError as NodeJS.ErrnoException).code === "ENOENT"
-      ) {
+      if (isErrnoException(chmodError) && chmodError.code === "ENOENT") {
         throw new Error(
           `spawn-helper not found at expected path: ${helperPath}. ` +
             `Ensure node-pty prebuilds are installed for ${process.platform}-${process.arch}.`,

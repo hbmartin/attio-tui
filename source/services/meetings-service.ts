@@ -1,6 +1,6 @@
 import type { AttioClient } from "attio-ts-sdk";
 import { getV2Meetings } from "attio-ts-sdk";
-import type { MeetingInfo } from "../types/attio.js";
+import type { AttioTypes, MeetingInfo } from "../types/attio.js";
 
 export interface QueryMeetingsResult {
   readonly meetings: readonly MeetingInfo[];
@@ -9,7 +9,7 @@ export interface QueryMeetingsResult {
 
 // Helper to extract datetime from start/end union type
 function getDatetime(
-  dateOrDatetime: { datetime: string } | { date: string },
+  dateOrDatetime: AttioTypes.MeetingPayload["start"],
 ): string {
   if ("datetime" in dateOrDatetime) {
     return dateOrDatetime.datetime;

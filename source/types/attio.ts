@@ -12,6 +12,7 @@ import type {
   PostV2WebhooksResponse,
 } from "attio-ts-sdk";
 
+// biome-ignore lint/style/noNamespace: Use a namespace to group SDK-derived types.
 export namespace AttioTypes {
   export type ObjectPayload = NonNullable<GetV2ObjectsResponse["data"]>[number];
 

@@ -1,4 +1,7 @@
-import type { AttioClient } from "attio-ts-sdk";
+import type {
+  AttioClient,
+  PostV2ObjectsByObjectRecordsQueryData,
+} from "attio-ts-sdk";
 import {
   getV2Objects,
   getV2ObjectsByObjectRecordsByRecordId,
@@ -6,6 +9,7 @@ import {
 } from "attio-ts-sdk";
 import type { AttioTypes, ObjectInfo, RecordInfo } from "../types/attio.js";
 import type { ObjectSlug } from "../types/ids.js";
+import { parseCursorOffset } from "../utils/pagination.js";
 
 export interface QueryRecordsResult {
   readonly records: readonly RecordInfo[];
@@ -55,20 +59,18 @@ export async function queryRecords(
   options: {
     readonly limit?: number;
     readonly cursor?: string;
-    readonly sorts?: {
-      attribute: string;
-      direction: "asc" | "desc";
-    }[];
+    readonly sorts?: PostV2ObjectsByObjectRecordsQueryData["body"]["sorts"];
   } = {},
 ): Promise<QueryRecordsResult> {
   const { limit = 25, cursor, sorts } = options;
+  const offset = parseCursorOffset(cursor);
 
   const response = await postV2ObjectsByObjectRecordsQuery({
     client,
     path: { object: objectSlug },
     body: {
       limit,
-      ...(cursor ? { offset: Number.parseInt(cursor, 10) } : {}),
+      ...(offset !== undefined ? { offset } : {}),
       ...(sorts && sorts.length > 0 ? { sorts } : {}),
     },
   });
@@ -83,7 +85,7 @@ export async function queryRecords(
   const records = data.map((record) => toRecordInfo(record));
 
   // Calculate next cursor based on offset
-  const currentOffset = cursor ? Number.parseInt(cursor, 10) : 0;
+  const currentOffset = offset ?? 0;
   const nextCursor =
     records.length === limit ? String(currentOffset + limit) : null;
 

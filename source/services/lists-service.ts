@@ -2,6 +2,7 @@ import type { AttioClient } from "attio-ts-sdk";
 import { getV2Lists, postV2ListsByListEntriesQuery } from "attio-ts-sdk";
 import type { ListEntryInfo, ListInfo } from "../types/attio.js";
 import type { ListId } from "../types/ids.js";
+import { parseCursorOffset } from "../utils/pagination.js";
 
 export interface QueryListsResult {
   readonly lists: readonly ListInfo[];
@@ -21,20 +22,6 @@ function normalizeLimit(limit: number | undefined): number {
     return limit;
   }
   return DEFAULT_LIST_LIMIT;
-}
-
-function parseCursorOffset(cursor: string | undefined): number | undefined {
-  if (cursor === undefined) {
-    return;
-  }
-
-  const parsed = Number.parseInt(cursor, 10);
-
-  if (Number.isNaN(parsed) || !Number.isInteger(parsed) || parsed < 0) {
-    return;
-  }
-
-  return parsed;
 }
 
 async function fetchAllLists(
