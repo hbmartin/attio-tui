@@ -6,6 +6,7 @@ import { ColumnPicker } from "./components/columns/index.js";
 import { CommandPalette } from "./components/command-palette/command-palette.js";
 import { DebugPanel } from "./components/debug/debug-panel.js";
 import { DetailPane } from "./components/detail/detail-pane.js";
+import { HelpOverlay } from "./components/help/index.js";
 import { StatusBar } from "./components/layout/status-bar.js";
 import { ThreePaneLayout } from "./components/layout/three-pane-layout.js";
 import { Navigator } from "./components/navigator/navigator.js";
@@ -182,6 +183,15 @@ function MainApp() {
   const { mode: webhookModalMode } = webhookModal;
   const { mode: columnPickerMode } = columnPicker;
 
+  // Help overlay state
+  const [helpOverlayOpen, setHelpOverlayOpen] = useState(false);
+  const toggleHelp = useCallback(() => {
+    setHelpOverlayOpen((prev) => !prev);
+  }, []);
+  const closeHelp = useCallback(() => {
+    setHelpOverlayOpen(false);
+  }, []);
+
   // Get selected category
   const selectedCategory = navigatorCategories[navigatorSelectedIndex];
   const categoryLabel = getCategoryLabel(selectedCategory);
@@ -252,7 +262,11 @@ function MainApp() {
 
   const isWebhookModalOpen = webhookModalMode !== "closed";
   const isColumnPickerOpen = columnPickerMode === "open";
-  const isKeyboardEnabled = !(isWebhookModalOpen || isColumnPickerOpen);
+  const isKeyboardEnabled = !(
+    isWebhookModalOpen ||
+    isColumnPickerOpen ||
+    helpOverlayOpen
+  );
   const { entityKey: columnPickerEntityKey, title: columnPickerTitle } =
     columnPickerMode === "open"
       ? columnPicker
@@ -407,12 +421,15 @@ function MainApp() {
     focusedPane,
     commandPaletteOpen,
     commandPaletteMaxIndex,
+    navigatorItemCount: navigatorCategories.length,
+    resultsItemCount: resultItems.length,
     dispatch,
     exit,
     onCopyId: copySelectedId,
     onOpenInBrowser: openSelectedItem,
     onRefresh: refreshWithFeedback,
     onToggleDebug: toggleDebugPanel,
+    onToggleHelp: toggleHelp,
   });
 
   // Setup keyboard handling (disabled when webhook modal is open)
@@ -697,6 +714,8 @@ function MainApp() {
           isDeleting={webhookOps.isSubmitting}
         />
       )}
+
+      <HelpOverlay isOpen={helpOverlayOpen} onClose={closeHelp} />
     </Box>
   );
 }

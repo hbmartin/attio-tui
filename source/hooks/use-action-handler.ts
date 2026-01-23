@@ -3,16 +3,22 @@ import type { KeyAction } from "../constants/keybindings.js";
 import type { AppAction } from "../state/app-state.js";
 import type { PaneId } from "../types/navigation.js";
 
+/** Number of items to navigate for page up/down actions */
+const PAGE_SIZE = 10;
+
 interface UseActionHandlerOptions {
   readonly focusedPane: PaneId;
   readonly commandPaletteOpen: boolean;
   readonly commandPaletteMaxIndex: number;
+  readonly navigatorItemCount: number;
+  readonly resultsItemCount: number;
   readonly dispatch: React.Dispatch<AppAction>;
   readonly exit: () => void;
   readonly onCopyId: () => void;
   readonly onOpenInBrowser: () => void;
   readonly onRefresh: () => void;
   readonly onToggleDebug: () => void;
+  readonly onToggleHelp: () => void;
 }
 
 // Action dispatch map for simple actions
@@ -91,17 +97,64 @@ function handleTabNavigation(
   }
 }
 
+function handleJumpToTop(
+  focusedPane: PaneId,
+  dispatch: React.Dispatch<AppAction>,
+): void {
+  if (focusedPane === "navigator") {
+    dispatch({ type: "SELECT_CATEGORY", index: 0 });
+  } else if (focusedPane === "results") {
+    dispatch({ type: "SELECT_RESULT", index: 0 });
+  }
+}
+
+function handleJumpToBottom(
+  focusedPane: PaneId,
+  navigatorItemCount: number,
+  resultsItemCount: number,
+  dispatch: React.Dispatch<AppAction>,
+): void {
+  if (focusedPane === "navigator") {
+    const lastIndex = Math.max(0, navigatorItemCount - 1);
+    dispatch({ type: "SELECT_CATEGORY", index: lastIndex });
+  } else if (focusedPane === "results") {
+    const lastIndex = Math.max(0, resultsItemCount - 1);
+    dispatch({ type: "SELECT_RESULT", index: lastIndex });
+  }
+}
+
+function handlePageNavigation(
+  direction: "up" | "down",
+  focusedPane: PaneId,
+  dispatch: React.Dispatch<AppAction>,
+): void {
+  if (focusedPane === "navigator") {
+    dispatch({
+      type: "NAVIGATE_CATEGORY_BY_OFFSET",
+      offset: direction === "up" ? -PAGE_SIZE : PAGE_SIZE,
+    });
+  } else if (focusedPane === "results") {
+    dispatch({
+      type: "NAVIGATE_RESULT_BY_OFFSET",
+      offset: direction === "up" ? -PAGE_SIZE : PAGE_SIZE,
+    });
+  }
+}
+
 export function useActionHandler(options: UseActionHandlerOptions) {
   const {
     focusedPane,
     commandPaletteOpen,
     commandPaletteMaxIndex,
+    navigatorItemCount,
+    resultsItemCount,
     dispatch,
     exit,
     onCopyId,
     onOpenInBrowser,
     onRefresh,
     onToggleDebug,
+    onToggleHelp,
   } = options;
 
   return useCallback(
@@ -118,6 +171,7 @@ export function useActionHandler(options: UseActionHandlerOptions) {
         openInBrowser: onOpenInBrowser,
         refresh: onRefresh,
         toggleDebug: onToggleDebug,
+        toggleHelp: onToggleHelp,
       };
 
       const actionHandler = actionHandlers[action];
@@ -151,6 +205,23 @@ export function useActionHandler(options: UseActionHandlerOptions) {
         case "nextTab":
           handleTabNavigation(action, focusedPane, dispatch);
           break;
+        case "jumpToTop":
+          handleJumpToTop(focusedPane, dispatch);
+          break;
+        case "jumpToBottom":
+          handleJumpToBottom(
+            focusedPane,
+            navigatorItemCount,
+            resultsItemCount,
+            dispatch,
+          );
+          break;
+        case "pageUp":
+          handlePageNavigation("up", focusedPane, dispatch);
+          break;
+        case "pageDown":
+          handlePageNavigation("down", focusedPane, dispatch);
+          break;
         case "quit":
           exit();
           break;
@@ -163,12 +234,15 @@ export function useActionHandler(options: UseActionHandlerOptions) {
       focusedPane,
       commandPaletteOpen,
       commandPaletteMaxIndex,
+      navigatorItemCount,
+      resultsItemCount,
       dispatch,
       exit,
       onCopyId,
       onOpenInBrowser,
       onRefresh,
       onToggleDebug,
+      onToggleHelp,
     ],
   );
 }
