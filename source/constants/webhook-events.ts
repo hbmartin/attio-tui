@@ -93,6 +93,16 @@ export const ALL_WEBHOOK_EVENTS = WEBHOOK_EVENT_CATEGORIES.flatMap(
   (cat) => cat.events,
 );
 
+const WEBHOOK_EVENT_VALUES = new Set<string>(
+  ALL_WEBHOOK_EVENTS.map((event) => event.value),
+);
+
+export function isValidEventType(
+  eventType: string,
+): eventType is WebhookEventType {
+  return WEBHOOK_EVENT_VALUES.has(eventType);
+}
+
 // Get event label by value
 export function getEventLabel(eventValue: string): string {
   const event = ALL_WEBHOOK_EVENTS.find((e) => e.value === eventValue);

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   ALL_WEBHOOK_EVENTS,
   getEventLabel,
+  isValidEventType,
   WEBHOOK_EVENT_CATEGORIES,
 } from "./webhook-events.js";
 
@@ -54,6 +55,18 @@ describe("webhook-events", () => {
 
     it("should return event value for unknown event", () => {
       expect(getEventLabel("unknown.event")).toBe("unknown.event");
+    });
+  });
+
+  describe("isValidEventType", () => {
+    it("should accept known event types", () => {
+      expect(isValidEventType("record.created")).toBe(true);
+      expect(isValidEventType("note.updated")).toBe(true);
+    });
+
+    it("should reject unknown event types", () => {
+      expect(isValidEventType("unknown.event")).toBe(false);
+      expect(isValidEventType("record.invalid")).toBe(false);
     });
   });
 });

@@ -1,5 +1,6 @@
 import type { AttioClient } from "attio-ts-sdk";
 import { useCallback, useState } from "react";
+import { isValidEventType } from "../constants/webhook-events.js";
 import {
   createWebhook,
   deleteWebhook,
@@ -63,9 +64,9 @@ export function useWebhookOperations({
         operation: (activeClient) =>
           createWebhook(activeClient, {
             targetUrl,
-            subscriptions: selectedEvents.map((eventType) => ({
-              eventType,
-            })),
+            subscriptions: selectedEvents
+              .filter(isValidEventType)
+              .map((eventType) => ({ eventType })),
           }),
         fallbackError: "Failed to create webhook",
       }),
@@ -82,9 +83,9 @@ export function useWebhookOperations({
         operation: (activeClient) =>
           updateWebhook(activeClient, webhookId, {
             targetUrl,
-            subscriptions: selectedEvents.map((eventType) => ({
-              eventType,
-            })),
+            subscriptions: selectedEvents
+              .filter(isValidEventType)
+              .map((eventType) => ({ eventType })),
           }),
         fallbackError: "Failed to update webhook",
       }),
