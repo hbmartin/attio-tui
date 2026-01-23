@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, promises as fs, readFileSync } from "node:fs";
 import { Text } from "ink";
 import { render } from "ink-testing-library";
 import { useEffect } from "react";
@@ -16,7 +16,9 @@ vi.mock("node:fs", () => ({
   existsSync: vi.fn(),
   mkdirSync: vi.fn(),
   readFileSync: vi.fn(),
-  writeFileSync: vi.fn(),
+  promises: {
+    writeFile: vi.fn(),
+  },
 }));
 
 vi.mock("../utils/config-path.js", () => ({
@@ -28,11 +30,11 @@ interface HookSnapshot {
   readonly columns: ColumnsConfig;
   readonly loading: boolean;
   readonly error: string | undefined;
-  readonly saveColumns: (columns: ColumnsConfig) => void;
+  readonly saveColumns: (columns: ColumnsConfig) => Promise<void>;
   readonly setColumnsForEntity: (
     entityKey: Columns.EntityKey,
     columns: readonly ColumnConfig[],
-  ) => void;
+  ) => Promise<void>;
 }
 
 interface HookHarnessProps {
@@ -73,7 +75,7 @@ async function waitForCondition(
 
 const mockExistsSync = vi.mocked(existsSync);
 const mockReadFileSync = vi.mocked(readFileSync);
-const mockWriteFileSync = vi.mocked(writeFileSync);
+const mockWriteFile = vi.mocked(fs.writeFile);
 
 afterEach(() => {
   vi.clearAllMocks();
@@ -88,6 +90,7 @@ describe("useColumns", () => {
 
     mockExistsSync.mockReturnValue(true);
     mockReadFileSync.mockReturnValue(JSON.stringify(initialColumns));
+    mockWriteFile.mockResolvedValue(undefined);
 
     let latest: HookSnapshot | undefined;
 
@@ -106,7 +109,7 @@ describe("useColumns", () => {
         throw new Error("Expected hook state to be available");
       }
 
-      latest.setColumnsForEntity("notes", [
+      await latest.setColumnsForEntity("notes", [
         { attribute: "title" },
         { attribute: "contentPlaintext" },
       ]);
@@ -116,7 +119,7 @@ describe("useColumns", () => {
         return columns ? columns.length === 2 : false;
       });
 
-      const writeCalls = mockWriteFileSync.mock.calls;
+      const writeCalls = mockWriteFile.mock.calls;
       expect(writeCalls).toHaveLength(1);
 
       const lastPayload = writeCalls[0]?.[1];
@@ -143,9 +146,7 @@ describe("useColumns", () => {
   it("sets an error when saving fails", async () => {
     mockExistsSync.mockReturnValue(false);
     mockReadFileSync.mockReturnValue(JSON.stringify(DEFAULT_COLUMNS));
-    mockWriteFileSync.mockImplementation(() => {
-      throw new Error("Disk full");
-    });
+    mockWriteFile.mockRejectedValue(new Error("Disk full"));
 
     let latest: HookSnapshot | undefined;
 
@@ -167,7 +168,7 @@ describe("useColumns", () => {
       let caught: Error | undefined;
 
       try {
-        latest.setColumnsForEntity("notes", [{ attribute: "title" }]);
+        await latest.setColumnsForEntity("notes", [{ attribute: "title" }]);
       } catch (err) {
         caught = err instanceof Error ? err : new Error("Unknown error");
       }
@@ -185,11 +186,9 @@ describe("useColumns", () => {
   it("clears the error after a successful save", async () => {
     mockExistsSync.mockReturnValue(false);
     mockReadFileSync.mockReturnValue(JSON.stringify(DEFAULT_COLUMNS));
-    mockWriteFileSync
-      .mockImplementationOnce(() => {
-        throw new Error("Disk full");
-      })
-      .mockImplementation(() => undefined);
+    mockWriteFile
+      .mockRejectedValueOnce(new Error("Disk full"))
+      .mockResolvedValue(undefined);
 
     let latest: HookSnapshot | undefined;
 
@@ -209,7 +208,7 @@ describe("useColumns", () => {
       }
 
       try {
-        latest.setColumnsForEntity("notes", [{ attribute: "title" }]);
+        await latest.setColumnsForEntity("notes", [{ attribute: "title" }]);
       } catch {
         // Expected to throw on the first save attempt.
       }
@@ -218,7 +217,9 @@ describe("useColumns", () => {
         () => latest?.error === "Failed to save columns: Disk full",
       );
 
-      latest.setColumnsForEntity("notes", [{ attribute: "contentPlaintext" }]);
+      await latest.setColumnsForEntity("notes", [
+        { attribute: "contentPlaintext" },
+      ]);
 
       await waitForCondition(() => latest?.error === undefined);
     } finally {
