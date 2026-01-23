@@ -44,7 +44,7 @@ export const DEFAULT_COMMANDS: readonly Command[] = [
     id: "copy-id",
     label: "Copy ID",
     description: "Copy selected item ID to clipboard",
-    shortcut: "Ctrl+C",
+    shortcut: "y",
     action: { type: "action", actionId: "copyId" },
   },
   {

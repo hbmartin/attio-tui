@@ -31,6 +31,7 @@ interface UseCategoryDataResult {
   readonly hasNextPage: boolean;
   readonly loadMore: () => Promise<void>;
   readonly refresh: () => Promise<void>;
+  readonly checkPrefetch: (selectedIndex: number) => void;
 }
 
 interface CategoryDataPage {
@@ -214,11 +215,18 @@ export function useCategoryData({
     [client, categoryType, categorySlug, onRequestLog],
   );
 
-  const { data, loading, error, hasNextPage, loadMore, refresh } =
-    usePaginatedData<ResultItem>({
-      fetchFn: fetchData,
-      enabled: Boolean(client),
-    });
+  const {
+    data,
+    loading,
+    error,
+    hasNextPage,
+    loadMore,
+    refresh,
+    checkPrefetch,
+  } = usePaginatedData<ResultItem>({
+    fetchFn: fetchData,
+    enabled: Boolean(client),
+  });
 
   return {
     items: data,
@@ -227,5 +235,6 @@ export function useCategoryData({
     hasNextPage,
     loadMore,
     refresh,
+    checkPrefetch,
   };
 }

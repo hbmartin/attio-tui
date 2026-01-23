@@ -90,6 +90,7 @@ interface CategorySnapshot {
   readonly hasNextPage: boolean;
   readonly loadMore: () => Promise<void>;
   readonly refresh: () => Promise<void>;
+  readonly checkPrefetch: (selectedIndex: number) => void;
 }
 
 interface CategoryHarnessProps {

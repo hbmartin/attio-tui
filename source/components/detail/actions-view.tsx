@@ -13,8 +13,8 @@ interface ActionItem {
 
 const ACTIONS: readonly ActionItem[] = [
   {
-    key: "Ctrl+C",
-    label: "Copy ID",
+    key: "y",
+    label: "Copy ID (yank)",
     description: "Copy record ID to clipboard",
   },
   { key: "Ctrl+O", label: "Open", description: "Open in browser" },

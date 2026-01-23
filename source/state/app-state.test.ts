@@ -400,9 +400,34 @@ describe("appReducer", () => {
           },
         },
       };
-      const action: AppAction = { type: "NAVIGATE_COMMAND", direction: "down" };
+      const action: AppAction = {
+        type: "NAVIGATE_COMMAND",
+        direction: "down",
+        maxIndex: 2,
+      };
       const result = appReducer(state, action);
       expect(result.navigation.commandPalette.selectedIndex).toBe(1);
+    });
+
+    it("should clamp command selection to the provided max index", () => {
+      const state: AppState = {
+        ...initialState,
+        navigation: {
+          ...initialState.navigation,
+          commandPalette: {
+            ...initialState.navigation.commandPalette,
+            isOpen: true,
+            selectedIndex: 0,
+          },
+        },
+      };
+      const action: AppAction = {
+        type: "NAVIGATE_COMMAND",
+        direction: "down",
+        maxIndex: 0,
+      };
+      const result = appReducer(state, action);
+      expect(result.navigation.commandPalette.selectedIndex).toBe(0);
     });
   });
 

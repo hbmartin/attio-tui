@@ -117,6 +117,7 @@ vi.mock("./hooks/use-category-data.js", () => ({
     error: undefined,
     hasNextPage: false,
     refresh: mocks.refresh,
+    checkPrefetch: () => undefined,
   }),
 }));
 
