@@ -1,4 +1,5 @@
 import type { RecordValue } from "../types/attio.js";
+import { extractPersonName } from "./record-values.js";
 
 // Format various Attio value types for display
 export function formatValue(value: RecordValue | RecordValue[]): string {
@@ -51,17 +52,9 @@ function formatRecordValue(value: RecordValue): string {
     return value.status.title || "-";
   }
 
-  if ("full_name" in value && typeof value.full_name === "string") {
-    return value.full_name;
-  }
-
-  if ("first_name" in value || "last_name" in value) {
-    const firstName = "first_name" in value ? value.first_name : undefined;
-    const lastName = "last_name" in value ? value.last_name : undefined;
-    const name = [firstName, lastName].filter(Boolean).join(" ");
-    if (name) {
-      return name;
-    }
+  const personName = extractPersonName(value);
+  if (personName) {
+    return personName;
   }
 
   if ("target_object" in value && "target_record_id" in value) {
@@ -92,8 +85,11 @@ function formatPrimitive(value: string | number | boolean): string {
   return String(value);
 }
 
-// Format a date string for display
-export function formatDate(dateString: string | null | undefined): string {
+// Parse a date string and format it, returning fallback for invalid dates
+function formatDateWith(
+  dateString: string | null | undefined,
+  formatter: (date: Date) => string,
+): string {
   if (!dateString) {
     return "-";
   }
@@ -103,21 +99,17 @@ export function formatDate(dateString: string | null | undefined): string {
     return dateString;
   }
 
-  return date.toLocaleDateString();
+  return formatter(date);
+}
+
+// Format a date string for display
+export function formatDate(dateString: string | null | undefined): string {
+  return formatDateWith(dateString, (date) => date.toLocaleDateString());
 }
 
 // Format a datetime string for display
 export function formatDateTime(dateString: string | null | undefined): string {
-  if (!dateString) {
-    return "-";
-  }
-
-  const date = new Date(dateString);
-  if (Number.isNaN(date.getTime())) {
-    return dateString;
-  }
-
-  return date.toLocaleString();
+  return formatDateWith(dateString, (date) => date.toLocaleString());
 }
 
 export interface FormatMeetingTimeOptions {

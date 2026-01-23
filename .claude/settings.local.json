@@ -27,7 +27,9 @@
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(pnpm biome check:*)",
-      "Bash(pnpm biome format:*)"
+      "Bash(pnpm biome format:*)",
+      "Bash(ls:*)",
+      "Bash(pnpm dupes:*)"
     ]
   }
 }
