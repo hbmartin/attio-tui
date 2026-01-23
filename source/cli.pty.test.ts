@@ -231,6 +231,8 @@ class PtySession {
   private dataEvents = 0;
   private readonly dataChunks: string[] = [];
   private exitEvent: { exitCode: number; signal?: number } | undefined;
+  private firstOutputTimestamp: number | undefined;
+  private lastOutputTimestamp: number | undefined;
 
   constructor({ entry = defaultEntry }: PtySessionOptions = {}) {
     this.entry = entry;
@@ -277,6 +279,11 @@ class PtySession {
     }
 
     this.term.onData((data) => {
+      const now = Date.now();
+      if (this.firstOutputTimestamp === undefined) {
+        this.firstOutputTimestamp = now;
+      }
+      this.lastOutputTimestamp = now;
       this.output += data;
       this.dataEvents += 1;
       this.dataChunks.push(data);
@@ -422,6 +429,15 @@ class PtySession {
     details.push(
       `Output: chars=${this.output.length} normalized=${this.getNormalizedOutput().length} dataEvents=${this.dataEvents}`,
     );
+    if (
+      this.firstOutputTimestamp !== undefined &&
+      this.lastOutputTimestamp !== undefined &&
+      this.startTimestamp !== undefined
+    ) {
+      details.push(
+        `Output timing: first=${this.firstOutputTimestamp - this.startTimestamp}ms last=${this.lastOutputTimestamp - this.startTimestamp}ms idle=${Date.now() - this.lastOutputTimestamp}ms`,
+      );
+    }
     if (this.dataChunks.length > 0) {
       const chunkSizes = this.dataChunks.map((chunk) => chunk.length).join(",");
       const lastChunk = this.dataChunks.at(-1) ?? "";
