@@ -52,6 +52,13 @@ export type AppAction =
   | { readonly type: "SET_COMMAND_QUERY"; readonly query: string }
   | { readonly type: "NAVIGATE_COMMAND"; readonly direction: "up" | "down" }
   | { readonly type: "SELECT_COMMAND" }
+  // Column picker
+  | {
+      readonly type: "OPEN_COLUMN_PICKER";
+      readonly entityKey: string;
+      readonly title: string;
+    }
+  | { readonly type: "CLOSE_COLUMN_PICKER" }
   // Webhook modal
   | { readonly type: "OPEN_WEBHOOK_CREATE" }
   | {
@@ -426,6 +433,28 @@ export function appReducer(state: AppState, action: AppAction): AppState {
             query: "",
             selectedIndex: 0,
           },
+        },
+      };
+
+    case "OPEN_COLUMN_PICKER":
+      return {
+        ...state,
+        navigation: {
+          ...state.navigation,
+          columnPicker: {
+            mode: "open",
+            entityKey: action.entityKey,
+            title: action.title,
+          },
+        },
+      };
+
+    case "CLOSE_COLUMN_PICKER":
+      return {
+        ...state,
+        navigation: {
+          ...state.navigation,
+          columnPicker: { mode: "closed" },
         },
       };
 

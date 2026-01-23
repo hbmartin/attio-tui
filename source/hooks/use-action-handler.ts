@@ -5,6 +5,7 @@ import type { PaneId } from "../types/navigation.js";
 
 interface UseActionHandlerOptions {
   readonly focusedPane: PaneId;
+  readonly commandPaletteOpen: boolean;
   readonly dispatch: React.Dispatch<AppAction>;
   readonly exit: () => void;
 }
@@ -23,8 +24,13 @@ const SIMPLE_ACTION_MAP: Partial<Record<KeyAction, AppAction>> = {
 
 function handleMoveUp(
   focusedPane: PaneId,
+  commandPaletteOpen: boolean,
   dispatch: React.Dispatch<AppAction>,
 ): void {
+  if (commandPaletteOpen) {
+    dispatch({ type: "NAVIGATE_COMMAND", direction: "up" });
+    return;
+  }
   if (focusedPane === "navigator") {
     dispatch({ type: "NAVIGATE_CATEGORY", direction: "up" });
   } else if (focusedPane === "results") {
@@ -34,8 +40,13 @@ function handleMoveUp(
 
 function handleMoveDown(
   focusedPane: PaneId,
+  commandPaletteOpen: boolean,
   dispatch: React.Dispatch<AppAction>,
 ): void {
+  if (commandPaletteOpen) {
+    dispatch({ type: "NAVIGATE_COMMAND", direction: "down" });
+    return;
+  }
   if (focusedPane === "navigator") {
     dispatch({ type: "NAVIGATE_CATEGORY", direction: "down" });
   } else if (focusedPane === "results") {
@@ -66,7 +77,7 @@ function handleTabNavigation(
 }
 
 export function useActionHandler(options: UseActionHandlerOptions) {
-  const { focusedPane, dispatch, exit } = options;
+  const { focusedPane, commandPaletteOpen, dispatch, exit } = options;
 
   return useCallback(
     (action: KeyAction) => {
@@ -80,10 +91,10 @@ export function useActionHandler(options: UseActionHandlerOptions) {
       // Handle complex actions
       switch (action) {
         case "moveUp":
-          handleMoveUp(focusedPane, dispatch);
+          handleMoveUp(focusedPane, commandPaletteOpen, dispatch);
           break;
         case "moveDown":
-          handleMoveDown(focusedPane, dispatch);
+          handleMoveDown(focusedPane, commandPaletteOpen, dispatch);
           break;
         case "moveRight":
           handleMoveRight(focusedPane, dispatch);
@@ -100,6 +111,6 @@ export function useActionHandler(options: UseActionHandlerOptions) {
           break;
       }
     },
-    [focusedPane, dispatch, exit],
+    [focusedPane, commandPaletteOpen, dispatch, exit],
   );
 }

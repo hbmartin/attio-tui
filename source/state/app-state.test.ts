@@ -391,6 +391,41 @@ describe("appReducer", () => {
     });
   });
 
+  describe("column picker", () => {
+    it("should open column picker", () => {
+      const action: AppAction = {
+        type: "OPEN_COLUMN_PICKER",
+        entityKey: "object-companies",
+        title: "Columns: Companies",
+      };
+      const result = appReducer(initialState, action);
+      expect(result.navigation.columnPicker.mode).toBe("open");
+      if (result.navigation.columnPicker.mode === "open") {
+        expect(result.navigation.columnPicker.entityKey).toBe(
+          "object-companies",
+        );
+        expect(result.navigation.columnPicker.title).toBe("Columns: Companies");
+      }
+    });
+
+    it("should close column picker", () => {
+      const state: AppState = {
+        ...initialState,
+        navigation: {
+          ...initialState.navigation,
+          columnPicker: {
+            mode: "open",
+            entityKey: "notes",
+            title: "Columns: Notes",
+          },
+        },
+      };
+      const action: AppAction = { type: "CLOSE_COLUMN_PICKER" };
+      const result = appReducer(state, action);
+      expect(result.navigation.columnPicker.mode).toBe("closed");
+    });
+  });
+
   describe("webhook modal", () => {
     it("should open webhook create modal", () => {
       const action: AppAction = { type: "OPEN_WEBHOOK_CREATE" };

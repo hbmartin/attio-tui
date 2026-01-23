@@ -61,6 +61,7 @@ describe("createInitialNavigationState", () => {
     expect(state.commandPalette.isOpen).toBe(false);
     expect(state.commandPalette.query).toBe("");
     expect(state.commandPalette.selectedIndex).toBe(0);
+    expect(state.columnPicker.mode).toBe("closed");
   });
 
   it("should create independent instances", () => {

@@ -114,6 +114,15 @@ export type WebhookModalState =
       readonly webhookUrl: string;
     };
 
+// Column picker modal state
+export type ColumnPickerState =
+  | { readonly mode: "closed" }
+  | {
+      readonly mode: "open";
+      readonly entityKey: string;
+      readonly title: string;
+    };
+
 // Application navigation state
 export interface NavigationState {
   readonly focusedPane: PaneId;
@@ -122,6 +131,7 @@ export interface NavigationState {
   readonly detail: DetailState;
   readonly commandPalette: CommandPaletteState;
   readonly webhookModal: WebhookModalState;
+  readonly columnPicker: ColumnPickerState;
 }
 
 // Generate a stable key for a NavigatorCategory
@@ -165,6 +175,9 @@ export function createInitialNavigationState(): NavigationState {
       selectedIndex: 0,
     },
     webhookModal: {
+      mode: "closed",
+    },
+    columnPicker: {
       mode: "closed",
     },
   };

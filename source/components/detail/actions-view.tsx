@@ -19,6 +19,11 @@ const ACTIONS: readonly ActionItem[] = [
   },
   { key: "Ctrl+O", label: "Open", description: "Open in browser" },
   { key: "Ctrl+R", label: "Refresh", description: "Refresh current data" },
+  {
+    key: ":columns",
+    label: "Columns",
+    description: "Configure result columns",
+  },
   { key: ":", label: "Command", description: "Open command palette" },
 ];
 
