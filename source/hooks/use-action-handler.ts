@@ -8,6 +8,10 @@ interface UseActionHandlerOptions {
   readonly commandPaletteOpen: boolean;
   readonly dispatch: React.Dispatch<AppAction>;
   readonly exit: () => void;
+  readonly onCopyId: () => void;
+  readonly onOpenInBrowser: () => void;
+  readonly onRefresh: () => void;
+  readonly onToggleDebug: () => void;
 }
 
 // Action dispatch map for simple actions
@@ -77,7 +81,16 @@ function handleTabNavigation(
 }
 
 export function useActionHandler(options: UseActionHandlerOptions) {
-  const { focusedPane, commandPaletteOpen, dispatch, exit } = options;
+  const {
+    focusedPane,
+    commandPaletteOpen,
+    dispatch,
+    exit,
+    onCopyId,
+    onOpenInBrowser,
+    onRefresh,
+    onToggleDebug,
+  } = options;
 
   return useCallback(
     (action: KeyAction) => {
@@ -85,6 +98,19 @@ export function useActionHandler(options: UseActionHandlerOptions) {
       const simpleAction = SIMPLE_ACTION_MAP[action];
       if (simpleAction) {
         dispatch(simpleAction);
+        return;
+      }
+
+      const actionHandlers: Partial<Record<KeyAction, () => void>> = {
+        copyId: onCopyId,
+        openInBrowser: onOpenInBrowser,
+        refresh: onRefresh,
+        toggleDebug: onToggleDebug,
+      };
+
+      const actionHandler = actionHandlers[action];
+      if (actionHandler) {
+        actionHandler();
         return;
       }
 
@@ -111,6 +137,15 @@ export function useActionHandler(options: UseActionHandlerOptions) {
           break;
       }
     },
-    [focusedPane, commandPaletteOpen, dispatch, exit],
+    [
+      focusedPane,
+      commandPaletteOpen,
+      dispatch,
+      exit,
+      onCopyId,
+      onOpenInBrowser,
+      onRefresh,
+      onToggleDebug,
+    ],
   );
 }

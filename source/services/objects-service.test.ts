@@ -83,6 +83,7 @@ describe("getRecord", () => {
       objectId: record.id.object_id,
       values: record.values,
       createdAt: record.created_at,
+      webUrl: record.web_url,
     });
     expect(getRecordById).toHaveBeenCalledWith({
       client,

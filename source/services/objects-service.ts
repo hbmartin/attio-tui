@@ -16,8 +16,11 @@ export interface QueryRecordsResult {
   readonly nextCursor: string | null;
 }
 type RecordPayloadBase =
-  | Pick<AttioTypes.RecordPayload, "id" | "values" | "created_at">
-  | Pick<AttioTypes.RecordDetailPayload, "id" | "values" | "created_at">;
+  | Pick<AttioTypes.RecordPayload, "id" | "values" | "created_at" | "web_url">
+  | Pick<
+      AttioTypes.RecordDetailPayload,
+      "id" | "values" | "created_at" | "web_url"
+    >;
 
 function toRecordInfo(record: RecordPayloadBase): RecordInfo {
   return {
@@ -25,6 +28,7 @@ function toRecordInfo(record: RecordPayloadBase): RecordInfo {
     objectId: record.id.object_id,
     values: record.values,
     createdAt: record.created_at,
+    webUrl: record.web_url,
   };
 }
 

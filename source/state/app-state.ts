@@ -20,6 +20,9 @@ export type AppAction =
   | { readonly type: "FOCUS_PANE"; readonly paneId: PaneId }
   | { readonly type: "FOCUS_NEXT_PANE" }
   | { readonly type: "FOCUS_PREVIOUS_PANE" }
+  // Debug
+  | { readonly type: "TOGGLE_DEBUG" }
+  | { readonly type: "SET_DEBUG_ENABLED"; readonly enabled: boolean }
   // Navigator
   | {
       readonly type: "SET_CATEGORIES";
@@ -150,6 +153,19 @@ function navigateWebhookStep(
 
 export function appReducer(state: AppState, action: AppAction): AppState {
   switch (action.type) {
+    // Debug
+    case "TOGGLE_DEBUG":
+      return {
+        ...state,
+        debugEnabled: !state.debugEnabled,
+      };
+
+    case "SET_DEBUG_ENABLED":
+      return {
+        ...state,
+        debugEnabled: action.enabled,
+      };
+
     // Pane focus
     case "FOCUS_PANE":
       return {

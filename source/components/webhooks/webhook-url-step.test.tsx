@@ -8,24 +8,29 @@ describe("getWebhookUrlValidation", () => {
     expect(valid.trimmed).toBe("https://example.com");
     expect(valid.hasValue).toBe(true);
     expect(valid.isValidUrl).toBe(true);
+    expect(valid.validationMessage).toBeUndefined();
 
     const invalid = getWebhookUrlValidation(" example.com ");
     expect(invalid.trimmed).toBe("example.com");
     expect(invalid.hasValue).toBe(true);
     expect(invalid.isValidUrl).toBe(false);
+    expect(invalid.validationMessage).toBe("URL must be a valid URL");
 
     const invalidProtocol = getWebhookUrlValidation("ftp://example.com");
     expect(invalidProtocol.hasValue).toBe(true);
     expect(invalidProtocol.isValidUrl).toBe(false);
+    expect(invalidProtocol.validationMessage).toBe("URL must use http/https");
 
     const invalidHostname = getWebhookUrlValidation("https://");
     expect(invalidHostname.hasValue).toBe(true);
     expect(invalidHostname.isValidUrl).toBe(false);
+    expect(invalidHostname.validationMessage).toBe("URL must be a valid URL");
 
     const empty = getWebhookUrlValidation("   ");
     expect(empty.trimmed).toBe("");
     expect(empty.hasValue).toBe(false);
     expect(empty.isValidUrl).toBe(false);
+    expect(empty.validationMessage).toBe("URL is required");
   });
 });
 
@@ -40,9 +45,7 @@ describe("WebhookUrlStep", () => {
     );
 
     try {
-      expect(instance.lastFrame()).toContain(
-        "URL must be a valid http:// or https:// address",
-      );
+      expect(instance.lastFrame()).toContain("URL must be a valid URL");
     } finally {
       instance.cleanup();
     }

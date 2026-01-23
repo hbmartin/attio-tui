@@ -40,6 +40,7 @@ export namespace AttioTypes {
     readonly objectId: RecordPayload["id"]["object_id"];
     readonly values: RecordValues;
     readonly createdAt: RecordPayload["created_at"];
+    readonly webUrl: RecordPayload["web_url"];
   }
 
   export type ListPayload = NonNullable<GetV2ListsResponse["data"]>[number];

@@ -1,7 +1,10 @@
+import { join } from "node:path";
+import process from "node:process";
 import { Box, Text, useApp as useInkApp } from "ink";
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ColumnPicker } from "./components/columns/index.js";
 import { CommandPalette } from "./components/command-palette/command-palette.js";
+import { DebugPanel } from "./components/debug/debug-panel.js";
 import { DetailPane } from "./components/detail/detail-pane.js";
 import { StatusBar } from "./components/layout/status-bar.js";
 import { ThreePaneLayout } from "./components/layout/three-pane-layout.js";
@@ -20,6 +23,7 @@ import { useKeyboard } from "./hooks/use-keyboard.js";
 import { useTemporaryStatusMessage } from "./hooks/use-temporary-status-message.js";
 import { useWebhookOperations } from "./hooks/use-webhook-operations.js";
 import type { ColumnConfig } from "./schemas/columns-schema.js";
+import { createInitialAppState } from "./state/app-state.js";
 import {
   ClientProvider,
   type ConfigState,
@@ -27,15 +31,24 @@ import {
 } from "./state/client-context.js";
 import { AppProvider, useApp } from "./state/context.js";
 import { Columns } from "./types/columns.js";
-import type { Command } from "./types/commands.js";
+import type { ActionId, Command } from "./types/commands.js";
+import type {
+  DebugRequestLogEntry,
+  DebugRequestLogEntryInput,
+  DebugStateSnapshot,
+  DebugTimingSnapshot,
+} from "./types/debug.js";
 import { type ObjectSlug, parseObjectSlug } from "./types/ids.js";
 import type { NavigatorCategory } from "./types/navigation.js";
+import { writeToClipboard } from "./utils/clipboard.js";
 import {
   getAvailableColumns,
   getColumnsConfig,
   getDefaultColumns,
   resolveColumns,
 } from "./utils/columns.js";
+import { exportJsonToFile } from "./utils/export.js";
+import { openBrowser } from "./utils/open-browser.js";
 
 // Static categories for the skeleton - will be replaced with dynamic loading
 function getStaticCategories(): readonly NavigatorCategory[] {
@@ -91,6 +104,7 @@ function getCategorySlug(
 
 function MainApp() {
   const { state, dispatch } = useApp();
+  const { debugEnabled } = state;
   const { client } = useClient();
   const { exit } = useInkApp();
   const { message: statusMessage, showMessage: showStatusMessage } =
@@ -105,6 +119,19 @@ function MainApp() {
     },
     [showStatusMessage],
   );
+  const appStartRef = useRef(Date.now());
+  const requestIdRef = useRef(0);
+  const [requestLog, setRequestLog] = useState<readonly DebugRequestLogEntry[]>(
+    [],
+  );
+  const recordRequest = useCallback((entry: DebugRequestLogEntryInput) => {
+    const nextEntry: DebugRequestLogEntry = {
+      id: String(requestIdRef.current),
+      ...entry,
+    };
+    requestIdRef.current += 1;
+    setRequestLog((prev) => [nextEntry, ...prev].slice(0, 20));
+  }, []);
   const {
     columns: columnsConfig,
     error: columnsError,
@@ -114,16 +141,32 @@ function MainApp() {
   const { navigation } = state;
   const {
     focusedPane,
-    navigator,
-    results,
-    detail,
-    commandPalette,
+    navigator: {
+      categories: navigatorCategories,
+      selectedIndex: navigatorSelectedIndex,
+      loading: navigatorLoading,
+    },
+    results: {
+      items: resultItems,
+      selectedIndex: resultSelectedIndex,
+      loading: resultsLoading,
+      hasNextPage: resultsHasNextPage,
+    },
+    detail: { activeTab: detailActiveTab, item: detailItem },
+    commandPalette: {
+      isOpen: commandPaletteOpen,
+      query: commandPaletteQuery,
+      selectedIndex: commandPaletteSelectedIndex,
+    },
     webhookModal,
     columnPicker,
   } = navigation;
+  const { mode: webhookModalMode } = webhookModal;
+  const { mode: columnPickerMode } = columnPicker;
 
   // Get selected category
-  const selectedCategory = navigator.categories[navigator.selectedIndex];
+  const selectedCategory = navigatorCategories[navigatorSelectedIndex];
+  const categoryLabel = getCategoryLabel(selectedCategory);
   const categoryType = getCategoryType(selectedCategory);
   const categorySlug = getCategorySlug(selectedCategory);
   const columnsEntityKey = Columns.getEntityKey(selectedCategory);
@@ -149,6 +192,7 @@ function MainApp() {
     client,
     categoryType,
     categorySlug,
+    onRequestLog: recordRequest,
   });
   const refreshWithFeedback = useCallback((): void => {
     refresh().catch(handleRefreshError);
@@ -159,6 +203,7 @@ function MainApp() {
     client,
     dispatch,
     onSuccess: refreshWithFeedback,
+    onRequestLog: recordRequest,
   });
 
   // Initialize categories on mount
@@ -182,17 +227,19 @@ function MainApp() {
 
   // Update detail item when result selection changes
   useEffect(() => {
-    const selectedItem = results.items[results.selectedIndex];
+    const selectedItem = resultItems[resultSelectedIndex];
     dispatch({ type: "SET_DETAIL_ITEM", item: selectedItem });
-  }, [results.items, results.selectedIndex, dispatch]);
+  }, [resultItems, resultSelectedIndex, dispatch]);
 
-  const isWebhookModalOpen = webhookModal.mode !== "closed";
-  const isColumnPickerOpen = columnPicker.mode === "open";
+  const isWebhookModalOpen = webhookModalMode !== "closed";
+  const isColumnPickerOpen = columnPickerMode === "open";
   const isKeyboardEnabled = !(isWebhookModalOpen || isColumnPickerOpen);
-  const columnPickerEntityKey =
-    columnPicker.mode === "open" ? columnPicker.entityKey : columnsEntityKey;
+  const { entityKey: columnPickerEntityKey, title: columnPickerTitle } =
+    columnPickerMode === "open"
+      ? columnPicker
+      : { entityKey: columnsEntityKey, title: "Columns" };
   const columnPickerData = useMemo(() => {
-    if (columnPicker.mode !== "open") {
+    if (columnPickerMode !== "open") {
       return;
     }
 
@@ -204,7 +251,7 @@ function MainApp() {
       }),
       defaults: getDefaultColumns({ entityKey: columnPickerEntityKey }),
     };
-  }, [columnPicker.mode, columnPickerEntityKey, columnsConfig]);
+  }, [columnPickerMode, columnPickerEntityKey, columnsConfig]);
 
   const columnPickerAvailable = columnPickerData?.available ?? [];
   const columnPickerSelected = columnPickerData?.selected ?? [];
@@ -212,39 +259,135 @@ function MainApp() {
 
   const handleSaveColumns = useCallback(
     async (nextColumns: readonly ColumnConfig[]) => {
-      if (columnPicker.mode !== "open") {
+      if (columnPickerMode !== "open") {
         return;
       }
 
+      const { entityKey, title } = columnPicker;
+
       try {
-        await setColumnsForEntity(columnPicker.entityKey, nextColumns);
+        await setColumnsForEntity(entityKey, nextColumns);
         showStatusMessage({
           tone: "info",
-          text: `Saved ${columnPicker.title}`,
+          text: `Saved ${title}`,
         });
       } catch (err) {
         const message = err instanceof Error ? err.message : "Unknown error";
         showStatusMessage({
           tone: "error",
-          text: `Failed to save ${columnPicker.title}: ${message}`,
+          text: `Failed to save ${title}: ${message}`,
         });
       }
     },
-    [columnPicker, setColumnsForEntity, showStatusMessage],
+    [columnPicker, columnPickerMode, setColumnsForEntity, showStatusMessage],
   );
+
+  const openColumnsPicker = useCallback(() => {
+    const entityKey =
+      Columns.getEntityKey(selectedCategory) ?? Columns.DEFAULT_OBJECT_KEY;
+    const title = categoryLabel ?? "Results";
+    dispatch({
+      type: "OPEN_COLUMN_PICKER",
+      entityKey,
+      title: `Columns: ${title}`,
+    });
+  }, [dispatch, selectedCategory, categoryLabel]);
+
+  const copySelectedId = useCallback((): void => {
+    const selectedItem = resultItems[resultSelectedIndex];
+    if (!selectedItem) {
+      showStatusMessage({ tone: "error", text: "No item selected" });
+      return;
+    }
+
+    const { id } = selectedItem;
+
+    writeToClipboard({ text: id })
+      .then(() => {
+        showStatusMessage({ tone: "info", text: "Copied ID to clipboard" });
+      })
+      .catch((err) => {
+        const message = err instanceof Error ? err.message : "Unknown error";
+        showStatusMessage({ tone: "error", text: `Copy failed: ${message}` });
+      });
+  }, [resultItems, resultSelectedIndex, showStatusMessage]);
+
+  const openSelectedItem = useCallback((): void => {
+    const selectedItem = resultItems[resultSelectedIndex];
+    if (!selectedItem) {
+      showStatusMessage({ tone: "error", text: "No item selected" });
+      return;
+    }
+
+    const { type, data } = selectedItem;
+    const url = type === "object" ? data.webUrl : undefined;
+    if (!url) {
+      showStatusMessage({
+        tone: "error",
+        text: "No web URL available for the selected item",
+      });
+      return;
+    }
+
+    openBrowser({ url })
+      .then(() => {
+        showStatusMessage({ tone: "info", text: "Opened in browser" });
+      })
+      .catch((err) => {
+        const message = err instanceof Error ? err.message : "Unknown error";
+        showStatusMessage({ tone: "error", text: `Open failed: ${message}` });
+      });
+  }, [resultItems, resultSelectedIndex, showStatusMessage]);
+
+  const exportSelectedItem = useCallback((): void => {
+    const selectedItem = resultItems[resultSelectedIndex];
+    if (!selectedItem) {
+      showStatusMessage({ tone: "error", text: "No item selected" });
+      return;
+    }
+
+    const { id, type, data } = selectedItem;
+    const fileName = `attio-${type}-${id}.json`;
+    const filePath = join(process.cwd(), fileName);
+
+    exportJsonToFile({ data, filePath })
+      .then(() => {
+        showStatusMessage({
+          tone: "info",
+          text: `Exported JSON to ${filePath}`,
+        });
+      })
+      .catch((err) => {
+        const message = err instanceof Error ? err.message : "Unknown error";
+        showStatusMessage({ tone: "error", text: `Export failed: ${message}` });
+      });
+  }, [resultItems, resultSelectedIndex, showStatusMessage]);
+
+  const toggleDebugPanel = useCallback(() => {
+    const nextEnabled = !debugEnabled;
+    dispatch({ type: "SET_DEBUG_ENABLED", enabled: nextEnabled });
+    showStatusMessage({
+      tone: "info",
+      text: nextEnabled ? "Debug panel enabled" : "Debug panel disabled",
+    });
+  }, [dispatch, showStatusMessage, debugEnabled]);
 
   // Handle keyboard actions
   const handleAction = useActionHandler({
     focusedPane,
-    commandPaletteOpen: commandPalette.isOpen,
+    commandPaletteOpen,
     dispatch,
     exit,
+    onCopyId: copySelectedId,
+    onOpenInBrowser: openSelectedItem,
+    onRefresh: refreshWithFeedback,
+    onToggleDebug: toggleDebugPanel,
   });
 
   // Setup keyboard handling (disabled when webhook modal is open)
   useKeyboard({
     focusedPane,
-    commandPaletteOpen: commandPalette.isOpen,
+    commandPaletteOpen,
     onAction: handleAction,
     enabled: isKeyboardEnabled,
   });
@@ -252,13 +395,13 @@ function MainApp() {
   // Filter commands for command palette
   const filteredCommands = filterCommands(
     DEFAULT_COMMANDS,
-    commandPalette.query,
+    commandPaletteQuery,
   );
 
   // Handle webhook commands - defined before executeCommand since it's used there
   const handleWebhookCommand = useCallback(
     (webhookAction: "create" | "edit" | "delete") => {
-      const selectedItem = results.items[results.selectedIndex];
+      const selectedItem = resultItems[resultSelectedIndex];
 
       switch (webhookAction) {
         case "create":
@@ -267,29 +410,31 @@ function MainApp() {
 
         case "edit":
           if (selectedItem?.type === "webhooks") {
-            const webhookData = selectedItem.data;
+            const { id, targetUrl, subscriptions } = selectedItem.data;
             dispatch({
               type: "OPEN_WEBHOOK_EDIT",
-              webhookId: webhookData.id,
-              targetUrl: webhookData.targetUrl,
-              selectedEvents: webhookData.subscriptions.map((s) => s.eventType),
+              webhookId: id,
+              targetUrl,
+              selectedEvents: subscriptions.map(
+                (subscription) => subscription.eventType,
+              ),
             });
           }
           break;
 
         case "delete":
           if (selectedItem?.type === "webhooks") {
-            const webhookData = selectedItem.data;
+            const { id, targetUrl } = selectedItem.data;
             dispatch({
               type: "OPEN_WEBHOOK_DELETE",
-              webhookId: webhookData.id,
-              webhookUrl: webhookData.targetUrl,
+              webhookId: id,
+              webhookUrl: targetUrl,
             });
           }
           break;
       }
     },
-    [results.items, results.selectedIndex, dispatch],
+    [resultItems, resultSelectedIndex, dispatch],
   );
 
   // Execute command from command palette
@@ -300,7 +445,7 @@ function MainApp() {
       switch (command.action.type) {
         case "navigation": {
           const { target } = command.action;
-          const targetIndex = navigator.categories.findIndex((cat) => {
+          const targetIndex = navigatorCategories.findIndex((cat) => {
             if (cat.type === "object") {
               return cat.objectSlug === target;
             }
@@ -312,26 +457,31 @@ function MainApp() {
           break;
         }
 
-        case "action":
-          if (command.action.actionId === "quit") {
-            exit();
-          } else if (command.action.actionId === "columns") {
-            const entityKey =
-              Columns.getEntityKey(selectedCategory) ??
-              Columns.DEFAULT_OBJECT_KEY;
-            const title = getCategoryLabel(selectedCategory) ?? "Results";
-            dispatch({
-              type: "OPEN_COLUMN_PICKER",
-              entityKey,
-              title: `Columns: ${title}`,
-            });
-          } else if (command.action.actionId === "refresh") {
-            refreshWithFeedback();
-          }
+        case "action": {
+          const actionHandlers: Record<ActionId, () => void> = {
+            copyId: copySelectedId,
+            openInBrowser: openSelectedItem,
+            refresh: refreshWithFeedback,
+            exportJson: exportSelectedItem,
+            help: () => {
+              showStatusMessage({
+                tone: "info",
+                text: "Use : to open commands or Ctrl+O/C to open or copy.",
+              });
+            },
+            columns: openColumnsPicker,
+            quit: exit,
+          };
+
+          const handler = actionHandlers[command.action.actionId];
+          handler();
           break;
+        }
 
         case "toggle":
-          // Toggle commands - not yet implemented
+          if (command.action.toggleId === "debug") {
+            toggleDebugPanel();
+          }
           break;
 
         case "webhook":
@@ -341,64 +491,107 @@ function MainApp() {
     },
     [
       dispatch,
-      navigator.categories,
-      selectedCategory,
+      navigatorCategories,
       exit,
       handleWebhookCommand,
       refreshWithFeedback,
+      copySelectedId,
+      openSelectedItem,
+      exportSelectedItem,
+      openColumnsPicker,
+      showStatusMessage,
+      toggleDebugPanel,
     ],
   );
 
   // Handle webhook form submission
   const handleWebhookSubmit = useCallback(() => {
-    if (webhookModal.mode === "create") {
-      webhookOps.handleCreate(
-        webhookModal.targetUrl,
-        webhookModal.selectedEvents,
-      );
-    } else if (webhookModal.mode === "edit") {
+    if (webhookModalMode === "create") {
+      const { targetUrl, selectedEvents } = webhookModal;
+      webhookOps.handleCreate(targetUrl, selectedEvents);
+    } else if (webhookModalMode === "edit") {
+      const { webhookId, targetUrl, selectedEvents } = webhookModal;
       webhookOps.handleUpdate({
-        webhookId: webhookModal.webhookId,
-        targetUrl: webhookModal.targetUrl,
-        selectedEvents: webhookModal.selectedEvents,
+        webhookId,
+        targetUrl,
+        selectedEvents,
       });
     }
-  }, [webhookModal, webhookOps]);
+  }, [webhookModal, webhookModalMode, webhookOps]);
 
   // Handle webhook delete confirmation
   const handleWebhookDeleteConfirm = useCallback(() => {
-    if (webhookModal.mode === "delete") {
-      webhookOps.handleDelete(webhookModal.webhookId);
+    if (webhookModalMode === "delete") {
+      const { webhookId } = webhookModal;
+      webhookOps.handleDelete(webhookId);
     }
-  }, [webhookModal, webhookOps]);
+  }, [webhookModal, webhookModalMode, webhookOps]);
+
+  const debugTiming = useMemo<DebugTimingSnapshot>(() => {
+    const [lastRequest] = requestLog;
+    return {
+      appStartedAt: appStartRef.current,
+      lastRequestAt: lastRequest?.startedAt,
+      lastRequestDurationMs: lastRequest?.durationMs,
+    };
+  }, [requestLog]);
+
+  const debugStateSnapshot = useMemo<DebugStateSnapshot>(
+    () => ({
+      focusedPane,
+      activeTab: detailActiveTab,
+      commandPaletteOpen,
+      resultsCount: resultItems.length,
+      selectedIndex: resultSelectedIndex,
+      categoryLabel,
+      navigatorLoading,
+      resultsLoading,
+      columnPickerOpen: columnPickerMode === "open",
+      webhookModalMode,
+      debugEnabled,
+    }),
+    [
+      focusedPane,
+      detailActiveTab,
+      commandPaletteOpen,
+      resultItems.length,
+      resultSelectedIndex,
+      categoryLabel,
+      navigatorLoading,
+      resultsLoading,
+      columnPickerMode,
+      webhookModalMode,
+      debugEnabled,
+    ],
+  );
 
   return (
     <Box flexDirection="column" height="100%">
       <ThreePaneLayout
         navigator={
           <Navigator
-            categories={navigator.categories}
-            selectedIndex={navigator.selectedIndex}
+            categories={navigatorCategories}
+            selectedIndex={navigatorSelectedIndex}
             focused={focusedPane === "navigator"}
-            loading={navigator.loading}
+            loading={navigatorLoading}
           />
         }
         results={
           <ResultsPane
-            items={results.items}
-            selectedIndex={results.selectedIndex}
+            items={resultItems}
+            selectedIndex={resultSelectedIndex}
             focused={focusedPane === "results"}
-            loading={results.loading}
-            hasNextPage={results.hasNextPage}
-            categoryLabel={getCategoryLabel(selectedCategory)}
+            loading={resultsLoading}
+            hasNextPage={resultsHasNextPage}
+            categoryLabel={categoryLabel}
             error={categoryError}
             columns={resolvedColumns}
           />
         }
         detail={
           <DetailPane
-            item={detail.item}
-            activeTab={detail.activeTab}
+            item={detailItem}
+            activeTab={detailActiveTab}
             focused={focusedPane === "detail"}
             category={selectedCategory}
           />
@@ -406,28 +599,36 @@ function MainApp() {
         statusBar={
           <StatusBar
             focusedPane={focusedPane}
-            itemCount={results.items.length}
-            selectedIndex={results.selectedIndex}
-            loading={navigator.loading || results.loading}
+            itemCount={resultItems.length}
+            selectedIndex={resultSelectedIndex}
+            loading={navigatorLoading || resultsLoading}
             statusMessage={statusMessage}
           />
         }
       />
 
+      {debugEnabled && (
+        <DebugPanel
+          requestLog={requestLog}
+          timing={debugTiming}
+          state={debugStateSnapshot}
+        />
+      )}
+
       <CommandPalette
-        isOpen={commandPalette.isOpen}
-        query={commandPalette.query}
+        isOpen={commandPaletteOpen}
+        query={commandPaletteQuery}
         commands={filteredCommands}
-        selectedIndex={commandPalette.selectedIndex}
+        selectedIndex={commandPaletteSelectedIndex}
         onExecute={executeCommand}
         onQueryChange={(query) =>
           dispatch({ type: "SET_COMMAND_QUERY", query })
         }
       />
 
-      {columnPicker.mode === "open" && (
+      {columnPickerMode === "open" && (
         <ColumnPicker
-          title={columnPicker.title}
+          title={columnPickerTitle}
           availableColumns={columnPickerAvailable}
           selectedColumns={columnPickerSelected}
           defaultColumns={columnPickerDefaults}
@@ -436,7 +637,7 @@ function MainApp() {
         />
       )}
 
-      {(webhookModal.mode === "create" || webhookModal.mode === "edit") && (
+      {(webhookModalMode === "create" || webhookModalMode === "edit") && (
         <WebhookForm
           mode={webhookModal.mode}
           step={webhookModal.step}
@@ -456,7 +657,7 @@ function MainApp() {
         />
       )}
 
-      {webhookModal.mode === "delete" && (
+      {webhookModalMode === "delete" && (
         <WebhookDeleteConfirm
           webhookUrl={webhookModal.webhookUrl}
           onConfirm={handleWebhookDeleteConfirm}
@@ -494,10 +695,24 @@ function AppWithClient() {
   return renderByStatus[configState.status]();
 }
 
-export default function App() {
+interface AppProps {
+  readonly initialDebugEnabled?: boolean;
+}
+
+export default function App({ initialDebugEnabled }: AppProps) {
+  const initialState = useMemo(() => {
+    if (initialDebugEnabled === undefined) {
+      return;
+    }
+    return {
+      ...createInitialAppState(),
+      debugEnabled: initialDebugEnabled,
+    };
+  }, [initialDebugEnabled]);
+
   return (
     <ClientProvider>
-      <AppProvider>
+      <AppProvider initialState={initialState}>
         <AppWithClient />
       </AppProvider>
     </ClientProvider>

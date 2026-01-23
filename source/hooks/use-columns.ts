@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, promises as fs, mkdirSync, readFileSync } from "node:fs";
 import process from "node:process";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { DEFAULT_COLUMNS } from "../constants/default-columns.js";
@@ -14,11 +14,11 @@ interface UseColumnsResult {
   readonly columns: ColumnsConfig;
   readonly loading: boolean;
   readonly error: string | undefined;
-  readonly saveColumns: (columns: ColumnsConfig) => void;
+  readonly saveColumns: (columns: ColumnsConfig) => Promise<void>;
   readonly setColumnsForEntity: (
     entityKey: Columns.EntityKey,
     columns: readonly ColumnConfig[],
-  ) => void;
+  ) => Promise<void>;
 }
 
 function ensureConfigDir(): void {
@@ -47,10 +47,10 @@ function loadColumnsFromDisk(): ColumnsConfig {
   return parseColumns(parsed);
 }
 
-function saveColumnsToDisk(columns: ColumnsConfig): void {
+async function saveColumnsToDisk(columns: ColumnsConfig): Promise<void> {
   ensureConfigDir();
   const columnsPath = getColumnsPath();
-  writeFileSync(columnsPath, JSON.stringify(columns, undefined, 2));
+  await fs.writeFile(columnsPath, JSON.stringify(columns, undefined, 2));
 }
 
 export function useColumns(): UseColumnsResult {
@@ -77,11 +77,11 @@ export function useColumns(): UseColumnsResult {
     }
   }, []);
 
-  const saveColumns = useCallback((nextColumns: ColumnsConfig) => {
+  const saveColumns = useCallback(async (nextColumns: ColumnsConfig) => {
     latestColumnsRef.current = nextColumns;
     setColumns(() => nextColumns);
     try {
-      saveColumnsToDisk(nextColumns);
+      await saveColumnsToDisk(nextColumns);
       setError(undefined);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unknown error";
@@ -94,12 +94,15 @@ export function useColumns(): UseColumnsResult {
   }, []);
 
   const setColumnsForEntity = useCallback(
-    (entityKey: Columns.EntityKey, nextColumns: readonly ColumnConfig[]) => {
+    async (
+      entityKey: Columns.EntityKey,
+      nextColumns: readonly ColumnConfig[],
+    ) => {
       const updated: ColumnsConfig = {
         ...latestColumnsRef.current,
         [entityKey]: [...nextColumns],
       };
-      saveColumns(updated);
+      await saveColumns(updated);
     },
     [saveColumns],
   );
@@ -121,9 +124,9 @@ export function loadColumns(): ColumnsConfig {
   }
 }
 
-export function saveColumns(columns: ColumnsConfig): void {
+export async function saveColumns(columns: ColumnsConfig): Promise<void> {
   try {
-    saveColumnsToDisk(columns);
+    await saveColumnsToDisk(columns);
   } catch (err) {
     const message = err instanceof Error ? err.message : "Unknown error";
     process.stderr.write(`Failed to save columns: ${message}\n`);

@@ -1,4 +1,5 @@
 import { Box, Text, useInput } from "ink";
+import { z } from "zod";
 
 interface WebhookUrlStepProps {
   readonly value: string;
@@ -10,34 +11,32 @@ export interface WebhookUrlValidationResult {
   readonly trimmed: string;
   readonly hasValue: boolean;
   readonly isValidUrl: boolean;
+  readonly validationMessage: string | undefined;
 }
+
+const webhookUrlSchema = z
+  .string()
+  .min(1, { message: "URL is required" })
+  .url({ message: "URL must be a valid URL" })
+  .refine((url) => url.startsWith("http://") || url.startsWith("https://"), {
+    message: "URL must use http/https",
+  });
 
 export function getWebhookUrlValidation(
   value: string,
 ): WebhookUrlValidationResult {
   const trimmed = value.trim();
   const hasValue = trimmed.length > 0;
-  const isValidUrl = (() => {
-    if (!hasValue) {
-      return false;
-    }
-
-    try {
-      const parsed = new URL(trimmed);
-      const hasHttpProtocol =
-        parsed.protocol === "http:" || parsed.protocol === "https:";
-      const hasHostname = parsed.hostname.trim().length > 0;
-
-      return hasHttpProtocol && hasHostname;
-    } catch {
-      return false;
-    }
-  })();
+  const parseResult = webhookUrlSchema.safeParse(trimmed);
+  const validationMessage = parseResult.success
+    ? undefined
+    : parseResult.error.issues[0]?.message;
 
   return {
     trimmed,
     hasValue,
-    isValidUrl,
+    isValidUrl: parseResult.success,
+    validationMessage,
   };
 }
 
@@ -46,7 +45,8 @@ export function WebhookUrlStep({
   onChange,
   onNext,
 }: WebhookUrlStepProps) {
-  const { trimmed, hasValue, isValidUrl } = getWebhookUrlValidation(value);
+  const { trimmed, hasValue, isValidUrl, validationMessage } =
+    getWebhookUrlValidation(value);
 
   useInput((input, key) => {
     if (key.return) {
@@ -81,11 +81,9 @@ export function WebhookUrlStep({
         <Text color="cyan">|</Text>
       </Box>
 
-      {hasValue && !isValidUrl && (
+      {hasValue && !isValidUrl && validationMessage && (
         <Box marginBottom={1}>
-          <Text color="yellow">
-            URL must be a valid http:// or https:// address
-          </Text>
+          <Text color="yellow">{validationMessage}</Text>
         </Box>
       )}
 

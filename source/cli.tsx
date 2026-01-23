@@ -3,8 +3,7 @@ import { render } from "ink";
 import meow from "meow";
 import App from "./app.js";
 
-// TODO: Use cli.flags.debug in Milestone 7
-const _cli = meow(
+const cli = meow(
   `
 	Usage
 	  $ attio-tui
@@ -31,4 +30,4 @@ const _cli = meow(
   },
 );
 
-render(<App />);
+render(<App initialDebugEnabled={cli.flags.debug} />);
