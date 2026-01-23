@@ -1,5 +1,5 @@
 import { Box, Text, useApp as useInkApp } from "ink";
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { ColumnPicker } from "./components/columns/index.js";
 import { CommandPalette } from "./components/command-palette/command-palette.js";
 import { DetailPane } from "./components/detail/detail-pane.js";
@@ -191,16 +191,24 @@ function MainApp() {
   const isKeyboardEnabled = !(isWebhookModalOpen || isColumnPickerOpen);
   const columnPickerEntityKey =
     columnPicker.mode === "open" ? columnPicker.entityKey : columnsEntityKey;
-  const columnPickerAvailable = getAvailableColumns({
-    entityKey: columnPickerEntityKey,
-  });
-  const columnPickerSelected = getColumnsConfig({
-    entityKey: columnPickerEntityKey,
-    columnsConfig,
-  });
-  const columnPickerDefaults = getDefaultColumns({
-    entityKey: columnPickerEntityKey,
-  });
+  const columnPickerData = useMemo(() => {
+    if (columnPicker.mode !== "open") {
+      return;
+    }
+
+    return {
+      available: getAvailableColumns({ entityKey: columnPickerEntityKey }),
+      selected: getColumnsConfig({
+        entityKey: columnPickerEntityKey,
+        columnsConfig,
+      }),
+      defaults: getDefaultColumns({ entityKey: columnPickerEntityKey }),
+    };
+  }, [columnPicker.mode, columnPickerEntityKey, columnsConfig]);
+
+  const columnPickerAvailable = columnPickerData?.available ?? [];
+  const columnPickerSelected = columnPickerData?.selected ?? [];
+  const columnPickerDefaults = columnPickerData?.defaults ?? [];
 
   const handleSaveColumns = useCallback(
     async (nextColumns: readonly ColumnConfig[]) => {
