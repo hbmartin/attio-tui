@@ -379,7 +379,8 @@
       "linter": {
         "rules": {
           "correctness": {
-            "noProcessGlobal": "off"
+            "noProcessGlobal": "off",
+            "noNodejsModules": "off"
           },
           "performance": {
             "noDelete": "off",
@@ -391,7 +392,8 @@
             "noExcessiveLinesPerFunction": "off"
           },
           "style": {
-            "noProcessEnv": "off"
+            "noProcessEnv": "off",
+            "useComponentExportOnlyModules": "off"
           },
           "suspicious": {
             "noConsole": "off",
