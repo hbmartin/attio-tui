@@ -96,9 +96,7 @@ const WEBHOOK_EVENT_VALUES = new Set<string>(
   ALL_WEBHOOK_EVENTS.map((event) => event.value),
 );
 
-export function isValidEventType(
-  eventType: string,
-): eventType is WebhookEventType {
+export function isValidEventType(eventType: string): boolean {
   return WEBHOOK_EVENT_VALUES.has(eventType);
 }
 
