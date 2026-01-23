@@ -11,25 +11,22 @@ interface PaneProps {
 export function Pane({ title, focused, width, children }: PaneProps) {
   const borderColor = focused ? "blue" : "gray";
   const titleColor = focused ? "blue" : "gray";
+  const focusTag = focused ? "[*]" : "[ ]";
+  const headerLabel = `${title} ${focusTag}`;
 
   return (
     <Box
       flexDirection="column"
       width={width}
+      height="100%"
       borderStyle="round"
       borderColor={borderColor}
       paddingX={1}
     >
       <Box marginBottom={1}>
-        <Text bold={true} color={titleColor}>
-          {title}
+        <Text bold={true} color={titleColor} wrap="truncate">
+          {headerLabel}
         </Text>
-        {focused && (
-          <Text color="blue" dimColor={true}>
-            {" "}
-            (active)
-          </Text>
-        )}
       </Box>
       <Box flexDirection="column" flexGrow={1}>
         {children}

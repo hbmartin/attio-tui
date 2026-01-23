@@ -15,7 +15,7 @@ export function ThreePaneLayout({
   statusBar,
 }: ThreePaneLayoutProps) {
   return (
-    <Box flexDirection="column" width="100%">
+    <Box flexDirection="column" width="100%" height="100%">
       <Box flexDirection="row" flexGrow={1}>
         <Box width={20}>{navigator}</Box>
         <Box flexGrow={1} minWidth={30}>
