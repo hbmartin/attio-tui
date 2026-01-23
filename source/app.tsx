@@ -171,7 +171,6 @@ function MainApp() {
   const handleWebhookCommand = useCallback(
     (webhookAction: "create" | "edit" | "delete") => {
       const selectedItem = results.items[results.selectedIndex];
-      const isWebhookSelected = selectedItem?.type === "webhooks";
 
       switch (webhookAction) {
         case "create":
@@ -179,7 +178,7 @@ function MainApp() {
           break;
 
         case "edit":
-          if (isWebhookSelected) {
+          if (selectedItem?.type === "webhooks") {
             const webhookData = selectedItem.data;
             dispatch({
               type: "OPEN_WEBHOOK_EDIT",
@@ -191,7 +190,7 @@ function MainApp() {
           break;
 
         case "delete":
-          if (isWebhookSelected) {
+          if (selectedItem?.type === "webhooks") {
             const webhookData = selectedItem.data;
             dispatch({
               type: "OPEN_WEBHOOK_DELETE",
