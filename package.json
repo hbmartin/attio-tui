@@ -100,7 +100,8 @@
       "**/test/**",
       "**/src/generated/**",
       "**/*.json",
-      "**/*.test.ts"
+      "**/*.test.ts",
+      "**/*.test.tsx"
     ],
     "absolute": false
   }

@@ -67,7 +67,7 @@ describe("fetchWebhooks", () => {
     mockGetV2Webhooks.mockReset();
   });
 
-  it("maps webhooks and computes next cursor", async () => {
+  it("maps webhooks correctly", async () => {
     const webhooksData: GetV2WebhooksResponses[200]["data"] = [
       buildWebhook("wh-1", "https://example.com/one"),
     ];
@@ -89,13 +89,54 @@ describe("fetchWebhooks", () => {
       ],
       createdAt: "2025-01-01T00:00:00Z",
     });
-    expect(result.nextCursor).toBe("1");
+  });
+
+  it("requests limit+1 items and sets nextCursor when more exist", async () => {
+    // Return 2 items when limit is 1 (limit+1 strategy)
+    const webhooksData: GetV2WebhooksResponses[200]["data"] = [
+      buildWebhook("wh-1", "https://example.com/one"),
+      buildWebhook("wh-2", "https://example.com/two"),
+    ];
+
+    mockGetV2Webhooks.mockResolvedValue(buildSuccess({ data: webhooksData }));
+
+    const result = await fetchWebhooks(client, { limit: 1 });
+
+    // Should request limit+1 = 2
     expect(mockGetV2Webhooks).toHaveBeenCalledWith({
       client,
       query: {
-        limit: 1,
+        limit: 2,
       },
     });
+    // Should only return 1 item (trimmed)
+    expect(result.webhooks).toHaveLength(1);
+    expect(result.webhooks[0]?.id).toBe("wh-1");
+    // Should have nextCursor since more items exist
+    expect(result.nextCursor).toBe("1");
+  });
+
+  it("sets nextCursor to null when no more items exist", async () => {
+    // Return exactly limit items (no extra item)
+    const webhooksData: GetV2WebhooksResponses[200]["data"] = [
+      buildWebhook("wh-1", "https://example.com/one"),
+    ];
+
+    mockGetV2Webhooks.mockResolvedValue(buildSuccess({ data: webhooksData }));
+
+    const result = await fetchWebhooks(client, { limit: 1 });
+
+    // Should request limit+1 = 2
+    expect(mockGetV2Webhooks).toHaveBeenCalledWith({
+      client,
+      query: {
+        limit: 2,
+      },
+    });
+    // Should return 1 item
+    expect(result.webhooks).toHaveLength(1);
+    // Should NOT have nextCursor since no more items
+    expect(result.nextCursor).toBeNull();
   });
 
   it("throws when the API returns an error", async () => {

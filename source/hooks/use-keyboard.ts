@@ -10,6 +10,21 @@ import {
 } from "../constants/keybindings.js";
 import type { PaneId } from "../types/navigation.js";
 
+// Ink's key event object structure
+interface InkKeyEvent {
+  readonly upArrow: boolean;
+  readonly downArrow: boolean;
+  readonly leftArrow: boolean;
+  readonly rightArrow: boolean;
+  readonly return: boolean;
+  readonly escape: boolean;
+  readonly ctrl: boolean;
+  readonly shift: boolean;
+  readonly meta: boolean;
+  readonly tab: boolean;
+  readonly backspace: boolean;
+}
+
 export interface KeyboardInput {
   readonly key: string;
   readonly ctrl: boolean;
@@ -25,22 +40,7 @@ export interface UseKeyboardOptions {
 }
 
 // Maps Ink's key object to our normalized format
-function normalizeInput(
-  input: string,
-  key: {
-    upArrow: boolean;
-    downArrow: boolean;
-    leftArrow: boolean;
-    rightArrow: boolean;
-    return: boolean;
-    escape: boolean;
-    ctrl: boolean;
-    shift: boolean;
-    meta: boolean;
-    tab: boolean;
-    backspace: boolean;
-  },
-): KeyboardInput {
+function normalizeInput(input: string, key: InkKeyEvent): KeyboardInput {
   let normalizedKey = input;
 
   if (key.upArrow) {
@@ -84,22 +84,7 @@ export function useKeyboard(options: UseKeyboardOptions): void {
   const { focusedPane, commandPaletteOpen, onAction, enabled = true } = options;
 
   const handleInput = useCallback(
-    (
-      input: string,
-      key: {
-        upArrow: boolean;
-        downArrow: boolean;
-        leftArrow: boolean;
-        rightArrow: boolean;
-        return: boolean;
-        escape: boolean;
-        ctrl: boolean;
-        shift: boolean;
-        meta: boolean;
-        tab: boolean;
-        backspace: boolean;
-      },
-    ) => {
+    (input: string, key: InkKeyEvent) => {
       const normalizedInput = normalizeInput(input, key);
 
       // Priority 1: Command palette keybindings when open

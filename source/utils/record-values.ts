@@ -1,5 +1,22 @@
 import type { RecordInfo, RecordValue, RecordValues } from "../types/attio.js";
 
+// Extract a person's name from a record value
+// Handles full_name, first_name, and last_name fields
+export function extractPersonName(value: RecordValue): string | undefined {
+  if ("full_name" in value && typeof value.full_name === "string") {
+    return value.full_name;
+  }
+
+  if ("first_name" in value || "last_name" in value) {
+    const firstName = "first_name" in value ? value.first_name : undefined;
+    const lastName = "last_name" in value ? value.last_name : undefined;
+    const name = [firstName, lastName].filter(Boolean).join(" ");
+    return name || undefined;
+  }
+
+  return;
+}
+
 const TITLE_ATTRIBUTES: readonly string[] = [
   "name",
   "full_name",
@@ -31,15 +48,9 @@ function extractTextValue(value: RecordValue): string | undefined {
     return value.value;
   }
 
-  if ("full_name" in value && typeof value.full_name === "string") {
-    return value.full_name;
-  }
-
-  if ("first_name" in value || "last_name" in value) {
-    const firstName = "first_name" in value ? value.first_name : undefined;
-    const lastName = "last_name" in value ? value.last_name : undefined;
-    const name = [firstName, lastName].filter(Boolean).join(" ");
-    return name || undefined;
+  const personName = extractPersonName(value);
+  if (personName) {
+    return personName;
   }
 
   if ("email_address" in value && typeof value.email_address === "string") {

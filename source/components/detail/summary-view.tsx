@@ -62,7 +62,7 @@ function RecordSummary({ data }: { readonly data: RecordInfo }) {
       </Box>
       {displayFields.map(({ label, key }) => {
         const fieldValue = values[key];
-        if (fieldValue?.length === 0) {
+        if (!fieldValue || fieldValue.length === 0) {
           return null;
         }
         return (
