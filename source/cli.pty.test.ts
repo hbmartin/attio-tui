@@ -58,6 +58,7 @@ const DEBUG_ENV_KEYS: readonly string[] = [
   "NO_COLOR",
   "HOME",
   "XDG_RUNTIME_DIR",
+  "ATTIO_TUI_PTY_DEBUG",
 ];
 
 const DIAGNOSTIC_PATHS: readonly string[] = [
@@ -65,6 +66,8 @@ const DIAGNOSTIC_PATHS: readonly string[] = [
   "/dev/pts",
   "/dev/pts/0",
 ];
+
+const isCi = Boolean(process.env["CI"]);
 
 let spawnHelperDetails: SpawnHelperDetails | undefined;
 
@@ -224,6 +227,10 @@ class PtySession {
   private exitOutcome: ExitOutcome | undefined;
   private spawnEnv: Record<string, string> | undefined;
   private spawnError: unknown;
+  private startTimestamp: number | undefined;
+  private dataEvents = 0;
+  private readonly dataChunks: string[] = [];
+  private exitEvent: { exitCode: number; signal?: number } | undefined;
 
   constructor({ entry = defaultEntry }: PtySessionOptions = {}) {
     this.entry = entry;
@@ -231,6 +238,7 @@ class PtySession {
 
   async start(): Promise<void> {
     this.tempHome = await mkdtemp(join(tmpdir(), "attio-tui-pty-"));
+    this.startTimestamp = Date.now();
 
     if (this.entry === "dist" && !distAvailable) {
       throw new Error(
@@ -238,12 +246,17 @@ class PtySession {
       );
     }
 
-    const env = this.buildEnv({
+    const envOverrides: Record<string, string> = {
       HOME: this.tempHome,
       TERM: "xterm-256color",
       // Disable color for more predictable output matching
       NO_COLOR: "1",
-    });
+    };
+    const debugFlag = process.env["ATTIO_TUI_PTY_DEBUG"] ?? (isCi ? "1" : "");
+    if (debugFlag) {
+      envOverrides["ATTIO_TUI_PTY_DEBUG"] = debugFlag;
+    }
+    const env = this.buildEnv(envOverrides);
     this.spawnEnv = env;
 
     const nodeArgs = entryArgsByKind[this.entry];
@@ -265,6 +278,14 @@ class PtySession {
 
     this.term.onData((data) => {
       this.output += data;
+      this.dataEvents += 1;
+      this.dataChunks.push(data);
+      if (this.dataChunks.length > 5) {
+        this.dataChunks.shift();
+      }
+    });
+    this.term.onExit((event) => {
+      this.exitEvent = { exitCode: event.exitCode, signal: event.signal };
     });
   }
 
@@ -376,6 +397,11 @@ class PtySession {
   async getDiagnostics(context: string): Promise<string> {
     const details: string[] = [];
     details.push(`Context: ${context}`);
+    if (this.startTimestamp) {
+      details.push(
+        `Elapsed: ${Date.now() - this.startTimestamp}ms since start`,
+      );
+    }
     details.push(
       `Platform: ${process.platform} ${process.arch} Node ${process.version}`,
     );
@@ -392,6 +418,23 @@ class PtySession {
       );
     } else {
       details.push("PTY: not started");
+    }
+    details.push(
+      `Output: chars=${this.output.length} normalized=${this.getNormalizedOutput().length} dataEvents=${this.dataEvents}`,
+    );
+    if (this.dataChunks.length > 0) {
+      const chunkSizes = this.dataChunks.map((chunk) => chunk.length).join(",");
+      const lastChunk = this.dataChunks.at(-1) ?? "";
+      const preview = normalizeOutput(lastChunk).slice(0, 200);
+      details.push(
+        `Output chunks: count=${this.dataChunks.length} sizes=${chunkSizes}`,
+      );
+      details.push(`Last chunk preview (200 chars): ${preview}`);
+    }
+    if (this.exitEvent) {
+      details.push(
+        `Exit event: exitCode=${this.exitEvent.exitCode} signal=${this.exitEvent.signal ?? "<none>"}`,
+      );
     }
     if (this.spawnError) {
       details.push(`Spawn error: ${formatError(this.spawnError)}`);
