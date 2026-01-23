@@ -6,14 +6,39 @@ interface WebhookUrlStepProps {
   readonly onNext: () => void;
 }
 
+export interface WebhookUrlValidationResult {
+  readonly trimmed: string;
+  readonly hasValue: boolean;
+  readonly isValidUrl: boolean;
+}
+
+export function getWebhookUrlValidation(
+  value: string,
+): WebhookUrlValidationResult {
+  const trimmed = value.trim();
+  const isValidUrl =
+    trimmed.startsWith("http://") || trimmed.startsWith("https://");
+
+  return {
+    trimmed,
+    hasValue: trimmed.length > 0,
+    isValidUrl,
+  };
+}
+
 export function WebhookUrlStep({
   value,
   onChange,
   onNext,
 }: WebhookUrlStepProps) {
+  const { trimmed, hasValue, isValidUrl } = getWebhookUrlValidation(value);
+
   useInput((input, key) => {
     if (key.return) {
-      if (value.trim()) {
+      if (hasValue && isValidUrl) {
+        if (trimmed !== value) {
+          onChange(trimmed);
+        }
         onNext();
       }
       return;
@@ -28,10 +53,6 @@ export function WebhookUrlStep({
       onChange(value + input);
     }
   });
-
-  const isValidUrl =
-    value.startsWith("http://") || value.startsWith("https://");
-  const hasValue = value.trim().length > 0;
 
   return (
     <Box flexDirection="column">
