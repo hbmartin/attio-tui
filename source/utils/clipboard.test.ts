@@ -67,4 +67,50 @@ describe("writeToClipboard", () => {
     );
     expect(mocks.spawn).not.toHaveBeenCalled();
   });
+
+  it("uses xclip on linux", async () => {
+    const { writeToClipboard } = await loadClipboardModule("linux");
+    const child = createChildProcess();
+    mocks.spawn.mockReturnValue(child);
+
+    const promise = writeToClipboard({ text: "linux text" });
+    child.emit("close", 0);
+
+    await expect(promise).resolves.toBeUndefined();
+    expect(mocks.spawn).toHaveBeenCalledWith(
+      "xclip",
+      ["-selection", "clipboard"],
+      {
+        stdio: ["pipe", "ignore", "pipe"],
+      },
+    );
+    expect(child.stdin?.write).toHaveBeenCalled();
+  });
+
+  it("rejects when stderr emits data and process exits with non-zero code", async () => {
+    const { writeToClipboard } = await loadClipboardModule("darwin");
+    const child = createChildProcess();
+    mocks.spawn.mockReturnValue(child);
+
+    const promise = writeToClipboard({ text: "hello" });
+    child.stderr?.emit("data", Buffer.from("clipboard error message"));
+    child.emit("close", 1);
+
+    await expect(promise).rejects.toThrow("clipboard error message");
+  });
+
+  it("rejects when spawn throws", async () => {
+    const { writeToClipboard } = await loadClipboardModule("darwin");
+    const spawnError = new Error("spawn failed");
+    mocks.spawn.mockImplementation(() => {
+      throw spawnError;
+    });
+
+    await expect(writeToClipboard({ text: "hello" })).rejects.toThrow(
+      "spawn failed",
+    );
+    expect(mocks.spawn).toHaveBeenCalledWith("pbcopy", [], {
+      stdio: ["pipe", "ignore", "pipe"],
+    });
+  });
 });

@@ -51,6 +51,20 @@ function getRequestLabel(
   return `fetch ${categoryType}`;
 }
 
+function safeLog(
+  onRequestLog: ((entry: DebugRequestLogEntryInput) => void) | undefined,
+  entry: DebugRequestLogEntryInput,
+): void {
+  if (!onRequestLog) {
+    return;
+  }
+  try {
+    onRequestLog(entry);
+  } catch {
+    // Logging failures should not break data fetches
+  }
+}
+
 export function useCategoryData({
   client,
   categoryType,
@@ -82,7 +96,7 @@ export function useCategoryData({
               data: record,
             }));
             const durationMs = Date.now() - startTime;
-            onRequestLog?.({
+            safeLog(onRequestLog, {
               label: getRequestLabel(categoryType, categorySlug),
               status: "success",
               startedAt,
@@ -105,7 +119,7 @@ export function useCategoryData({
               data: list,
             }));
             const durationMs = Date.now() - startTime;
-            onRequestLog?.({
+            safeLog(onRequestLog, {
               label: getRequestLabel(categoryType),
               status: "success",
               startedAt,
@@ -125,7 +139,7 @@ export function useCategoryData({
               data: note,
             }));
             const durationMs = Date.now() - startTime;
-            onRequestLog?.({
+            safeLog(onRequestLog, {
               label: getRequestLabel(categoryType),
               status: "success",
               startedAt,
@@ -145,7 +159,7 @@ export function useCategoryData({
               data: task,
             }));
             const durationMs = Date.now() - startTime;
-            onRequestLog?.({
+            safeLog(onRequestLog, {
               label: getRequestLabel(categoryType),
               status: "success",
               startedAt,
@@ -168,7 +182,7 @@ export function useCategoryData({
               data: meeting,
             }));
             const durationMs = Date.now() - startTime;
-            onRequestLog?.({
+            safeLog(onRequestLog, {
               label: getRequestLabel(categoryType),
               status: "success",
               startedAt,
@@ -188,7 +202,7 @@ export function useCategoryData({
               data: webhook,
             }));
             const durationMs = Date.now() - startTime;
-            onRequestLog?.({
+            safeLog(onRequestLog, {
               label: getRequestLabel(categoryType),
               status: "success",
               startedAt,
@@ -204,7 +218,7 @@ export function useCategoryData({
       } catch (err) {
         const message = err instanceof Error ? err.message : "Unknown error";
         const durationMs = Date.now() - startTime;
-        onRequestLog?.({
+        safeLog(onRequestLog, {
           label: getRequestLabel(categoryType, categorySlug),
           status: "error",
           startedAt,
