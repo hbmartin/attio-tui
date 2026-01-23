@@ -14,6 +14,7 @@ import {
   getTaskSubtitle,
   truncateText,
 } from "../utils/formatting.js";
+import { PtyDebug } from "../utils/pty-debug.js";
 import { getRecordSubtitle, getRecordTitle } from "../utils/record-values.js";
 import { usePaginatedData } from "./use-paginated-data.js";
 
@@ -81,6 +82,8 @@ export function useCategoryData({
       const startTime = Date.now();
       const startedAt = new Date(startTime).toISOString();
       const detail = cursor ? `cursor ${cursor}` : "initial";
+      const requestLabel = getRequestLabel(categoryType, categorySlug);
+      PtyDebug.log(`request start label="${requestLabel}" detail=${detail}`);
 
       try {
         let items: ResultItem[];
@@ -191,24 +194,30 @@ export function useCategoryData({
 
         const durationMs = Date.now() - startTime;
         safeLog(onRequestLog, {
-          label: getRequestLabel(categoryType, categorySlug),
+          label: requestLabel,
           status: "success",
           startedAt,
           durationMs,
           detail,
         });
+        PtyDebug.log(
+          `request success label="${requestLabel}" durationMs=${durationMs}`,
+        );
         return { items, nextCursor };
       } catch (err) {
         const message = err instanceof Error ? err.message : "Unknown error";
         const durationMs = Date.now() - startTime;
         safeLog(onRequestLog, {
-          label: getRequestLabel(categoryType, categorySlug),
+          label: requestLabel,
           status: "error",
           startedAt,
           durationMs,
           detail,
           errorMessage: message,
         });
+        PtyDebug.log(
+          `request error label="${requestLabel}" durationMs=${durationMs} message="${message}"`,
+        );
         throw err;
       }
     },
