@@ -3,6 +3,7 @@ import { useState } from "react";
 import {
   ALL_WEBHOOK_EVENTS,
   WEBHOOK_EVENT_CATEGORIES,
+  type WebhookEventDefinition,
 } from "../../constants/webhook-events.js";
 import type { WebhookEventType } from "../../types/attio.js";
 
@@ -77,12 +78,20 @@ export function WebhookSubscriptionPicker({
   const windowEnd = Math.min(totalEvents, windowStart + windowSize);
 
   // Build visible items with category headers
-  const visibleItems: Array<{
-    type: "category" | "event";
-    label: string;
-    eventValue?: WebhookEventType;
-    globalIndex?: number;
-  }> = [];
+  interface WebhookCategoryItem {
+    readonly type: "category";
+    readonly label: string;
+  }
+
+  interface WebhookEventItem {
+    readonly type: "event";
+    readonly event: WebhookEventDefinition;
+    readonly globalIndex: number;
+  }
+
+  type VisibleItem = WebhookCategoryItem | WebhookEventItem;
+
+  const visibleItems: VisibleItem[] = [];
 
   let globalIndex = 0;
   for (const category of WEBHOOK_EVENT_CATEGORIES) {
@@ -103,8 +112,7 @@ export function WebhookSubscriptionPicker({
         if (globalIndex >= windowStart && globalIndex < windowEnd) {
           visibleItems.push({
             type: "event",
-            label: event.label,
-            eventValue: event.value,
+            event,
             globalIndex,
           });
         }
@@ -134,19 +142,17 @@ export function WebhookSubscriptionPicker({
             );
           }
 
-          const isSelected = item.eventValue
-            ? selectedEvents.includes(item.eventValue)
-            : false;
+          const isSelected = selectedEvents.includes(item.event.value);
           const isCursor = item.globalIndex === selectedIndex;
           const checkbox = isSelected ? "[x]" : "[ ]";
 
           return (
-            <Box key={item.eventValue ?? idx}>
+            <Box key={item.event.value}>
               <Text color={isCursor ? "cyan" : undefined}>
                 {isCursor ? "> " : "  "}
               </Text>
               <Text color={isSelected ? "green" : undefined}>
-                {checkbox} {item.label}
+                {checkbox} {item.event.label}
               </Text>
             </Box>
           );

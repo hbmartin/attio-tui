@@ -1,4 +1,4 @@
-import { useInput } from "ink";
+import { type Key, useInput } from "ink";
 import { useCallback } from "react";
 import {
   COMMAND_PALETTE_KEYBINDINGS,
@@ -11,19 +11,7 @@ import {
 import type { PaneId } from "../types/navigation.js";
 
 // Ink's key event object structure
-interface InkKeyEvent {
-  readonly upArrow: boolean;
-  readonly downArrow: boolean;
-  readonly leftArrow: boolean;
-  readonly rightArrow: boolean;
-  readonly return: boolean;
-  readonly escape: boolean;
-  readonly ctrl: boolean;
-  readonly shift: boolean;
-  readonly meta: boolean;
-  readonly tab: boolean;
-  readonly backspace: boolean;
-}
+interface InkKeyEvent extends Key {}
 
 export interface KeyboardInput {
   readonly key: string;

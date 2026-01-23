@@ -1,5 +1,5 @@
 import { constants, existsSync } from "node:fs";
-import { access, chmod, mkdtemp, rm } from "node:fs/promises";
+import { access, chmod, mkdtemp, rm, stat } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
@@ -28,6 +28,39 @@ function normalizeOutput(text: string): string {
   return stripAnsi(stripOsc(text)).replace(CARRIAGE_RETURN_PATTERN, "");
 }
 
+interface SpawnHelperDetails {
+  readonly helperPath: string;
+  readonly nodePtyEntry: string;
+  readonly packageRoot: string;
+  readonly exists: boolean;
+  readonly executable: boolean;
+  readonly chmodAttempted: boolean;
+  readonly chmodSucceeded: boolean;
+  readonly chmodError?: string;
+}
+
+const DEBUG_ENV_KEYS: readonly string[] = [
+  "CI",
+  "TERM",
+  "TERM_PROGRAM",
+  "COLORTERM",
+  "SHELL",
+  "PATH",
+  "NODE_OPTIONS",
+  "FORCE_COLOR",
+  "NO_COLOR",
+  "HOME",
+  "XDG_RUNTIME_DIR",
+];
+
+const DIAGNOSTIC_PATHS: readonly string[] = [
+  "/dev/ptmx",
+  "/dev/pts",
+  "/dev/pts/0",
+];
+
+let spawnHelperDetails: SpawnHelperDetails | undefined;
+
 // Common key codes for terminal input
 const Keys = {
   ENTER: "\r",
@@ -45,6 +78,8 @@ const Keys = {
 interface WaitForOptions {
   readonly timeoutMs?: number;
   readonly intervalMs?: number;
+  readonly context?: string;
+  readonly diagnostics?: () => Promise<string> | string;
 }
 
 type EntryKind = "ts" | "dist";
@@ -84,7 +119,7 @@ async function waitForCondition(
   getOutput: () => string,
   options: WaitForOptions = {},
 ): Promise<void> {
-  const { timeoutMs = 8000, intervalMs = 50 } = options;
+  const { timeoutMs = 8000, intervalMs = 50, context, diagnostics } = options;
   const start = Date.now();
 
   while (Date.now() - start < timeoutMs) {
@@ -95,11 +130,79 @@ async function waitForCondition(
   }
 
   const output = normalizeOutput(getOutput());
+  let diagnosticsText = "";
+
+  if (diagnostics) {
+    try {
+      const rawDiagnostics = await diagnostics();
+      diagnosticsText = rawDiagnostics
+        ? `\nDiagnostics:\n${rawDiagnostics}`
+        : "";
+    } catch (error: unknown) {
+      diagnosticsText = `\nDiagnostics collection failed: ${formatError(error)}`;
+    }
+  }
+
+  const contextLine = context ? `Context: ${context}\n` : "";
   throw new Error(
     `Timed out after ${timeoutMs}ms waiting for condition.\n` +
+      contextLine +
       `Actual output (${output.length} chars):\n` +
-      `---\n${output}\n---`,
+      `---\n${output}\n---` +
+      diagnosticsText,
   );
+}
+
+function formatError(error: unknown): string {
+  if (error instanceof Error) {
+    const code = getErrorCode(error);
+    const codeSuffix = code ? ` code=${code}` : "";
+    return `${error.name}: ${error.message}${codeSuffix}`;
+  }
+  return `NonError: ${String(error)}`;
+}
+
+function getErrorCode(error: unknown): string | undefined {
+  if (typeof error !== "object" || error === null) {
+    return;
+  }
+  if (!("code" in error)) {
+    return;
+  }
+  const codeValue = error.code;
+  if (typeof codeValue === "string" || typeof codeValue === "number") {
+    return String(codeValue);
+  }
+  return;
+}
+
+function formatEnvSnapshot(env: Record<string, string> | undefined): string {
+  const entries: string[] = [];
+  const source = env ?? process.env;
+  for (const key of DEBUG_ENV_KEYS) {
+    const value = source[key];
+    entries.push(`${key}=${value ?? "<unset>"}`);
+  }
+  return entries.join(", ");
+}
+
+async function describePath(targetPath: string): Promise<string> {
+  try {
+    const stats = await stat(targetPath);
+    const mode = (stats.mode % 0o1000).toString(8).padStart(3, "0");
+    let kind = "other";
+    if (stats.isCharacterDevice()) {
+      kind = "char-device";
+    } else if (stats.isDirectory()) {
+      kind = "directory";
+    } else if (stats.isFile()) {
+      kind = "file";
+    }
+    return `${targetPath}: ${kind} mode=${mode}`;
+  } catch (error: unknown) {
+    const code = error instanceof Error ? getErrorCode(error) : undefined;
+    return `${targetPath}: error=${code ?? "unknown"}`;
+  }
 }
 
 /**
@@ -112,6 +215,8 @@ class PtySession {
   private tempHome: string | undefined;
   private readonly entry: EntryKind;
   private exitOutcome: ExitOutcome | undefined;
+  private spawnEnv: Record<string, string> | undefined;
+  private spawnError: unknown;
 
   constructor({ entry = defaultEntry }: PtySessionOptions = {}) {
     this.entry = entry;
@@ -132,15 +237,24 @@ class PtySession {
       // Disable color for more predictable output matching
       NO_COLOR: "1",
     });
+    this.spawnEnv = env;
 
     const nodeArgs = entryArgsByKind[this.entry];
-    this.term = pty.spawn(process.execPath, [...nodeArgs], {
-      name: "xterm-color",
-      cols: 80,
-      rows: 24,
-      cwd: repoRoot,
-      env,
-    });
+    try {
+      this.term = pty.spawn(process.execPath, [...nodeArgs], {
+        name: "xterm-color",
+        cols: 80,
+        rows: 24,
+        cwd: repoRoot,
+        env,
+      });
+    } catch (error: unknown) {
+      this.spawnError = error;
+      const diagnostics = await this.getDiagnostics("spawn");
+      throw new Error(
+        `Failed to spawn PTY.\n${formatError(error)}\nDiagnostics:\n${diagnostics}`,
+      );
+    }
 
     this.term.onData((data) => {
       this.output += data;
@@ -216,7 +330,12 @@ class PtySession {
     await waitForCondition(
       () => this.getNormalizedOutput().includes(text),
       () => this.output,
-      options,
+      {
+        ...options,
+        context: options.context ?? `waitFor("${text}")`,
+        diagnostics:
+          options.diagnostics ?? (() => this.getDiagnostics("waitFor")),
+      },
     );
   }
 
@@ -237,9 +356,54 @@ class PtySession {
         return false;
       },
       () => this.output,
-      options,
+      {
+        ...options,
+        context: options.context ?? "waitForAny",
+        diagnostics:
+          options.diagnostics ?? (() => this.getDiagnostics("waitForAny")),
+      },
     );
     return matchedText;
+  }
+
+  async getDiagnostics(context: string): Promise<string> {
+    const details: string[] = [];
+    details.push(`Context: ${context}`);
+    details.push(
+      `Platform: ${process.platform} ${process.arch} Node ${process.version}`,
+    );
+    details.push(
+      `Entry: ${this.entry} distAvailable=${distAvailable} args=${entryArgsByKind[
+        this.entry
+      ].join(" ")}`,
+    );
+    details.push(`Repo root: ${repoRoot}`);
+    details.push(`Entry paths: ts=${entryPaths.ts} dist=${entryPaths.dist}`);
+    if (this.term) {
+      details.push(
+        `PTY: pid=${this.term.pid} process=${this.term.process} cols=${this.term.cols} rows=${this.term.rows}`,
+      );
+    } else {
+      details.push("PTY: not started");
+    }
+    if (this.spawnError) {
+      details.push(`Spawn error: ${formatError(this.spawnError)}`);
+    }
+    if (spawnHelperDetails) {
+      details.push(
+        `spawn-helper: path=${spawnHelperDetails.helperPath} exists=${spawnHelperDetails.exists} executable=${spawnHelperDetails.executable} chmodAttempted=${spawnHelperDetails.chmodAttempted} chmodSucceeded=${spawnHelperDetails.chmodSucceeded} chmodError=${spawnHelperDetails.chmodError ?? "<none>"}`,
+      );
+      details.push(
+        `node-pty: entry=${spawnHelperDetails.nodePtyEntry} root=${spawnHelperDetails.packageRoot}`,
+      );
+    } else {
+      details.push("spawn-helper: details unavailable");
+    }
+    details.push(`Env: ${formatEnvSnapshot(this.spawnEnv)}`);
+    for (const diagnosticPath of DIAGNOSTIC_PATHS) {
+      details.push(await describePath(diagnosticPath));
+    }
+    return details.join("\n");
   }
 
   async cleanup(): Promise<ExitOutcome> {
@@ -288,36 +452,51 @@ async function ensureSpawnHelperExecutable(): Promise<void> {
   const helperExists = await access(helperPath, constants.F_OK)
     .then(() => true)
     .catch((error: unknown) => {
-      if (
-        error instanceof Error &&
-        "code" in error &&
-        error.code === "ENOENT"
-      ) {
+      if (getErrorCode(error) === "ENOENT") {
         return false;
       }
       throw error;
     });
 
-  if (!helperExists) {
-    return;
-  }
+  let executable = false;
+  let chmodAttempted = false;
+  let chmodSucceeded = false;
+  let chmodError: string | undefined;
 
-  try {
-    await access(helperPath, constants.X_OK);
-  } catch {
-    try {
-      await chmod(helperPath, 0o755);
-    } catch (chmodError: unknown) {
-      if (
-        chmodError instanceof Error &&
-        "code" in chmodError &&
-        chmodError.code === "ENOENT"
-      ) {
-        return;
+  if (helperExists) {
+    executable = await access(helperPath, constants.X_OK)
+      .then(() => true)
+      .catch(() => false);
+    if (!executable) {
+      chmodAttempted = true;
+      try {
+        await chmod(helperPath, 0o755);
+        chmodSucceeded = true;
+      } catch (error: unknown) {
+        if (error instanceof Error && getErrorCode(error) === "ENOENT") {
+          executable = false;
+        } else {
+          chmodError = formatError(error);
+        }
       }
-      throw chmodError;
+      if (chmodSucceeded) {
+        executable = await access(helperPath, constants.X_OK)
+          .then(() => true)
+          .catch(() => false);
+      }
     }
   }
+
+  spawnHelperDetails = {
+    helperPath,
+    nodePtyEntry,
+    packageRoot,
+    exists: helperExists,
+    executable,
+    chmodAttempted,
+    chmodSucceeded,
+    chmodError,
+  };
 }
 
 // PTY tests must run sequentially - they spawn external processes
@@ -332,7 +511,10 @@ describe.sequential("CLI (PTY)", () => {
   afterEach(async () => {
     const outcome = await session?.cleanup();
     if (outcome && outcome.status === "timeout") {
-      throw new Error("PTY did not exit within the cleanup timeout");
+      const diagnostics = await session.getDiagnostics("cleanup");
+      throw new Error(
+        `PTY did not exit within the cleanup timeout.\nDiagnostics:\n${diagnostics}`,
+      );
     }
     // Small delay between tests to ensure process fully exits
     await new Promise((resolve) => setTimeout(resolve, 100));
