@@ -1,5 +1,5 @@
 import { Box, Text, useApp as useInkApp } from "ink";
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { ColumnPicker } from "./components/columns/index.js";
 import { CommandPalette } from "./components/command-palette/command-palette.js";
 import { DetailPane } from "./components/detail/detail-pane.js";
@@ -191,27 +191,44 @@ function MainApp() {
   const isKeyboardEnabled = !(isWebhookModalOpen || isColumnPickerOpen);
   const columnPickerEntityKey =
     columnPicker.mode === "open" ? columnPicker.entityKey : columnsEntityKey;
-  const columnPickerAvailable = getAvailableColumns({
-    entityKey: columnPickerEntityKey,
-  });
-  const columnPickerSelected = getColumnsConfig({
-    entityKey: columnPickerEntityKey,
-    columnsConfig,
-  });
-  const columnPickerDefaults = getDefaultColumns({
-    entityKey: columnPickerEntityKey,
-  });
+  const columnPickerData = useMemo(() => {
+    if (columnPicker.mode !== "open") {
+      return;
+    }
+
+    return {
+      available: getAvailableColumns({ entityKey: columnPickerEntityKey }),
+      selected: getColumnsConfig({
+        entityKey: columnPickerEntityKey,
+        columnsConfig,
+      }),
+      defaults: getDefaultColumns({ entityKey: columnPickerEntityKey }),
+    };
+  }, [columnPicker.mode, columnPickerEntityKey, columnsConfig]);
+
+  const columnPickerAvailable = columnPickerData?.available ?? [];
+  const columnPickerSelected = columnPickerData?.selected ?? [];
+  const columnPickerDefaults = columnPickerData?.defaults ?? [];
 
   const handleSaveColumns = useCallback(
-    (nextColumns: readonly ColumnConfig[]) => {
+    async (nextColumns: readonly ColumnConfig[]) => {
       if (columnPicker.mode !== "open") {
         return;
       }
-      setColumnsForEntity(columnPicker.entityKey, nextColumns);
-      showStatusMessage({
-        tone: "info",
-        text: `Saved ${columnPicker.title}`,
-      });
+
+      try {
+        await setColumnsForEntity(columnPicker.entityKey, nextColumns);
+        showStatusMessage({
+          tone: "info",
+          text: `Saved ${columnPicker.title}`,
+        });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Unknown error";
+        showStatusMessage({
+          tone: "error",
+          text: `Failed to save ${columnPicker.title}: ${message}`,
+        });
+      }
     },
     [columnPicker, setColumnsForEntity, showStatusMessage],
   );
@@ -340,11 +357,11 @@ function MainApp() {
         webhookModal.selectedEvents,
       );
     } else if (webhookModal.mode === "edit") {
-      webhookOps.handleUpdate(
-        webhookModal.webhookId,
-        webhookModal.targetUrl,
-        webhookModal.selectedEvents,
-      );
+      webhookOps.handleUpdate({
+        webhookId: webhookModal.webhookId,
+        targetUrl: webhookModal.targetUrl,
+        selectedEvents: webhookModal.selectedEvents,
+      });
     }
   }, [webhookModal, webhookOps]);
 

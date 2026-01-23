@@ -1,4 +1,5 @@
 import type { WebhookEventType } from "../types/attio.js";
+import type { Columns } from "../types/columns.js";
 import {
   COMMAND_PALETTE_MAX_VISIBLE,
   createInitialNavigationState,
@@ -55,7 +56,7 @@ export type AppAction =
   // Column picker
   | {
       readonly type: "OPEN_COLUMN_PICKER";
-      readonly entityKey: string;
+      readonly entityKey: Columns.EntityKey;
       readonly title: string;
     }
   | { readonly type: "CLOSE_COLUMN_PICKER" }

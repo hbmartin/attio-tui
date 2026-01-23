@@ -1,4 +1,5 @@
 import { Box, Text, useInput } from "ink";
+import { useEffect, useRef } from "react";
 import type { Command } from "../../types/commands.js";
 import { CommandInput } from "./command-input.js";
 import { CommandList } from "./command-list.js";
@@ -20,6 +21,13 @@ export function CommandPalette({
   onExecute,
   onQueryChange,
 }: CommandPaletteProps) {
+  // Track latest query to avoid dropped keystrokes when input events outpace re-renders.
+  const queryRef = useRef(query);
+
+  useEffect(() => {
+    queryRef.current = query;
+  }, [query]);
+
   useInput(
     (_input, key) => {
       if (key.return && onExecute) {
@@ -41,14 +49,18 @@ export function CommandPalette({
         return;
       }
       if (key.backspace) {
-        onQueryChange(query.slice(0, -1));
+        const nextQuery = queryRef.current.slice(0, -1);
+        queryRef.current = nextQuery;
+        onQueryChange(nextQuery);
         return;
       }
       if (key.ctrl || key.meta) {
         return;
       }
       if (input) {
-        onQueryChange(`${query}${input}`);
+        const nextQuery = `${queryRef.current}${input}`;
+        queryRef.current = nextQuery;
+        onQueryChange(nextQuery);
       }
     },
     { isActive: isOpen },

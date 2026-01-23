@@ -9,6 +9,7 @@ import {
   type ColumnsConfig,
   ColumnsConfigSchema,
 } from "../schemas/columns-schema.js";
+import type { Columns } from "../types/columns.js";
 import { useColumns } from "./use-columns.js";
 
 vi.mock("node:fs", () => ({
@@ -29,7 +30,7 @@ interface HookSnapshot {
   readonly error: string | undefined;
   readonly saveColumns: (columns: ColumnsConfig) => void;
   readonly setColumnsForEntity: (
-    entityKey: string,
+    entityKey: Columns.EntityKey,
     columns: readonly ColumnConfig[],
   ) => void;
 }
@@ -163,11 +164,63 @@ describe("useColumns", () => {
         throw new Error("Expected hook state to be available");
       }
 
-      latest.setColumnsForEntity("notes", [{ attribute: "title" }]);
+      let caught: Error | undefined;
+
+      try {
+        latest.setColumnsForEntity("notes", [{ attribute: "title" }]);
+      } catch (err) {
+        caught = err instanceof Error ? err : new Error("Unknown error");
+      }
+
+      expect(caught?.message).toBe("Disk full");
 
       await waitForCondition(
         () => latest?.error === "Failed to save columns: Disk full",
       );
+    } finally {
+      instance.unmount();
+    }
+  });
+
+  it("clears the error after a successful save", async () => {
+    mockExistsSync.mockReturnValue(false);
+    mockReadFileSync.mockReturnValue(JSON.stringify(DEFAULT_COLUMNS));
+    mockWriteFileSync
+      .mockImplementationOnce(() => {
+        throw new Error("Disk full");
+      })
+      .mockImplementation(() => undefined);
+
+    let latest: HookSnapshot | undefined;
+
+    const instance = render(
+      <HookHarness
+        onUpdate={(snapshot) => {
+          latest = snapshot;
+        }}
+      />,
+    );
+
+    try {
+      await waitForCondition(() => Boolean(latest) && !latest?.loading);
+
+      if (!latest) {
+        throw new Error("Expected hook state to be available");
+      }
+
+      try {
+        latest.setColumnsForEntity("notes", [{ attribute: "title" }]);
+      } catch {
+        // Expected to throw on the first save attempt.
+      }
+
+      await waitForCondition(
+        () => latest?.error === "Failed to save columns: Disk full",
+      );
+
+      latest.setColumnsForEntity("notes", [{ attribute: "contentPlaintext" }]);
+
+      await waitForCondition(() => latest?.error === undefined);
     } finally {
       instance.unmount();
     }

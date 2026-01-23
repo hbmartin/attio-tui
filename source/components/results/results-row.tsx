@@ -1,7 +1,7 @@
 import { Box, Text } from "ink";
+import stringWidth from "string-width";
 import type { Columns } from "../../types/columns.js";
 import type { ResultItem } from "../../types/navigation.js";
-import { truncate } from "../../utils/formatting.js";
 
 interface ResultsRowProps {
   readonly item: ResultItem;
@@ -20,17 +20,53 @@ function getTextColor(selected: boolean, focused: boolean): string | undefined {
   return;
 }
 
+const GRAPHEME_SEGMENTER = new Intl.Segmenter(undefined, {
+  granularity: "grapheme",
+});
+
+function sliceToWidth(value: string, width: number): string {
+  if (width <= 0) {
+    return "";
+  }
+
+  let result = "";
+  let currentWidth = 0;
+
+  for (const { segment } of GRAPHEME_SEGMENTER.segment(value)) {
+    const segmentWidth = stringWidth(segment);
+    if (currentWidth + segmentWidth > width) {
+      break;
+    }
+
+    result += segment;
+    currentWidth += segmentWidth;
+  }
+
+  return result;
+}
+
 function truncateToWidth(value: string, width: number): string {
   if (width <= 0) {
     return "";
   }
-  if (value.length <= width) {
+
+  if (stringWidth(value) <= width) {
     return value;
   }
   if (width <= 3) {
-    return value.slice(0, width);
+    return sliceToWidth(value, width);
   }
-  return truncate(value, width);
+
+  const truncated = sliceToWidth(value, width - 3);
+  return `${truncated}...`;
+}
+
+function padToWidth(value: string, width: number): string {
+  const padding = Math.max(width - stringWidth(value), 0);
+  if (padding === 0) {
+    return value;
+  }
+  return `${value}${" ".repeat(padding)}`;
 }
 
 function formatColumnRow(
@@ -41,7 +77,7 @@ function formatColumnRow(
     .map((column) => {
       const width = Math.max(column.width, 1);
       const value = truncateToWidth(valueForColumn(column), width);
-      return value.padEnd(width);
+      return padToWidth(value, width);
     })
     .join("  ");
 }

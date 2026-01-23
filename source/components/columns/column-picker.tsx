@@ -85,9 +85,10 @@ export function ColumnPicker({
     }
 
     if (isEnter) {
-      const nextColumns = selectedAttributes.map((attribute) => ({
-        attribute,
-      }));
+      const selectedSet = new Set(selectedAttributes);
+      const nextColumns = availableColumns
+        .filter((column) => selectedSet.has(column.attribute))
+        .map((column) => ({ attribute: column.attribute }));
       onSave(nextColumns);
       onClose();
       return;

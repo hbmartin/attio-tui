@@ -2,7 +2,17 @@ import type { NavigatorCategory, ResultItem } from "./navigation.js";
 
 // biome-ignore lint/style/noNamespace: Use a namespace to group column types and helpers.
 export namespace Columns {
-  export type EntityKey = string;
+  export type KnownEntityKey =
+    | "object-default"
+    | "object-companies"
+    | "object-people"
+    | "list"
+    | "notes"
+    | "tasks"
+    | "meetings"
+    | "webhooks";
+
+  export type EntityKey = KnownEntityKey | `object-${string}`;
 
   export const DEFAULT_OBJECT_KEY = "object-default";
 

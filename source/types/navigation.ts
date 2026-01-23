@@ -7,6 +7,7 @@ import type {
   WebhookEventType,
   WebhookInfo,
 } from "./attio.js";
+import type { Columns } from "./columns.js";
 import type { ListId, ObjectSlug } from "./ids.js";
 
 // The three panes in the TUI layout
@@ -119,7 +120,7 @@ export type ColumnPickerState =
   | { readonly mode: "closed" }
   | {
       readonly mode: "open";
-      readonly entityKey: string;
+      readonly entityKey: Columns.EntityKey;
       readonly title: string;
     };
 

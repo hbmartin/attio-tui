@@ -147,4 +147,83 @@ describe("ColumnPicker", () => {
       unmount();
     }
   });
+
+  it("saves selections in available order and ignores missing attributes", async () => {
+    const onSave = vi.fn();
+    const onClose = vi.fn();
+
+    const instance = render(
+      <ColumnPicker
+        title="Columns: People"
+        availableColumns={AVAILABLE_COLUMNS}
+        selectedColumns={[
+          { attribute: "email" },
+          { attribute: "missing" },
+          { attribute: "name" },
+        ]}
+        defaultColumns={DEFAULT_COLUMNS}
+        onSave={onSave}
+        onClose={onClose}
+      />,
+    );
+    const { send } = prepareStdin(instance);
+    const { unmount } = instance;
+
+    try {
+      await waitForCondition(
+        () => instance.stdin.listenerCount("readable") > 0,
+      );
+
+      send("\r");
+
+      await waitForCondition(() => onSave.mock.calls.length > 0);
+
+      expect(onSave).toHaveBeenCalledWith([
+        { attribute: "name" },
+        { attribute: "email" },
+      ]);
+    } finally {
+      unmount();
+    }
+  });
+
+  it("saves columns in available order and filters removed attributes", async () => {
+    const onSave = vi.fn();
+    const onClose = vi.fn();
+
+    const instance = render(
+      <ColumnPicker
+        title="Columns: People"
+        availableColumns={AVAILABLE_COLUMNS}
+        selectedColumns={[
+          { attribute: "email" },
+          { attribute: "name" },
+          { attribute: "removed" },
+        ]}
+        defaultColumns={DEFAULT_COLUMNS}
+        onSave={onSave}
+        onClose={onClose}
+      />,
+    );
+    const { send } = prepareStdin(instance);
+    const { unmount } = instance;
+
+    try {
+      await waitForCondition(
+        () => instance.stdin.listenerCount("readable") > 0,
+      );
+
+      send("\r");
+
+      await waitForCondition(() => onSave.mock.calls.length > 0);
+
+      expect(onSave).toHaveBeenCalledWith([
+        { attribute: "name" },
+        { attribute: "email" },
+      ]);
+      expect(onClose).toHaveBeenCalled();
+    } finally {
+      unmount();
+    }
+  });
 });

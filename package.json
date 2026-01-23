@@ -43,6 +43,7 @@
     "ink": "^4.1.0",
     "meow": "^11.0.0",
     "react": "^18.2.0",
+    "string-width": "^5.1.2",
     "zod": "^4"
   },
   "devDependencies": {

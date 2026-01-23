@@ -5,7 +5,9 @@ import {
 import type { ColumnConfig, ColumnsConfig } from "../schemas/columns-schema.js";
 import { Columns } from "../types/columns.js";
 
-function resolveEntityKey(entityKey: Columns.EntityKey | undefined): string {
+function resolveEntityKey(
+  entityKey: Columns.EntityKey | undefined,
+): Columns.EntityKey {
   if (entityKey && COLUMN_DEFINITIONS[entityKey]) {
     return entityKey;
   }
@@ -53,11 +55,13 @@ function applyConfig(
   const byAttribute = new Map(
     definitions.map((definition) => [definition.attribute, definition]),
   );
+  const seen = new Set<string>();
 
   const resolved: Columns.ResolvedColumn[] = [];
   for (const config of configured) {
     const definition = byAttribute.get(config.attribute);
-    if (definition) {
+    if (definition && !seen.has(config.attribute)) {
+      seen.add(config.attribute);
       const label = config.label ?? definition.label;
       const width = Math.max(config.width ?? definition.width, label.length, 1);
       resolved.push({
