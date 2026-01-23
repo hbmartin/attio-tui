@@ -18,13 +18,15 @@ export async function fetchNotes(
     readonly parentRecordId?: string;
   } = {},
 ): Promise<QueryNotesResult> {
-  const { limit = 25, cursor, parentObject, parentRecordId } = options;
+  const { limit, cursor, parentObject, parentRecordId } = options;
   const offset = parseCursorOffset(cursor);
+  const effectiveLimit = Math.max(1, Number(limit) || 25);
 
+  // Request one extra item to detect if more pages exist
   const response = await getV2Notes({
     client,
     query: {
-      limit,
+      limit: effectiveLimit + 1,
       ...(offset !== undefined ? { offset } : {}),
       ...(parentObject ? { parent_object: parentObject } : {}),
       ...(parentRecordId ? { parent_record_id: parentRecordId } : {}),
@@ -36,7 +38,10 @@ export async function fetchNotes(
   }
 
   const data = response.data?.data ?? [];
-  const notes: NoteInfo[] = data.map((note) => {
+  const hasMore = data.length > effectiveLimit;
+  const trimmedData = hasMore ? data.slice(0, effectiveLimit) : data;
+
+  const notes: NoteInfo[] = trimmedData.map((note) => {
     const createdByType: NoteInfo["createdByType"] =
       note.created_by_actor.type ?? "unknown";
     const createdById: NoteInfo["createdById"] = note.created_by_actor.id ?? "";
@@ -53,9 +58,9 @@ export async function fetchNotes(
     };
   });
 
-  // Calculate next cursor based on offset
-  const nextCursor =
-    notes.length === limit ? String((offset ?? 0) + limit) : null;
+  // Calculate next cursor: only set if there are more items
+  const currentOffset = offset ?? 0;
+  const nextCursor = hasMore ? String(currentOffset + effectiveLimit) : null;
 
   return {
     notes,

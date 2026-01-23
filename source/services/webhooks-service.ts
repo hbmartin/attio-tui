@@ -61,13 +61,15 @@ export async function fetchWebhooks(
     readonly cursor?: string;
   } = {},
 ): Promise<QueryWebhooksResult> {
-  const { limit = 25, cursor } = options;
+  const { limit, cursor } = options;
   const offset = parseCursorOffset(cursor);
+  const effectiveLimit = Math.max(1, Number(limit) || 25);
 
+  // Request one extra item to detect if more pages exist
   const response = await getV2Webhooks({
     client,
     query: {
-      limit,
+      limit: effectiveLimit + 1,
       ...(offset !== undefined ? { offset } : {}),
     },
   });
@@ -79,11 +81,14 @@ export async function fetchWebhooks(
   }
 
   const data = response.data?.data ?? [];
-  const webhooks = data.map((webhook) => toWebhookInfo(webhook));
+  const hasMore = data.length > effectiveLimit;
+  const trimmedData = hasMore ? data.slice(0, effectiveLimit) : data;
 
+  const webhooks = trimmedData.map((webhook) => toWebhookInfo(webhook));
+
+  // Calculate next cursor: only set if there are more items
   const currentOffset = offset ?? 0;
-  const nextCursor =
-    webhooks.length === limit ? String(currentOffset + limit) : null;
+  const nextCursor = hasMore ? String(currentOffset + effectiveLimit) : null;
 
   return {
     webhooks,

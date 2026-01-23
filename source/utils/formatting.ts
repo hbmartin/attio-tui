@@ -1,9 +1,17 @@
 import type { RecordValue } from "../types/attio.js";
 import { extractPersonName } from "./record-values.js";
 
+function isRecordValueArray(
+  value: RecordValue | readonly RecordValue[],
+): value is readonly RecordValue[] {
+  return Array.isArray(value);
+}
+
 // Format various Attio value types for display
-export function formatValue(value: RecordValue | RecordValue[]): string {
-  if (Array.isArray(value)) {
+export function formatValue(
+  value: RecordValue | readonly RecordValue[],
+): string {
+  if (isRecordValueArray(value)) {
     if (value.length === 0) {
       return "-";
     }
