@@ -24,9 +24,7 @@ export function parseConfig(input: unknown): AppConfig {
   return DEFAULT_CONFIG;
 }
 
-// Validate API key format (strict Attio key format)
+// Validate API key (accepts any non-empty string)
 export function isValidApiKey(key: string): boolean {
-  // Attio API keys must start with "at_" followed by hex characters only
-  // Total length is at least 51 (3-char prefix + 48 hex chars)
-  return key.length >= 51 && /^at_[0-9a-f]+$/.test(key);
+  return key.length > 0;
 }

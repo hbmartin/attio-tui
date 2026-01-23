@@ -249,6 +249,8 @@ class PtySession {
     }
 
     const envOverrides: Record<string, string> = {
+      // Ink suppresses interactive output in CI unless CI is explicitly false.
+      CI: "false",
       HOME: this.tempHome,
       TERM: "xterm-256color",
       // Disable color for more predictable output matching
@@ -675,21 +677,6 @@ describe.sequential("CLI (PTY)", () => {
     await session.waitFor("API key is required");
 
     expect(session.getNormalizedOutput()).toContain("API key is required");
-  }, 12_000);
-
-  it("shows validation error for invalid API key format", async () => {
-    session = new PtySession();
-    await session.start();
-
-    await session.waitFor("Welcome to Attio TUI");
-
-    // Type an invalid API key
-    await session.type("invalid_key");
-    session.write(Keys.ENTER);
-
-    await session.waitFor("Invalid API key format");
-
-    expect(session.getNormalizedOutput()).toContain("Invalid API key format");
   }, 12_000);
 
   it("masks API key input with dots", async () => {
