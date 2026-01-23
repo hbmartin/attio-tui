@@ -4,10 +4,11 @@ import {
   ALL_WEBHOOK_EVENTS,
   WEBHOOK_EVENT_CATEGORIES,
 } from "../../constants/webhook-events.js";
+import type { WebhookEventType } from "../../types/attio.js";
 
 interface WebhookSubscriptionPickerProps {
-  readonly selectedEvents: readonly string[];
-  readonly onToggleEvent: (eventType: string) => void;
+  readonly selectedEvents: readonly WebhookEventType[];
+  readonly onToggleEvent: (eventType: WebhookEventType) => void;
   readonly onNext: () => void;
 }
 
@@ -79,7 +80,7 @@ export function WebhookSubscriptionPicker({
   const visibleItems: Array<{
     type: "category" | "event";
     label: string;
-    eventValue?: string;
+    eventValue?: WebhookEventType;
     globalIndex?: number;
   }> = [];
 

@@ -1,13 +1,15 @@
+import type { WebhookEventType } from "../types/attio.js";
+
 // Available webhook event types from Attio API
 // Grouped by category for better UX in the picker
 
 export interface WebhookEventCategory {
   readonly name: string;
-  readonly events: readonly WebhookEventType[];
+  readonly events: readonly WebhookEventDefinition[];
 }
 
-export interface WebhookEventType {
-  readonly value: string;
+export interface WebhookEventDefinition {
+  readonly value: WebhookEventType;
   readonly label: string;
 }
 

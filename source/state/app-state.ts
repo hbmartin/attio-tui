@@ -1,3 +1,4 @@
+import type { WebhookEventType } from "../types/attio.js";
 import {
   COMMAND_PALETTE_MAX_VISIBLE,
   createInitialNavigationState,
@@ -57,7 +58,7 @@ export type AppAction =
       readonly type: "OPEN_WEBHOOK_EDIT";
       readonly webhookId: string;
       readonly targetUrl: string;
-      readonly selectedEvents: readonly string[];
+      readonly selectedEvents: readonly WebhookEventType[];
     }
   | {
       readonly type: "OPEN_WEBHOOK_DELETE";
@@ -66,7 +67,10 @@ export type AppAction =
     }
   | { readonly type: "CLOSE_WEBHOOK_MODAL" }
   | { readonly type: "WEBHOOK_SET_URL"; readonly url: string }
-  | { readonly type: "WEBHOOK_TOGGLE_EVENT"; readonly eventType: string }
+  | {
+      readonly type: "WEBHOOK_TOGGLE_EVENT";
+      readonly eventType: WebhookEventType;
+    }
   | {
       readonly type: "WEBHOOK_NAVIGATE_STEP";
       readonly direction: "next" | "previous";

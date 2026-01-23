@@ -4,6 +4,7 @@ import type {
   NoteInfo,
   RecordInfo,
   TaskInfo,
+  WebhookEventType,
   WebhookInfo,
 } from "./attio.js";
 import type { ListId, ObjectSlug } from "./ids.js";
@@ -98,14 +99,14 @@ export type WebhookModalState =
       readonly mode: "create";
       readonly step: WebhookFormStep;
       readonly targetUrl: string;
-      readonly selectedEvents: readonly string[];
+      readonly selectedEvents: readonly WebhookEventType[];
     }
   | {
       readonly mode: "edit";
       readonly webhookId: string;
       readonly step: WebhookFormStep;
       readonly targetUrl: string;
-      readonly selectedEvents: readonly string[];
+      readonly selectedEvents: readonly WebhookEventType[];
     }
   | {
       readonly mode: "delete";

@@ -11,7 +11,10 @@ import type {
   WebhookInfo,
   WebhookUpdateSubscriptionInput,
 } from "../types/attio.js";
-import { parseCursorOffset } from "../utils/pagination.js";
+import {
+  buildOffsetPaginationRequest,
+  resolveOffsetPagination,
+} from "../utils/pagination.js";
 
 export interface QueryWebhooksResult {
   readonly webhooks: readonly WebhookInfo[];
@@ -62,33 +65,25 @@ export async function fetchWebhooks(
   } = {},
 ): Promise<QueryWebhooksResult> {
   const { limit, cursor } = options;
-  const offset = parseCursorOffset(cursor);
-  const effectiveLimit = Math.max(1, Number(limit) || 25);
+  const pagination = buildOffsetPaginationRequest({ limit, cursor });
 
   // Request one extra item to detect if more pages exist
   const response = await getV2Webhooks({
     client,
     query: {
-      limit: effectiveLimit + 1,
-      ...(offset !== undefined ? { offset } : {}),
+      limit: pagination.requestLimit,
+      ...(pagination.offset !== undefined ? { offset: pagination.offset } : {}),
     },
   });
 
-  if (response.error) {
-    throw new Error(
-      `Failed to fetch webhooks: ${JSON.stringify(response.error)}`,
-    );
-  }
-
-  const data = response.data?.data ?? [];
-  const hasMore = data.length > effectiveLimit;
-  const trimmedData = hasMore ? data.slice(0, effectiveLimit) : data;
+  const { items: trimmedData, nextCursor } = resolveOffsetPagination({
+    error: response.error,
+    data: response.data?.data,
+    pagination,
+    errorMessage: "Failed to fetch webhooks",
+  });
 
   const webhooks = trimmedData.map((webhook) => toWebhookInfo(webhook));
-
-  // Calculate next cursor: only set if there are more items
-  const currentOffset = offset ?? 0;
-  const nextCursor = hasMore ? String(currentOffset + effectiveLimit) : null;
 
   return {
     webhooks,

@@ -1,4 +1,5 @@
 import { Box, Text, useInput } from "ink";
+import type { WebhookEventType } from "../../types/attio.js";
 import type { WebhookFormStep } from "../../types/navigation.js";
 import { WebhookReviewStep } from "./webhook-review-step.js";
 import { WebhookSubscriptionPicker } from "./webhook-subscription-picker.js";
@@ -8,9 +9,9 @@ interface WebhookFormProps {
   readonly mode: "create" | "edit";
   readonly step: WebhookFormStep;
   readonly targetUrl: string;
-  readonly selectedEvents: readonly string[];
+  readonly selectedEvents: readonly WebhookEventType[];
   readonly onUrlChange: (url: string) => void;
-  readonly onToggleEvent: (eventType: string) => void;
+  readonly onToggleEvent: (eventType: WebhookEventType) => void;
   readonly onNavigateStep: (direction: "next" | "previous") => void;
   readonly onSubmit: () => void;
   readonly onCancel: () => void;

@@ -19,6 +19,11 @@ interface WebhookOperationsState {
   readonly error: string | undefined;
 }
 
+interface SubmitWebhookOperationParams {
+  readonly operation: (client: AttioClient) => Promise<unknown>;
+  readonly fallbackError: string;
+}
+
 export function useWebhookOperations({
   client,
   dispatch,
@@ -29,8 +34,8 @@ export function useWebhookOperations({
     error: undefined,
   });
 
-  const handleCreate = useCallback(
-    async (targetUrl: string, selectedEvents: readonly string[]) => {
+  const submitOperation = useCallback(
+    async ({ operation, fallbackError }: SubmitWebhookOperationParams) => {
       if (!client) {
         setState({ isSubmitting: false, error: "No client available" });
         return;
@@ -39,80 +44,60 @@ export function useWebhookOperations({
       setState({ isSubmitting: true, error: undefined });
 
       try {
-        await createWebhook(client, {
-          targetUrl,
-          subscriptions: selectedEvents.map((eventType) => ({
-            eventType: eventType as WebhookEventType,
-          })),
-        });
+        await operation(client);
 
         setState({ isSubmitting: false, error: undefined });
         dispatch({ type: "CLOSE_WEBHOOK_MODAL" });
         onSuccess?.();
       } catch (err) {
-        const message =
-          err instanceof Error ? err.message : "Failed to create webhook";
+        const message = err instanceof Error ? err.message : fallbackError;
         setState({ isSubmitting: false, error: message });
       }
     },
     [client, dispatch, onSuccess],
+  );
+
+  const handleCreate = useCallback(
+    async (targetUrl: string, selectedEvents: readonly WebhookEventType[]) =>
+      submitOperation({
+        operation: (activeClient) =>
+          createWebhook(activeClient, {
+            targetUrl,
+            subscriptions: selectedEvents.map((eventType) => ({
+              eventType,
+            })),
+          }),
+        fallbackError: "Failed to create webhook",
+      }),
+    [submitOperation],
   );
 
   const handleUpdate = useCallback(
     async (
       webhookId: string,
       targetUrl: string,
-      selectedEvents: readonly string[],
-    ) => {
-      if (!client) {
-        setState({ isSubmitting: false, error: "No client available" });
-        return;
-      }
-
-      setState({ isSubmitting: true, error: undefined });
-
-      try {
-        await updateWebhook(client, webhookId, {
-          targetUrl,
-          subscriptions: selectedEvents.map((eventType) => ({
-            eventType: eventType as WebhookEventType,
-          })),
-        });
-
-        setState({ isSubmitting: false, error: undefined });
-        dispatch({ type: "CLOSE_WEBHOOK_MODAL" });
-        onSuccess?.();
-      } catch (err) {
-        const message =
-          err instanceof Error ? err.message : "Failed to update webhook";
-        setState({ isSubmitting: false, error: message });
-      }
-    },
-    [client, dispatch, onSuccess],
+      selectedEvents: readonly WebhookEventType[],
+    ) =>
+      submitOperation({
+        operation: (activeClient) =>
+          updateWebhook(activeClient, webhookId, {
+            targetUrl,
+            subscriptions: selectedEvents.map((eventType) => ({
+              eventType,
+            })),
+          }),
+        fallbackError: "Failed to update webhook",
+      }),
+    [submitOperation],
   );
 
   const handleDelete = useCallback(
-    async (webhookId: string) => {
-      if (!client) {
-        setState({ isSubmitting: false, error: "No client available" });
-        return;
-      }
-
-      setState({ isSubmitting: true, error: undefined });
-
-      try {
-        await deleteWebhook(client, webhookId);
-
-        setState({ isSubmitting: false, error: undefined });
-        dispatch({ type: "CLOSE_WEBHOOK_MODAL" });
-        onSuccess?.();
-      } catch (err) {
-        const message =
-          err instanceof Error ? err.message : "Failed to delete webhook";
-        setState({ isSubmitting: false, error: message });
-      }
-    },
-    [client, dispatch, onSuccess],
+    async (webhookId: string) =>
+      submitOperation({
+        operation: (activeClient) => deleteWebhook(activeClient, webhookId),
+        fallbackError: "Failed to delete webhook",
+      }),
+    [submitOperation],
   );
 
   const clearError = useCallback(() => {
