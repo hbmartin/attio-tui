@@ -27,6 +27,9 @@
   },
   "linter": {
     "enabled": true,
+    "domains": {
+      "react": "all"
+    },
     "rules": {
       "complexity": {
         "noAdjacentSpacesInRegex": "error",
@@ -78,6 +81,13 @@
         "noImplicitCoercions": "error"
       },
       "correctness": {
+        "noChildrenProp": "error",
+        "noReactPropAssignments": "error",
+        "noRenderReturnValue": "error",
+        "noVoidElementsWithChildren": "error",
+        "useExhaustiveDependencies": "error",
+        "useHookAtTopLevel": "error",
+        "useJsxKeyInIterable": "error",
         "noConstantCondition": "error",
         "noConstantMathMinMaxClamp": "error",
         "noConstAssign": "error",
@@ -193,6 +203,7 @@
         "noSecrets": "error"
       },
       "style": {
+        "useReactFunctionComponents": "error",
         "noDescendingSpecificity": "error",
         "noDoneCallback": "error",
         "noEnum": "error",
@@ -272,6 +283,9 @@
         "useSingleVarDeclarator": "error"
       },
       "suspicious": {
+        "noReactSpecificProps": "off",
+        "noDuplicateJsxProps": "error",
+        "noSuspiciousSemicolonInJsx": "error",
         "noAlert": "error",
         "noApproximativeNumericConstant": "error",
         "noArrayIndexKey": "error",
