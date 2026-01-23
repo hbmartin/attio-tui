@@ -1,6 +1,7 @@
 import type { AttioClient } from "attio-ts-sdk";
 import { getV2Tasks } from "attio-ts-sdk";
 import type { TaskInfo } from "../types/attio.js";
+import { parseCursorOffset } from "../utils/pagination.js";
 
 export interface QueryTasksResult {
   readonly tasks: readonly TaskInfo[];
@@ -19,21 +20,15 @@ export async function fetchTasks(
   } = {},
 ): Promise<QueryTasksResult> {
   const { limit, cursor, linkedObject, linkedRecordId, isCompleted } = options;
-  let parsedOffset: number | undefined = cursor
-    ? Number.parseInt(cursor, 10)
-    : 0;
-
-  if (parsedOffset !== undefined && Number.isNaN(parsedOffset)) {
-    parsedOffset = undefined;
-  }
-
+  const offset = parseCursorOffset(cursor);
   const effectiveLimit = Math.max(1, Number(limit) || 25);
 
+  // Request one extra item to detect if more pages exist
   const response = await getV2Tasks({
     client,
     query: {
-      limit: effectiveLimit,
-      ...(parsedOffset !== undefined ? { offset: parsedOffset } : {}),
+      limit: effectiveLimit + 1,
+      ...(offset !== undefined ? { offset } : {}),
       ...(linkedObject ? { linked_object: linkedObject } : {}),
       ...(linkedRecordId ? { linked_record_id: linkedRecordId } : {}),
       ...(isCompleted !== undefined ? { is_completed: isCompleted } : {}),
@@ -45,7 +40,10 @@ export async function fetchTasks(
   }
 
   const data = response.data?.data ?? [];
-  const tasks = data.map((task) => ({
+  const hasMore = data.length > effectiveLimit;
+  const trimmedData = hasMore ? data.slice(0, effectiveLimit) : data;
+
+  const tasks = trimmedData.map((task) => ({
     id: task.id.task_id,
     content: task.content_plaintext,
     deadlineAt: task.deadline_at,
@@ -61,11 +59,9 @@ export async function fetchTasks(
     createdAt: task.created_at,
   }));
 
-  // Calculate next cursor based on offset
-  const nextCursor =
-    parsedOffset !== undefined && tasks.length === effectiveLimit
-      ? String(parsedOffset + tasks.length)
-      : null;
+  // Calculate next cursor: only set if there are more items
+  const currentOffset = offset ?? 0;
+  const nextCursor = hasMore ? String(currentOffset + effectiveLimit) : null;
 
   return {
     tasks,

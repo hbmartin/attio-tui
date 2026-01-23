@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { parseObjectSlug } from "../types/ids.js";
 import type { NoteInfo } from "../types/attio.js";
+import { parseObjectSlug } from "../types/ids.js";
 import type { NavigatorCategory, ResultItem } from "../types/navigation.js";
 import {
   type AppAction,
@@ -8,6 +8,24 @@ import {
   appReducer,
   createInitialAppState,
 } from "./app-state.js";
+
+const makeNoteInfo = (id: string, title: string): NoteInfo => ({
+  id,
+  parentObject: "companies",
+  parentRecordId: "record-1",
+  title,
+  contentPlaintext: "Sample note",
+  createdAt: "2025-01-01T00:00:00Z",
+  createdByType: "workspace-member",
+  createdById: "user-1",
+});
+
+const makeNoteItem = (id: string, title: string): ResultItem => ({
+  type: "notes",
+  id,
+  title,
+  data: makeNoteInfo(id, title),
+});
 
 describe("appReducer", () => {
   const initialState = createInitialAppState();
@@ -194,24 +212,6 @@ describe("appReducer", () => {
   });
 
   describe("results", () => {
-    const makeNoteInfo = (id: string, title: string): NoteInfo => ({
-      id,
-      parentObject: "companies",
-      parentRecordId: "record-1",
-      title,
-      contentPlaintext: "Sample note",
-      createdAt: "2025-01-01T00:00:00Z",
-      createdByType: "user",
-      createdById: "user-1",
-    });
-
-    const makeNoteItem = (id: string, title: string): ResultItem => ({
-      type: "notes",
-      id,
-      title,
-      data: makeNoteInfo(id, title),
-    });
-
     const testItems: ResultItem[] = [
       makeNoteItem("1", "Item 1"),
       makeNoteItem("2", "Item 2"),

@@ -10,7 +10,7 @@ import { fetchLists } from "../services/lists-service.js";
 import type { QueryNotesResult } from "../services/notes-service.js";
 import { fetchNotes } from "../services/notes-service.js";
 import { queryRecords } from "../services/objects-service.js";
-import type { ListInfo, NoteInfo } from "../types/attio.js";
+import type { ListInfo, NoteInfo, RecordValue } from "../types/attio.js";
 import { type ObjectSlug, parseObjectSlug } from "../types/ids.js";
 import type { NavigatorCategory, ResultItem } from "../types/navigation.js";
 import { useCategoryData } from "./use-category-data.js";
@@ -42,6 +42,20 @@ vi.mock("../services/webhooks-service.js", () => ({
 interface WaitForOptions {
   readonly timeoutMs?: number;
   readonly intervalMs?: number;
+}
+
+const baseRecordValue = {
+  active_from: "2025-01-01T00:00:00Z",
+  active_until: null,
+  created_by_actor: {},
+};
+
+function textRecordValue(value: string): RecordValue {
+  return {
+    ...baseRecordValue,
+    attribute_type: "text",
+    value,
+  };
 }
 
 async function waitForCondition(
@@ -103,7 +117,7 @@ const mockFetchLists = vi.mocked(fetchLists);
 const mockFetchNotes = vi.mocked(fetchNotes);
 const mockQueryRecords = vi.mocked(queryRecords);
 
-const TEST_API_KEY = process.env.TEST_API_KEY ?? "test-api-key-placeholder";
+const TEST_API_KEY = process.env["TEST_API_KEY"] ?? "test-api-key-placeholder";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -170,7 +184,7 @@ describe("useCategoryData", () => {
       title: "First Note",
       contentPlaintext: "Short content",
       createdAt: "2025-01-01T00:00:00Z",
-      createdByType: "user",
+      createdByType: "workspace-member",
       createdById: "user-1",
     };
     const noteB: NoteInfo = {
@@ -180,7 +194,7 @@ describe("useCategoryData", () => {
       title: "Second Note",
       contentPlaintext: "More content",
       createdAt: "2025-01-02T00:00:00Z",
-      createdByType: "user",
+      createdByType: "workspace-member",
       createdById: "user-2",
     };
 
@@ -254,7 +268,7 @@ describe("useCategoryData", () => {
           id: "record-1",
           objectId: "object-1",
           values: {
-            name: [{ value: "Acme Corp" }],
+            name: [textRecordValue("Acme Corp")],
           },
           createdAt: "2025-01-01T00:00:00Z",
         },

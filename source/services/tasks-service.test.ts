@@ -61,24 +61,32 @@ describe("fetchTasks", () => {
 
     const result = await fetchTasks(client, { cursor: "bad", limit: 0 });
 
+    // Uses limit+1 strategy: requests 26 to detect if there are more pages
     expect(mockGetV2Tasks).toHaveBeenCalledWith({
       client,
-      query: { limit: 25 },
+      query: { limit: 26 },
     });
     expect(result.nextCursor).toBeNull();
   });
 
-  it("uses parsed offsets when computing nextCursor", async () => {
+  it("uses parsed offsets when computing nextCursor with limit+1 strategy", async () => {
+    // Return 3 tasks (limit+1) to trigger hasMore detection
     mockGetV2Tasks.mockResolvedValue(
-      buildSuccess({ data: [buildTask("task-2"), buildTask("task-3")] }),
+      buildSuccess({
+        data: [buildTask("task-2"), buildTask("task-3"), buildTask("task-4")],
+      }),
     );
 
     const result = await fetchTasks(client, { cursor: "10", limit: 2 });
 
+    // Uses limit+1 strategy: requests 3 to detect if there are more pages
     expect(mockGetV2Tasks).toHaveBeenCalledWith({
       client,
-      query: { limit: 2, offset: 10 },
+      query: { limit: 3, offset: 10 },
     });
+    // Returns only the first 2 tasks (effectiveLimit)
+    expect(result.tasks).toHaveLength(2);
+    // nextCursor is offset (10) + effectiveLimit (2) = 12
     expect(result.nextCursor).toBe("12");
   });
 });

@@ -11,6 +11,7 @@ import type {
   WebhookInfo,
   WebhookUpdateSubscriptionInput,
 } from "../types/attio.js";
+import { parseCursorOffset } from "../utils/pagination.js";
 
 export interface QueryWebhooksResult {
   readonly webhooks: readonly WebhookInfo[];
@@ -61,12 +62,13 @@ export async function fetchWebhooks(
   } = {},
 ): Promise<QueryWebhooksResult> {
   const { limit = 25, cursor } = options;
+  const offset = parseCursorOffset(cursor);
 
   const response = await getV2Webhooks({
     client,
     query: {
       limit,
-      ...(cursor ? { offset: Number.parseInt(cursor, 10) } : {}),
+      ...(offset !== undefined ? { offset } : {}),
     },
   });
 
@@ -79,7 +81,7 @@ export async function fetchWebhooks(
   const data = response.data?.data ?? [];
   const webhooks = data.map((webhook) => toWebhookInfo(webhook));
 
-  const currentOffset = cursor ? Number.parseInt(cursor, 10) : 0;
+  const currentOffset = offset ?? 0;
   const nextCursor =
     webhooks.length === limit ? String(currentOffset + limit) : null;
 

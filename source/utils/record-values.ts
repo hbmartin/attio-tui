@@ -20,7 +20,7 @@ function getFirstRecordValue(
   field: string,
 ): RecordValue | undefined {
   const fieldValues = values[field];
-  if (!fieldValues?.length) {
+  if (!fieldValues || fieldValues.length === 0) {
     return;
   }
   return fieldValues[0];
@@ -65,10 +65,7 @@ function extractTextValue(value: RecordValue): string | undefined {
 export function getRecordTitle(values: RecordValues): string {
   for (const attribute of TITLE_ATTRIBUTES) {
     const firstValue = getFirstRecordValue(values, attribute);
-    if (!firstValue) {
-      continue;
-    }
-    const title = extractTextValue(firstValue);
+    const title = firstValue ? extractTextValue(firstValue) : undefined;
     if (title) {
       return title;
     }
@@ -87,10 +84,7 @@ export function getRecordDisplayName(record: RecordInfo): string {
 export function getRecordSubtitle(values: RecordValues): string {
   for (const attribute of SUBTITLE_ATTRIBUTES) {
     const firstValue = getFirstRecordValue(values, attribute);
-    if (!firstValue) {
-      continue;
-    }
-    const subtitle = extractTextValue(firstValue);
+    const subtitle = firstValue ? extractTextValue(firstValue) : undefined;
     if (subtitle) {
       return subtitle;
     }

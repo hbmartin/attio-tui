@@ -1,9 +1,7 @@
 import type { RecordValue } from "../types/attio.js";
 
 // Format various Attio value types for display
-export function formatValue(
-  value: RecordValue | readonly RecordValue[],
-): string {
+export function formatValue(value: RecordValue | RecordValue[]): string {
   if (Array.isArray(value)) {
     if (value.length === 0) {
       return "-";
@@ -30,7 +28,14 @@ function formatRecordValue(value: RecordValue): string {
     return value.email_address;
   }
 
-  if ("original_phone_number" in value) {
+  if ("phone_number" in value && typeof value.phone_number === "string") {
+    return value.phone_number;
+  }
+
+  if (
+    "original_phone_number" in value &&
+    typeof value.original_phone_number === "string"
+  ) {
     return value.original_phone_number;
   }
 

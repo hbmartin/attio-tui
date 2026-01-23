@@ -4,6 +4,7 @@ import {
   createInitialNavigationState,
   DETAIL_TABS,
   getNavigatorCategoryKey,
+  type NavigatorCategory,
   PANE_ORDER,
 } from "./navigation.js";
 
@@ -74,7 +75,7 @@ describe("createInitialNavigationState", () => {
 
 describe("getNavigatorCategoryKey", () => {
   it("should return key for object category", () => {
-    const category = {
+    const category: NavigatorCategory = {
       type: "object",
       objectSlug: parseObjectSlug("companies"),
     };
@@ -82,7 +83,7 @@ describe("getNavigatorCategoryKey", () => {
   });
 
   it("should return key for list category", () => {
-    const category = {
+    const category: NavigatorCategory = {
       type: "list",
       listId: parseListId("550e8400-e29b-41d4-a716-446655440000"),
     };
@@ -92,31 +93,31 @@ describe("getNavigatorCategoryKey", () => {
   });
 
   it("should return type for notes category", () => {
-    const category = { type: "notes" };
+    const category: NavigatorCategory = { type: "notes" };
     expect(getNavigatorCategoryKey(category)).toBe("notes");
   });
 
   it("should return type for tasks category", () => {
-    const category = { type: "tasks" };
+    const category: NavigatorCategory = { type: "tasks" };
     expect(getNavigatorCategoryKey(category)).toBe("tasks");
   });
 
   it("should return type for meetings category", () => {
-    const category = { type: "meetings" };
+    const category: NavigatorCategory = { type: "meetings" };
     expect(getNavigatorCategoryKey(category)).toBe("meetings");
   });
 
   it("should return type for webhooks category", () => {
-    const category = { type: "webhooks" };
+    const category: NavigatorCategory = { type: "webhooks" };
     expect(getNavigatorCategoryKey(category)).toBe("webhooks");
   });
 
   it("should return unique keys for different objects", () => {
-    const cat1 = {
+    const cat1: NavigatorCategory = {
       type: "object",
       objectSlug: parseObjectSlug("companies"),
     };
-    const cat2 = {
+    const cat2: NavigatorCategory = {
       type: "object",
       objectSlug: parseObjectSlug("people"),
     };
@@ -126,11 +127,11 @@ describe("getNavigatorCategoryKey", () => {
   });
 
   it("should return unique keys for different lists", () => {
-    const cat1 = {
+    const cat1: NavigatorCategory = {
       type: "list",
       listId: parseListId("550e8400-e29b-41d4-a716-446655440000"),
     };
-    const cat2 = {
+    const cat2: NavigatorCategory = {
       type: "list",
       listId: parseListId("550e8400-e29b-41d4-a716-446655440001"),
     };
