@@ -16,31 +16,29 @@ function resolveEntityKey(
     return Columns.DEFAULT_OBJECT_KEY;
   }
 
-  return entityKey ?? Columns.DEFAULT_OBJECT_KEY;
+  return Columns.DEFAULT_OBJECT_KEY;
 }
 
 function resolveAvailableColumns(
-  entityKey: Columns.EntityKey | undefined,
+  entityKey: Columns.EntityKey,
 ): readonly Columns.Definition[] {
-  const key = resolveEntityKey(entityKey);
   return (
-    COLUMN_DEFINITIONS[key] ??
+    COLUMN_DEFINITIONS[entityKey] ??
     COLUMN_DEFINITIONS[Columns.DEFAULT_OBJECT_KEY] ??
     []
   );
 }
 
 function resolveConfiguredColumns(
-  entityKey: Columns.EntityKey | undefined,
+  entityKey: Columns.EntityKey,
   columnsConfig: ColumnsConfig,
 ): readonly ColumnConfig[] {
-  const key = resolveEntityKey(entityKey);
-  const configured = columnsConfig[key];
+  const configured = columnsConfig[entityKey];
   if (configured && configured.length > 0) {
     return configured;
   }
 
-  const defaults = DEFAULT_COLUMNS[key];
+  const defaults = DEFAULT_COLUMNS[entityKey];
   if (defaults && defaults.length > 0) {
     return defaults;
   }
@@ -88,22 +86,23 @@ export interface ColumnsEntityParams {
 export function getAvailableColumns({
   entityKey,
 }: ColumnsEntityParams): readonly Columns.Definition[] {
-  return resolveAvailableColumns(entityKey);
+  return resolveAvailableColumns(resolveEntityKey(entityKey));
 }
 
 export function getColumnsConfig({
   entityKey,
   columnsConfig,
 }: ColumnsConfigParams): readonly ColumnConfig[] {
-  return resolveConfiguredColumns(entityKey, columnsConfig);
+  return resolveConfiguredColumns(resolveEntityKey(entityKey), columnsConfig);
 }
 
 export function resolveColumns({
   entityKey,
   columnsConfig,
 }: ColumnsConfigParams): readonly Columns.ResolvedColumn[] {
-  const available = resolveAvailableColumns(entityKey);
-  const configured = resolveConfiguredColumns(entityKey, columnsConfig);
+  const key = resolveEntityKey(entityKey);
+  const available = resolveAvailableColumns(key);
+  const configured = resolveConfiguredColumns(key, columnsConfig);
   const resolved = applyConfig(available, configured);
 
   if (resolved.length > 0) {
@@ -112,9 +111,7 @@ export function resolveColumns({
 
   const fallbackConfigured = applyConfig(
     available,
-    DEFAULT_COLUMNS[resolveEntityKey(entityKey)] ??
-      DEFAULT_COLUMNS[Columns.DEFAULT_OBJECT_KEY] ??
-      [],
+    DEFAULT_COLUMNS[key] ?? DEFAULT_COLUMNS[Columns.DEFAULT_OBJECT_KEY] ?? [],
   );
 
   if (fallbackConfigured.length > 0) {

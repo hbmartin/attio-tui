@@ -7,11 +7,13 @@ import {
 } from "../services/webhooks-service.js";
 import type { AppAction } from "../state/app-state.js";
 import type { WebhookEventType } from "../types/attio.js";
+import type { DebugRequestLogEntryInput } from "../types/debug.js";
 
 interface UseWebhookOperationsOptions {
   readonly client: AttioClient | undefined;
   readonly dispatch: React.Dispatch<AppAction>;
   readonly onSuccess?: () => void;
+  readonly onRequestLog?: (entry: DebugRequestLogEntryInput) => void;
 }
 
 interface WebhookOperationsState {
@@ -22,12 +24,20 @@ interface WebhookOperationsState {
 interface SubmitWebhookOperationParams {
   readonly operation: (client: AttioClient) => Promise<unknown>;
   readonly fallbackError: string;
+  readonly label: string;
+}
+
+interface UpdateWebhookParams {
+  readonly webhookId: string;
+  readonly targetUrl: string;
+  readonly selectedEvents: readonly WebhookEventType[];
 }
 
 export function useWebhookOperations({
   client,
   dispatch,
   onSuccess,
+  onRequestLog,
 }: UseWebhookOperationsOptions) {
   const [state, setState] = useState<WebhookOperationsState>({
     isSubmitting: false,
@@ -35,26 +45,47 @@ export function useWebhookOperations({
   });
 
   const submitOperation = useCallback(
-    async ({ operation, fallbackError }: SubmitWebhookOperationParams) => {
+    async ({
+      operation,
+      fallbackError,
+      label,
+    }: SubmitWebhookOperationParams) => {
       if (!client) {
         setState({ isSubmitting: false, error: "No client available" });
         return;
       }
 
       setState({ isSubmitting: true, error: undefined });
+      const startTime = Date.now();
+      const startedAt = new Date(startTime).toISOString();
 
       try {
         await operation(client);
 
+        const durationMs = Date.now() - startTime;
+        onRequestLog?.({
+          label,
+          status: "success",
+          startedAt,
+          durationMs,
+        });
         setState({ isSubmitting: false, error: undefined });
         dispatch({ type: "CLOSE_WEBHOOK_MODAL" });
         onSuccess?.();
       } catch (err) {
         const message = err instanceof Error ? err.message : fallbackError;
+        const durationMs = Date.now() - startTime;
+        onRequestLog?.({
+          label,
+          status: "error",
+          startedAt,
+          durationMs,
+          errorMessage: message,
+        });
         setState({ isSubmitting: false, error: message });
       }
     },
-    [client, dispatch, onSuccess],
+    [client, dispatch, onSuccess, onRequestLog],
   );
 
   const handleCreate = useCallback(
@@ -66,20 +97,13 @@ export function useWebhookOperations({
             subscriptions: selectedEvents.map((eventType) => ({ eventType })),
           }),
         fallbackError: "Failed to create webhook",
+        label: "create webhook",
       }),
     [submitOperation],
   );
 
   const handleUpdate = useCallback(
-    async ({
-      webhookId,
-      targetUrl,
-      selectedEvents,
-    }: {
-      webhookId: string;
-      targetUrl: string;
-      selectedEvents: readonly WebhookEventType[];
-    }) =>
+    async ({ webhookId, targetUrl, selectedEvents }: UpdateWebhookParams) =>
       submitOperation({
         operation: (activeClient) =>
           updateWebhook(activeClient, webhookId, {
@@ -87,6 +111,7 @@ export function useWebhookOperations({
             subscriptions: selectedEvents.map((eventType) => ({ eventType })),
           }),
         fallbackError: "Failed to update webhook",
+        label: "update webhook",
       }),
     [submitOperation],
   );
@@ -96,6 +121,7 @@ export function useWebhookOperations({
       submitOperation({
         operation: (activeClient) => deleteWebhook(activeClient, webhookId),
         fallbackError: "Failed to delete webhook",
+        label: "delete webhook",
       }),
     [submitOperation],
   );

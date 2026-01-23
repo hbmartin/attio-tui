@@ -69,4 +69,22 @@ describe("resolveColumns", () => {
     });
     expect(resolved[0]?.attribute).toBe("title");
   });
+
+  it("falls back to default object columns when entity key is missing", () => {
+    const columnsConfig: ColumnsConfig = {
+      ...DEFAULT_COLUMNS,
+    };
+
+    const resolved = resolveColumns({
+      entityKey: undefined,
+      columnsConfig,
+    });
+    const defaults = DEFAULT_COLUMNS["object-default"];
+    if (!defaults) {
+      throw new Error("Expected defaults for object-default");
+    }
+    expect(resolved.map((column) => column.attribute)).toEqual(
+      defaults.map((column) => column.attribute),
+    );
+  });
 });

@@ -176,7 +176,7 @@ describe("App column save status messages", () => {
   });
 
   it("shows a success message after columns save succeeds", async () => {
-    mocks.setColumnsForEntity.mockResolvedValue(undefined);
+    mocks.setColumnsForEntity.mockImplementation(() => undefined);
 
     const instance = render(<App />);
 
@@ -193,7 +193,9 @@ describe("App column save status messages", () => {
   });
 
   it("shows an error message when columns save fails", async () => {
-    mocks.setColumnsForEntity.mockRejectedValue(new Error("Disk full"));
+    mocks.setColumnsForEntity.mockImplementation(() => {
+      throw new Error("Disk full");
+    });
 
     const instance = render(<App />);
 

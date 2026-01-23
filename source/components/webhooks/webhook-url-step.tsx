@@ -16,12 +16,27 @@ export function getWebhookUrlValidation(
   value: string,
 ): WebhookUrlValidationResult {
   const trimmed = value.trim();
-  const isValidUrl =
-    trimmed.startsWith("http://") || trimmed.startsWith("https://");
+  const hasValue = trimmed.length > 0;
+  const isValidUrl = (() => {
+    if (!hasValue) {
+      return false;
+    }
+
+    try {
+      const parsed = new URL(trimmed);
+      const hasHttpProtocol =
+        parsed.protocol === "http:" || parsed.protocol === "https:";
+      const hasHostname = parsed.hostname.trim().length > 0;
+
+      return hasHttpProtocol && hasHostname;
+    } catch {
+      return false;
+    }
+  })();
 
   return {
     trimmed,
-    hasValue: trimmed.length > 0,
+    hasValue,
     isValidUrl,
   };
 }
@@ -68,7 +83,9 @@ export function WebhookUrlStep({
 
       {hasValue && !isValidUrl && (
         <Box marginBottom={1}>
-          <Text color="yellow">URL should start with http:// or https://</Text>
+          <Text color="yellow">
+            URL must be a valid http:// or https:// address
+          </Text>
         </Box>
       )}
 
