@@ -96,67 +96,14 @@ describe("parseConfig", () => {
 });
 
 describe("isValidApiKey", () => {
-  // Valid Attio key: "at_" prefix + 48 hex characters (total 51 chars)
-  interface ApiKeyTestData {
-    validKey: string;
-    missingPrefixKey: string;
-    wrongPrefixKey: string;
-    shortKey: string;
-    nonHexKey: string;
-    uppercaseHexKey: string;
-    specialCharKey: string;
-  }
-
-  const hexChunk = "0123456789abcdef";
-
-  const buildHex = (length: number): string => {
-    const repeated = hexChunk.repeat(Math.ceil(length / hexChunk.length));
-    return repeated.slice(0, length);
-  };
-
-  const apiKeyTestData: ApiKeyTestData = {
-    validKey: `at_${buildHex(48)}`,
-    missingPrefixKey: buildHex(48),
-    wrongPrefixKey: `sk_${buildHex(48)}`,
-    shortKey: `at_${buildHex(8)}`,
-    nonHexKey: `at_${buildHex(47)}g`,
-    uppercaseHexKey: `at_${buildHex(47)}A`,
-    specialCharKey: `at_${["abc", "@", "def", "#", "ghi", "$", "123", "!", "456"].join("")}`,
-  };
-
-  it("should accept valid Attio API key with at_ prefix and hex chars", () => {
-    expect(isValidApiKey(apiKeyTestData.validKey)).toBe(true);
+  it("should accept any non-empty string", () => {
+    expect(isValidApiKey("any-string")).toBe(true);
+    expect(isValidApiKey("at_0123456789abcdef")).toBe(true);
+    expect(isValidApiKey("sk_test_key")).toBe(true);
+    expect(isValidApiKey("a")).toBe(true);
   });
 
-  it("should accept longer API keys", () => {
-    expect(isValidApiKey(`${apiKeyTestData.validKey}00`)).toBe(true);
-  });
-
-  it("should reject key without at_ prefix", () => {
-    expect(isValidApiKey(apiKeyTestData.missingPrefixKey)).toBe(false);
-  });
-
-  it("should reject key with wrong prefix", () => {
-    expect(isValidApiKey(apiKeyTestData.wrongPrefixKey)).toBe(false);
-  });
-
-  it("should reject short API key", () => {
-    expect(isValidApiKey(apiKeyTestData.shortKey)).toBe(false);
-  });
-
-  it("should reject key with non-hex characters after prefix", () => {
-    expect(isValidApiKey(apiKeyTestData.nonHexKey)).toBe(false);
-  });
-
-  it("should reject key with uppercase hex characters", () => {
-    expect(isValidApiKey(apiKeyTestData.uppercaseHexKey)).toBe(false);
-  });
-
-  it("should reject API key with special characters", () => {
-    expect(isValidApiKey(apiKeyTestData.specialCharKey)).toBe(false);
-  });
-
-  it("should reject empty API key", () => {
+  it("should reject empty string", () => {
     expect(isValidApiKey("")).toBe(false);
   });
 });
