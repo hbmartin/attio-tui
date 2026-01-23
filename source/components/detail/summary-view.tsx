@@ -40,7 +40,7 @@ function SummaryRow({
 
 // Record summary for objects (companies, people, etc.)
 function RecordSummary({ data }: { readonly data: RecordInfo }) {
-  const values = data.values;
+  const { values } = data;
   const displayFields: Array<{ label: string; key: string }> = [
     { label: "Name", key: "name" },
     { label: "Full Name", key: "full_name" },
@@ -62,7 +62,7 @@ function RecordSummary({ data }: { readonly data: RecordInfo }) {
       </Box>
       {displayFields.map(({ label, key }) => {
         const fieldValue = values[key];
-        if (!fieldValue?.length) {
+        if (fieldValue?.length === 0) {
           return null;
         }
         return (
@@ -181,12 +181,14 @@ function MeetingSummary({ data }: { readonly data: MeetingInfo }) {
 
 // Webhook summary
 function WebhookSummary({ data }: { readonly data: WebhookInfo }) {
-  const statusColor =
-    data.status === "active"
-      ? "green"
-      : data.status === "degraded"
-        ? "yellow"
-        : "red";
+  let statusColor: "green" | "red" | "yellow";
+  if (data.status === "active") {
+    statusColor = "green";
+  } else if (data.status === "degraded") {
+    statusColor = "yellow";
+  } else {
+    statusColor = "red";
+  }
 
   return (
     <Box flexDirection="column" gap={1}>
