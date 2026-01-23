@@ -100,7 +100,7 @@ interface PtySessionOptions {
 
 const repoRoot = fileURLToPath(new URL("../", import.meta.url));
 const entryPaths = {
-  ts: fileURLToPath(new URL("./cli.tsx", import.meta.url)),
+  ts: join(repoRoot, "source", "cli.tsx"),
   dist: join(repoRoot, "dist", "cli.js"),
 };
 
@@ -403,6 +403,7 @@ class PtySession {
 
   async getDiagnostics(context: string): Promise<string> {
     const details: string[] = [];
+    const normalizedOutput = this.getNormalizedOutput();
     details.push(`Context: ${context}`);
     if (this.startTimestamp) {
       details.push(
@@ -427,7 +428,13 @@ class PtySession {
       details.push("PTY: not started");
     }
     details.push(
-      `Output: chars=${this.output.length} normalized=${this.getNormalizedOutput().length} dataEvents=${this.dataEvents}`,
+      `Output: chars=${this.output.length} normalized=${normalizedOutput.length} dataEvents=${this.dataEvents}`,
+    );
+    const rawTail = this.output.slice(-400);
+    const normalizedTail = normalizedOutput.slice(-400);
+    details.push(`Raw output tail (400 chars): ${JSON.stringify(rawTail)}`);
+    details.push(
+      `Normalized output tail (400 chars): ${JSON.stringify(normalizedTail)}`,
     );
     if (
       this.firstOutputTimestamp !== undefined &&
