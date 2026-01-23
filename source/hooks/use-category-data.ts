@@ -226,6 +226,11 @@ export function useCategoryData({
   } = usePaginatedData<ResultItem>({
     fetchFn: fetchData,
     enabled: Boolean(client),
+    resetKey:
+      categoryType === "object"
+        ? `object:${categorySlug ?? "unknown"}`
+        : categoryType,
+    loadMoreCooldownMs: 1500,
   });
 
   return {
