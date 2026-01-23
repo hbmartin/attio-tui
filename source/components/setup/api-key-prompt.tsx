@@ -1,6 +1,7 @@
 import { Box, Text, useInput } from "ink";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { isValidApiKey } from "../../schemas/config-schema.js";
+import { PtyDebug } from "../../utils/pty-debug.js";
 
 interface ApiKeyPromptProps {
   readonly onSubmit: (apiKey: string) => void;
@@ -10,6 +11,13 @@ interface ApiKeyPromptProps {
 export function ApiKeyPrompt({ onSubmit, error }: ApiKeyPromptProps) {
   const [apiKey, setApiKey] = useState("");
   const [validationError, setValidationError] = useState<string>();
+
+  useEffect(() => {
+    PtyDebug.log("api-key prompt mount");
+    return () => {
+      PtyDebug.log("api-key prompt unmount");
+    };
+  }, []);
 
   useInput((input, key) => {
     if (key.return) {
