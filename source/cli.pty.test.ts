@@ -497,6 +497,15 @@ async function ensureSpawnHelperExecutable(): Promise<void> {
     chmodSucceeded,
     chmodError,
   };
+  if (!helperExists) {
+    throw new Error(`node-pty spawn-helper not found at ${helperPath}`);
+  }
+  if (!executable) {
+    const details = chmodError ? ` (${chmodError})` : "";
+    throw new Error(
+      `node-pty spawn-helper is not executable at ${helperPath}${details}`,
+    );
+  }
 }
 
 // PTY tests must run sequentially - they spawn external processes
