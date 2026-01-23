@@ -1,5 +1,6 @@
 import { Box, Text, useApp as useInkApp } from "ink";
 import { useCallback, useEffect } from "react";
+import { ColumnPicker } from "./components/columns/index.js";
 import { CommandPalette } from "./components/command-palette/command-palette.js";
 import { DetailPane } from "./components/detail/detail-pane.js";
 import { StatusBar } from "./components/layout/status-bar.js";
@@ -14,17 +15,27 @@ import {
 import { DEFAULT_COMMANDS, filterCommands } from "./constants/commands.js";
 import { useActionHandler } from "./hooks/use-action-handler.js";
 import { useCategoryData } from "./hooks/use-category-data.js";
+import { useColumns } from "./hooks/use-columns.js";
 import { useKeyboard } from "./hooks/use-keyboard.js";
+import { useTemporaryStatusMessage } from "./hooks/use-temporary-status-message.js";
 import { useWebhookOperations } from "./hooks/use-webhook-operations.js";
+import type { ColumnConfig } from "./schemas/columns-schema.js";
 import {
   ClientProvider,
   type ConfigState,
   useClient,
 } from "./state/client-context.js";
 import { AppProvider, useApp } from "./state/context.js";
+import { Columns } from "./types/columns.js";
 import type { Command } from "./types/commands.js";
 import { type ObjectSlug, parseObjectSlug } from "./types/ids.js";
 import type { NavigatorCategory } from "./types/navigation.js";
+import {
+  getAvailableColumns,
+  getColumnsConfig,
+  getDefaultColumns,
+  resolveColumns,
+} from "./utils/columns.js";
 
 // Static categories for the skeleton - will be replaced with dynamic loading
 function getStaticCategories(): readonly NavigatorCategory[] {
@@ -82,6 +93,23 @@ function MainApp() {
   const { state, dispatch } = useApp();
   const { client } = useClient();
   const { exit } = useInkApp();
+  const { message: statusMessage, showMessage: showStatusMessage } =
+    useTemporaryStatusMessage({ timeoutMs: 3000 });
+  const handleRefreshError = useCallback(
+    (error: unknown) => {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      showStatusMessage({
+        text: `Refresh failed: ${message}`,
+        tone: "error",
+      });
+    },
+    [showStatusMessage],
+  );
+  const {
+    columns: columnsConfig,
+    error: columnsError,
+    setColumnsForEntity,
+  } = useColumns();
 
   const { navigation } = state;
   const {
@@ -91,12 +119,24 @@ function MainApp() {
     detail,
     commandPalette,
     webhookModal,
+    columnPicker,
   } = navigation;
 
   // Get selected category
   const selectedCategory = navigator.categories[navigator.selectedIndex];
   const categoryType = getCategoryType(selectedCategory);
   const categorySlug = getCategorySlug(selectedCategory);
+  const columnsEntityKey = Columns.getEntityKey(selectedCategory);
+  const resolvedColumns = resolveColumns({
+    entityKey: columnsEntityKey,
+    columnsConfig,
+  });
+
+  useEffect(() => {
+    if (columnsError) {
+      showStatusMessage({ tone: "error", text: columnsError });
+    }
+  }, [columnsError, showStatusMessage]);
 
   // Load data for the current category
   const {
@@ -110,12 +150,15 @@ function MainApp() {
     categoryType,
     categorySlug,
   });
+  const refreshWithFeedback = useCallback((): void => {
+    refresh().catch(handleRefreshError);
+  }, [refresh, handleRefreshError]);
 
   // Webhook operations
   const webhookOps = useWebhookOperations({
     client,
     dispatch,
-    onSuccess: refresh,
+    onSuccess: refreshWithFeedback,
   });
 
   // Initialize categories on mount
@@ -143,12 +186,40 @@ function MainApp() {
     dispatch({ type: "SET_DETAIL_ITEM", item: selectedItem });
   }, [results.items, results.selectedIndex, dispatch]);
 
-  // Check if webhook modal is open (blocks other keyboard input)
   const isWebhookModalOpen = webhookModal.mode !== "closed";
+  const isColumnPickerOpen = columnPicker.mode === "open";
+  const isKeyboardEnabled = !(isWebhookModalOpen || isColumnPickerOpen);
+  const columnPickerEntityKey =
+    columnPicker.mode === "open" ? columnPicker.entityKey : columnsEntityKey;
+  const columnPickerAvailable = getAvailableColumns({
+    entityKey: columnPickerEntityKey,
+  });
+  const columnPickerSelected = getColumnsConfig({
+    entityKey: columnPickerEntityKey,
+    columnsConfig,
+  });
+  const columnPickerDefaults = getDefaultColumns({
+    entityKey: columnPickerEntityKey,
+  });
+
+  const handleSaveColumns = useCallback(
+    (nextColumns: readonly ColumnConfig[]) => {
+      if (columnPicker.mode !== "open") {
+        return;
+      }
+      setColumnsForEntity(columnPicker.entityKey, nextColumns);
+      showStatusMessage({
+        tone: "info",
+        text: `Saved ${columnPicker.title}`,
+      });
+    },
+    [columnPicker, setColumnsForEntity, showStatusMessage],
+  );
 
   // Handle keyboard actions
   const handleAction = useActionHandler({
     focusedPane,
+    commandPaletteOpen: commandPalette.isOpen,
     dispatch,
     exit,
   });
@@ -158,7 +229,7 @@ function MainApp() {
     focusedPane,
     commandPaletteOpen: commandPalette.isOpen,
     onAction: handleAction,
-    enabled: !isWebhookModalOpen,
+    enabled: isKeyboardEnabled,
   });
 
   // Filter commands for command palette
@@ -171,7 +242,6 @@ function MainApp() {
   const handleWebhookCommand = useCallback(
     (webhookAction: "create" | "edit" | "delete") => {
       const selectedItem = results.items[results.selectedIndex];
-      const isWebhookSelected = selectedItem?.type === "webhooks";
 
       switch (webhookAction) {
         case "create":
@@ -179,7 +249,7 @@ function MainApp() {
           break;
 
         case "edit":
-          if (isWebhookSelected) {
+          if (selectedItem?.type === "webhooks") {
             const webhookData = selectedItem.data;
             dispatch({
               type: "OPEN_WEBHOOK_EDIT",
@@ -191,7 +261,7 @@ function MainApp() {
           break;
 
         case "delete":
-          if (isWebhookSelected) {
+          if (selectedItem?.type === "webhooks") {
             const webhookData = selectedItem.data;
             dispatch({
               type: "OPEN_WEBHOOK_DELETE",
@@ -228,10 +298,18 @@ function MainApp() {
         case "action":
           if (command.action.actionId === "quit") {
             exit();
-          } else if (command.action.actionId === "refresh") {
-            refresh().catch(() => {
-              // Silently ignore refresh errors
+          } else if (command.action.actionId === "columns") {
+            const entityKey =
+              Columns.getEntityKey(selectedCategory) ??
+              Columns.DEFAULT_OBJECT_KEY;
+            const title = getCategoryLabel(selectedCategory) ?? "Results";
+            dispatch({
+              type: "OPEN_COLUMN_PICKER",
+              entityKey,
+              title: `Columns: ${title}`,
             });
+          } else if (command.action.actionId === "refresh") {
+            refreshWithFeedback();
           }
           break;
 
@@ -244,7 +322,14 @@ function MainApp() {
           break;
       }
     },
-    [dispatch, navigator.categories, exit, refresh, handleWebhookCommand],
+    [
+      dispatch,
+      navigator.categories,
+      selectedCategory,
+      exit,
+      handleWebhookCommand,
+      refreshWithFeedback,
+    ],
   );
 
   // Handle webhook form submission
@@ -290,6 +375,7 @@ function MainApp() {
             hasNextPage={results.hasNextPage}
             categoryLabel={getCategoryLabel(selectedCategory)}
             error={categoryError}
+            columns={resolvedColumns}
           />
         }
         detail={
@@ -306,6 +392,7 @@ function MainApp() {
             itemCount={results.items.length}
             selectedIndex={results.selectedIndex}
             loading={navigator.loading || results.loading}
+            statusMessage={statusMessage}
           />
         }
       />
@@ -316,7 +403,21 @@ function MainApp() {
         commands={filteredCommands}
         selectedIndex={commandPalette.selectedIndex}
         onExecute={executeCommand}
+        onQueryChange={(query) =>
+          dispatch({ type: "SET_COMMAND_QUERY", query })
+        }
       />
+
+      {columnPicker.mode === "open" && (
+        <ColumnPicker
+          title={columnPicker.title}
+          availableColumns={columnPickerAvailable}
+          selectedColumns={columnPickerSelected}
+          defaultColumns={columnPickerDefaults}
+          onSave={handleSaveColumns}
+          onClose={() => dispatch({ type: "CLOSE_COLUMN_PICKER" })}
+        />
+      )}
 
       {(webhookModal.mode === "create" || webhookModal.mode === "edit") && (
         <WebhookForm

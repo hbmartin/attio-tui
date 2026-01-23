@@ -1,7 +1,8 @@
 import { Box, Text } from "ink";
+import type { Columns } from "../../types/columns.js";
 import type { ResultItem } from "../../types/navigation.js";
 import { Pane } from "../layout/pane.js";
-import { ResultsRow } from "./results-row.js";
+import { ResultsHeader, ResultsRow } from "./results-row.js";
 
 interface ResultsPaneProps {
   readonly items: readonly ResultItem[];
@@ -11,6 +12,7 @@ interface ResultsPaneProps {
   readonly hasNextPage: boolean;
   readonly categoryLabel?: string;
   readonly error?: string;
+  readonly columns?: readonly Columns.ResolvedColumn[];
 }
 
 interface ResultsContentProps {
@@ -20,6 +22,7 @@ interface ResultsContentProps {
   readonly loading: boolean;
   readonly hasNextPage: boolean;
   readonly error?: string;
+  readonly columns?: readonly Columns.ResolvedColumn[];
 }
 
 function ResultsContent({
@@ -29,6 +32,7 @@ function ResultsContent({
   loading,
   hasNextPage,
   error,
+  columns,
 }: ResultsContentProps) {
   if (loading && items.length === 0) {
     return <Text color="yellow">Loading...</Text>;
@@ -44,12 +48,14 @@ function ResultsContent({
 
   return (
     <Box flexDirection="column">
+      {columns && columns.length > 0 && <ResultsHeader columns={columns} />}
       {items.map((item, index) => (
         <ResultsRow
           key={item.id}
           item={item}
           selected={index === selectedIndex}
           focused={focused}
+          columns={columns}
         />
       ))}
       {loading && (
@@ -76,6 +82,7 @@ export function ResultsPane({
   hasNextPage,
   categoryLabel,
   error,
+  columns,
 }: ResultsPaneProps) {
   const title = categoryLabel ? `Results: ${categoryLabel}` : "Results";
 
@@ -88,6 +95,7 @@ export function ResultsPane({
         loading={loading}
         hasNextPage={hasNextPage}
         error={error}
+        columns={columns}
       />
     </Pane>
   );

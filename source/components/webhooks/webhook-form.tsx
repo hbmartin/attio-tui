@@ -1,4 +1,6 @@
 import { Box, Text, useInput } from "ink";
+import type * as React from "react";
+import type { WebhookEventType } from "../../types/attio.js";
 import type { WebhookFormStep } from "../../types/navigation.js";
 import { WebhookReviewStep } from "./webhook-review-step.js";
 import { WebhookSubscriptionPicker } from "./webhook-subscription-picker.js";
@@ -8,14 +10,45 @@ interface WebhookFormProps {
   readonly mode: "create" | "edit";
   readonly step: WebhookFormStep;
   readonly targetUrl: string;
-  readonly selectedEvents: readonly string[];
+  readonly selectedEvents: readonly WebhookEventType[];
   readonly onUrlChange: (url: string) => void;
-  readonly onToggleEvent: (eventType: string) => void;
+  readonly onToggleEvent: (eventType: WebhookEventType) => void;
   readonly onNavigateStep: (direction: "next" | "previous") => void;
   readonly onSubmit: () => void;
   readonly onCancel: () => void;
   readonly isSubmitting: boolean;
   readonly error?: string;
+}
+
+export interface WebhookFormStepState {
+  readonly step: WebhookFormStep;
+  readonly targetUrl: string;
+  readonly selectedEvents: readonly WebhookEventType[];
+}
+
+export function isWebhookTargetUrlValid(targetUrl: string): boolean {
+  const trimmedTargetUrl = targetUrl.trim();
+  return (
+    trimmedTargetUrl.length > 0 &&
+    (trimmedTargetUrl.startsWith("http://") ||
+      trimmedTargetUrl.startsWith("https://"))
+  );
+}
+
+export function canAdvanceWebhookFormStep({
+  step,
+  targetUrl,
+  selectedEvents,
+}: WebhookFormStepState): boolean {
+  if (step === "url") {
+    return isWebhookTargetUrlValid(targetUrl);
+  }
+
+  if (step === "subscriptions") {
+    return selectedEvents.length > 0;
+  }
+
+  return true;
 }
 
 const STEP_TITLES: Record<WebhookFormStep, string> = {
@@ -36,8 +69,18 @@ export function WebhookForm({
   onCancel,
   isSubmitting,
   error,
-}: WebhookFormProps) {
+}: WebhookFormProps): React.ReactElement {
+  const canAdvanceFromStep = canAdvanceWebhookFormStep({
+    step,
+    targetUrl,
+    selectedEvents,
+  });
+
   useInput((_input, key) => {
+    if (isSubmitting) {
+      return;
+    }
+
     if (key.escape) {
       onCancel();
       return;
@@ -45,6 +88,10 @@ export function WebhookForm({
 
     // Tab to go to next step (when not on review)
     if (key.tab && !key.shift && step !== "review") {
+      if (!canAdvanceFromStep) {
+        return;
+      }
+
       onNavigateStep("next");
       return;
     }

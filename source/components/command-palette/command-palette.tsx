@@ -9,6 +9,7 @@ interface CommandPaletteProps {
   readonly commands: readonly Command[];
   readonly selectedIndex: number;
   readonly onExecute?: (command: Command) => void;
+  readonly onQueryChange?: (query: string) => void;
 }
 
 export function CommandPalette({
@@ -17,6 +18,7 @@ export function CommandPalette({
   commands,
   selectedIndex,
   onExecute,
+  onQueryChange,
 }: CommandPaletteProps) {
   useInput(
     (_input, key) => {
@@ -25,6 +27,28 @@ export function CommandPalette({
         if (selectedCommand) {
           onExecute(selectedCommand);
         }
+      }
+    },
+    { isActive: isOpen },
+  );
+
+  useInput(
+    (input, key) => {
+      if (!onQueryChange) {
+        return;
+      }
+      if (key.escape || key.return) {
+        return;
+      }
+      if (key.backspace) {
+        onQueryChange(query.slice(0, -1));
+        return;
+      }
+      if (key.ctrl || key.meta) {
+        return;
+      }
+      if (input) {
+        onQueryChange(`${query}${input}`);
       }
     },
     { isActive: isOpen },

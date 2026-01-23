@@ -28,6 +28,7 @@ export type ActionId =
   | "refresh"
   | "exportJson"
   | "help"
+  | "columns"
   | "quit";
 
 export type ToggleId = "debug";

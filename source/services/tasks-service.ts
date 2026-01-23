@@ -1,7 +1,10 @@
 import type { AttioClient } from "attio-ts-sdk";
 import { getV2Tasks } from "attio-ts-sdk";
 import type { TaskInfo } from "../types/attio.js";
-import { parseCursorOffset } from "../utils/pagination.js";
+import {
+  buildOffsetPaginationRequest,
+  resolveOffsetPagination,
+} from "../utils/pagination.js";
 
 export interface QueryTasksResult {
   readonly tasks: readonly TaskInfo[];
@@ -20,28 +23,26 @@ export async function fetchTasks(
   } = {},
 ): Promise<QueryTasksResult> {
   const { limit, cursor, linkedObject, linkedRecordId, isCompleted } = options;
-  const offset = parseCursorOffset(cursor);
-  const effectiveLimit = Math.max(1, Number(limit) || 25);
+  const pagination = buildOffsetPaginationRequest({ limit, cursor });
 
   // Request one extra item to detect if more pages exist
   const response = await getV2Tasks({
     client,
     query: {
-      limit: effectiveLimit + 1,
-      ...(offset !== undefined ? { offset } : {}),
+      limit: pagination.requestLimit,
+      ...(pagination.offset !== undefined ? { offset: pagination.offset } : {}),
       ...(linkedObject ? { linked_object: linkedObject } : {}),
       ...(linkedRecordId ? { linked_record_id: linkedRecordId } : {}),
       ...(isCompleted !== undefined ? { is_completed: isCompleted } : {}),
     },
   });
 
-  if (response.error) {
-    throw new Error(`Failed to fetch tasks: ${JSON.stringify(response.error)}`);
-  }
-
-  const data = response.data?.data ?? [];
-  const hasMore = data.length > effectiveLimit;
-  const trimmedData = hasMore ? data.slice(0, effectiveLimit) : data;
+  const { items: trimmedData, nextCursor } = resolveOffsetPagination({
+    error: response.error,
+    data: response.data?.data,
+    pagination,
+    errorMessage: "Failed to fetch tasks",
+  });
 
   const tasks = trimmedData.map((task) => ({
     id: task.id.task_id,
@@ -58,10 +59,6 @@ export async function fetchTasks(
     })),
     createdAt: task.created_at,
   }));
-
-  // Calculate next cursor: only set if there are more items
-  const currentOffset = offset ?? 0;
-  const nextCursor = hasMore ? String(currentOffset + effectiveLimit) : null;
 
   return {
     tasks,

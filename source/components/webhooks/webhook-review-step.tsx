@@ -1,9 +1,10 @@
 import { Box, Text, useInput } from "ink";
 import { getEventLabel } from "../../constants/webhook-events.js";
+import type { WebhookEventType } from "../../types/attio.js";
 
 interface WebhookReviewStepProps {
   readonly targetUrl: string;
-  readonly selectedEvents: readonly string[];
+  readonly selectedEvents: readonly WebhookEventType[];
   readonly onSubmit: () => void;
   readonly isSubmitting: boolean;
   readonly mode: "create" | "edit";

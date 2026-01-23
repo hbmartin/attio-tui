@@ -24,3 +24,78 @@ export function parseCursorOffset(
 
   return parsed;
 }
+
+export interface OffsetPaginationRequest {
+  readonly limit: number;
+  readonly offset: number | undefined;
+  readonly requestLimit: number;
+}
+
+export interface OffsetPaginationRequestOptions {
+  readonly limit?: number;
+  readonly cursor?: string;
+  readonly defaultLimit?: number;
+}
+
+export interface OffsetPaginationResult<T> {
+  readonly items: readonly T[];
+  readonly nextCursor: string | null;
+}
+
+export interface OffsetPaginationResponseOptions<T> {
+  readonly error: unknown | undefined;
+  readonly data: readonly T[] | undefined;
+  readonly pagination: OffsetPaginationRequest;
+  readonly errorMessage: string;
+}
+
+export function buildOffsetPaginationRequest(
+  options: OffsetPaginationRequestOptions,
+): OffsetPaginationRequest {
+  const { limit, cursor, defaultLimit = 25 } = options;
+  const offset = parseCursorOffset(cursor);
+  const effectiveLimit = Math.max(1, Number(limit) || defaultLimit);
+
+  return {
+    limit: effectiveLimit,
+    offset,
+    requestLimit: effectiveLimit + 1,
+  };
+}
+
+export function finalizeOffsetPagination<T>({
+  data,
+  limit,
+  offset,
+}: {
+  readonly data: readonly T[];
+  readonly limit: number;
+  readonly offset: number | undefined;
+}): OffsetPaginationResult<T> {
+  const hasMore = data.length > limit;
+  const items = hasMore ? data.slice(0, limit) : data;
+  const currentOffset = offset ?? 0;
+  const nextCursor = hasMore ? String(currentOffset + limit) : null;
+
+  return {
+    items,
+    nextCursor,
+  };
+}
+
+export function resolveOffsetPagination<T>({
+  error,
+  data,
+  pagination,
+  errorMessage,
+}: OffsetPaginationResponseOptions<T>): OffsetPaginationResult<T> {
+  if (error) {
+    throw new Error(`${errorMessage}: ${JSON.stringify(error)}`);
+  }
+
+  return finalizeOffsetPagination({
+    data: data ?? [],
+    limit: pagination.limit,
+    offset: pagination.offset,
+  });
+}

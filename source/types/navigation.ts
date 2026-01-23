@@ -4,6 +4,7 @@ import type {
   NoteInfo,
   RecordInfo,
   TaskInfo,
+  WebhookEventType,
   WebhookInfo,
 } from "./attio.js";
 import type { ListId, ObjectSlug } from "./ids.js";
@@ -98,19 +99,28 @@ export type WebhookModalState =
       readonly mode: "create";
       readonly step: WebhookFormStep;
       readonly targetUrl: string;
-      readonly selectedEvents: readonly string[];
+      readonly selectedEvents: readonly WebhookEventType[];
     }
   | {
       readonly mode: "edit";
       readonly webhookId: string;
       readonly step: WebhookFormStep;
       readonly targetUrl: string;
-      readonly selectedEvents: readonly string[];
+      readonly selectedEvents: readonly WebhookEventType[];
     }
   | {
       readonly mode: "delete";
       readonly webhookId: string;
       readonly webhookUrl: string;
+    };
+
+// Column picker modal state
+export type ColumnPickerState =
+  | { readonly mode: "closed" }
+  | {
+      readonly mode: "open";
+      readonly entityKey: string;
+      readonly title: string;
     };
 
 // Application navigation state
@@ -121,6 +131,7 @@ export interface NavigationState {
   readonly detail: DetailState;
   readonly commandPalette: CommandPaletteState;
   readonly webhookModal: WebhookModalState;
+  readonly columnPicker: ColumnPickerState;
 }
 
 // Generate a stable key for a NavigatorCategory
@@ -164,6 +175,9 @@ export function createInitialNavigationState(): NavigationState {
       selectedIndex: 0,
     },
     webhookModal: {
+      mode: "closed",
+    },
+    columnPicker: {
       mode: "closed",
     },
   };

@@ -59,6 +59,7 @@ interface HookSnapshot {
   readonly error: string | undefined;
   readonly hasNextPage: boolean;
   readonly loadMore: () => Promise<void>;
+  readonly refresh: () => Promise<void>;
 }
 
 interface HookHarnessProps {
@@ -124,6 +125,43 @@ describe("usePaginatedData", () => {
 
       expect(latest.data[1]).toBe("beta");
       expect(latest.hasNextPage).toBe(false);
+    } finally {
+      instance.cleanup();
+    }
+  });
+
+  it("rejects refresh when the fetch fails", async () => {
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValueOnce({ items: ["alpha"], nextCursor: null })
+      .mockRejectedValueOnce(new Error("Boom"));
+
+    let latest: HookSnapshot | undefined;
+
+    const instance = render(
+      <HookHarness
+        fetchFn={fetchFn}
+        onUpdate={(snapshot) => {
+          latest = snapshot;
+        }}
+      />,
+    );
+
+    try {
+      await waitForCondition(
+        () => Boolean(latest) && latest?.data.length === 1,
+      );
+
+      if (!latest) {
+        throw new Error("Expected hook state to be available");
+      }
+
+      await expect(latest.refresh()).rejects.toThrow("Boom");
+
+      await waitForCondition(() => latest?.error === "Boom");
+
+      expect(latest.data).toHaveLength(0);
+      expect(fetchFn).toHaveBeenCalledTimes(2);
     } finally {
       instance.cleanup();
     }

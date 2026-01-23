@@ -74,6 +74,12 @@ export const DEFAULT_COMMANDS: readonly Command[] = [
     action: { type: "action", actionId: "help" },
   },
   {
+    id: "columns",
+    label: "Columns",
+    description: "Configure columns for the current results",
+    action: { type: "action", actionId: "columns" },
+  },
+  {
     id: "quit",
     label: "Quit",
     description: "Exit the application",

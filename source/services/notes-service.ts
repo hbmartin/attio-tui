@@ -1,7 +1,10 @@
 import type { AttioClient } from "attio-ts-sdk";
 import { getV2Notes } from "attio-ts-sdk";
 import type { NoteInfo } from "../types/attio.js";
-import { parseCursorOffset } from "../utils/pagination.js";
+import {
+  buildOffsetPaginationRequest,
+  resolveOffsetPagination,
+} from "../utils/pagination.js";
 
 export interface QueryNotesResult {
   readonly notes: readonly NoteInfo[];
@@ -19,27 +22,25 @@ export async function fetchNotes(
   } = {},
 ): Promise<QueryNotesResult> {
   const { limit, cursor, parentObject, parentRecordId } = options;
-  const offset = parseCursorOffset(cursor);
-  const effectiveLimit = Math.max(1, Number(limit) || 25);
+  const pagination = buildOffsetPaginationRequest({ limit, cursor });
 
   // Request one extra item to detect if more pages exist
   const response = await getV2Notes({
     client,
     query: {
-      limit: effectiveLimit + 1,
-      ...(offset !== undefined ? { offset } : {}),
+      limit: pagination.requestLimit,
+      ...(pagination.offset !== undefined ? { offset: pagination.offset } : {}),
       ...(parentObject ? { parent_object: parentObject } : {}),
       ...(parentRecordId ? { parent_record_id: parentRecordId } : {}),
     },
   });
 
-  if (response.error) {
-    throw new Error(`Failed to fetch notes: ${JSON.stringify(response.error)}`);
-  }
-
-  const data = response.data?.data ?? [];
-  const hasMore = data.length > effectiveLimit;
-  const trimmedData = hasMore ? data.slice(0, effectiveLimit) : data;
+  const { items: trimmedData, nextCursor } = resolveOffsetPagination({
+    error: response.error,
+    data: response.data?.data,
+    pagination,
+    errorMessage: "Failed to fetch notes",
+  });
 
   const notes: NoteInfo[] = trimmedData.map((note) => {
     const createdByType: NoteInfo["createdByType"] =
@@ -57,10 +58,6 @@ export async function fetchNotes(
       createdById,
     };
   });
-
-  // Calculate next cursor: only set if there are more items
-  const currentOffset = offset ?? 0;
-  const nextCursor = hasMore ? String(currentOffset + effectiveLimit) : null;
 
   return {
     notes,

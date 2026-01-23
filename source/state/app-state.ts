@@ -1,3 +1,4 @@
+import type { WebhookEventType } from "../types/attio.js";
 import {
   COMMAND_PALETTE_MAX_VISIBLE,
   createInitialNavigationState,
@@ -51,13 +52,20 @@ export type AppAction =
   | { readonly type: "SET_COMMAND_QUERY"; readonly query: string }
   | { readonly type: "NAVIGATE_COMMAND"; readonly direction: "up" | "down" }
   | { readonly type: "SELECT_COMMAND" }
+  // Column picker
+  | {
+      readonly type: "OPEN_COLUMN_PICKER";
+      readonly entityKey: string;
+      readonly title: string;
+    }
+  | { readonly type: "CLOSE_COLUMN_PICKER" }
   // Webhook modal
   | { readonly type: "OPEN_WEBHOOK_CREATE" }
   | {
       readonly type: "OPEN_WEBHOOK_EDIT";
       readonly webhookId: string;
       readonly targetUrl: string;
-      readonly selectedEvents: readonly string[];
+      readonly selectedEvents: readonly WebhookEventType[];
     }
   | {
       readonly type: "OPEN_WEBHOOK_DELETE";
@@ -66,7 +74,10 @@ export type AppAction =
     }
   | { readonly type: "CLOSE_WEBHOOK_MODAL" }
   | { readonly type: "WEBHOOK_SET_URL"; readonly url: string }
-  | { readonly type: "WEBHOOK_TOGGLE_EVENT"; readonly eventType: string }
+  | {
+      readonly type: "WEBHOOK_TOGGLE_EVENT";
+      readonly eventType: WebhookEventType;
+    }
   | {
       readonly type: "WEBHOOK_NAVIGATE_STEP";
       readonly direction: "next" | "previous";
@@ -422,6 +433,28 @@ export function appReducer(state: AppState, action: AppAction): AppState {
             query: "",
             selectedIndex: 0,
           },
+        },
+      };
+
+    case "OPEN_COLUMN_PICKER":
+      return {
+        ...state,
+        navigation: {
+          ...state.navigation,
+          columnPicker: {
+            mode: "open",
+            entityKey: action.entityKey,
+            title: action.title,
+          },
+        },
+      };
+
+    case "CLOSE_COLUMN_PICKER":
+      return {
+        ...state,
+        navigation: {
+          ...state.navigation,
+          columnPicker: { mode: "closed" },
         },
       };
 

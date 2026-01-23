@@ -1,28 +1,10 @@
 import { z } from "zod";
 
-// Column configuration for a specific entity type
-export const ColumnConfigSchema = z.object({
-  attribute: z.string().min(1),
-  width: z.number().int().positive().optional(),
-  label: z.string().optional(),
-});
-
-export type ColumnConfig = z.infer<typeof ColumnConfigSchema>;
-
-// Columns configuration per entity type
-export const ColumnsConfigSchema = z.record(
-  z.string(),
-  z.array(ColumnConfigSchema),
-);
-
-export type ColumnsConfig = z.infer<typeof ColumnsConfigSchema>;
-
 // Main application configuration schema
 export const AppConfigSchema = z.object({
   apiKey: z.string().min(1).optional(),
   baseUrl: z.string().url().default("https://api.attio.com"),
   debugEnabled: z.boolean().default(false),
-  columns: ColumnsConfigSchema.optional(),
 });
 
 export type AppConfig = z.infer<typeof AppConfigSchema>;
