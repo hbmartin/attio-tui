@@ -100,7 +100,7 @@ interface PtySessionOptions {
 
 const repoRoot = fileURLToPath(new URL("../", import.meta.url));
 const entryPaths = {
-  ts: fileURLToPath(new URL("./cli.tsx", import.meta.url)),
+  ts: join(repoRoot, "source", "cli.tsx"),
   dist: join(repoRoot, "dist", "cli.js"),
 };
 
