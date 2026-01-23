@@ -38,6 +38,26 @@ describe("resolveColumns", () => {
     );
   });
 
+  it("deduplicates configured columns by attribute", () => {
+    const columnsConfig: ColumnsConfig = {
+      ...DEFAULT_COLUMNS,
+      "object-companies": [
+        { attribute: "name", label: "Primary", width: 12 },
+        { attribute: "name", label: "Secondary", width: 40 },
+      ],
+    };
+
+    const resolved = resolveColumns({
+      entityKey: "object-companies",
+      columnsConfig,
+    });
+
+    expect(resolved).toHaveLength(1);
+    expect(resolved[0]?.attribute).toBe("name");
+    expect(resolved[0]?.label).toBe("Primary");
+    expect(resolved[0]?.width).toBe(Math.max(12, "Primary".length, 1));
+  });
+
   it("falls back to default object columns for unknown object key", () => {
     const columnsConfig: ColumnsConfig = {
       ...DEFAULT_COLUMNS,
