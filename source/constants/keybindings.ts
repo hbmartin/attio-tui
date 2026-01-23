@@ -58,7 +58,7 @@ export const GLOBAL_KEYBINDINGS: readonly KeyBinding[] = [
 
   // App control
   { key: "q", action: "quit" },
-] as const;
+];
 
 // List navigation keybindings - active when a list pane is focused
 export const LIST_KEYBINDINGS: readonly KeyBinding[] = [
@@ -80,7 +80,7 @@ export const LIST_KEYBINDINGS: readonly KeyBinding[] = [
 
   // Back navigation
   { key: "backspace", action: "goBack" },
-] as const;
+];
 
 // Detail pane keybindings
 export const DETAIL_KEYBINDINGS: readonly KeyBinding[] = [
@@ -95,7 +95,7 @@ export const DETAIL_KEYBINDINGS: readonly KeyBinding[] = [
   { key: "k", action: "moveUp" },
   { key: "downArrow", action: "moveDown" },
   { key: "upArrow", action: "moveUp" },
-] as const;
+];
 
 // Command palette keybindings
 export const COMMAND_PALETTE_KEYBINDINGS: readonly KeyBinding[] = [
@@ -105,7 +105,7 @@ export const COMMAND_PALETTE_KEYBINDINGS: readonly KeyBinding[] = [
   { key: "k", ctrl: true, action: "moveUp" },
   { key: "return", action: "selectItem" },
   { key: "escape", action: "closeCommandPalette" },
-] as const;
+];
 
 // Match a keyboard event against a keybinding
 export function matchesKeybinding(

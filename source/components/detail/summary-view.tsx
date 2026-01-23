@@ -1,10 +1,12 @@
 import { Box, Text } from "ink";
-import type { MeetingInfo } from "../../services/meetings-service.js";
-import type { NoteInfo } from "../../services/notes-service.js";
-import type { RecordInfo } from "../../services/objects-service.js";
-import type { TaskInfo } from "../../services/tasks-service.js";
-import type { WebhookInfo } from "../../services/webhooks-service.js";
-import type { NavigatorCategory, ResultItem } from "../../types/navigation.js";
+import type {
+  MeetingInfo,
+  NoteInfo,
+  RecordInfo,
+  TaskInfo,
+  WebhookInfo,
+} from "../../types/attio.js";
+import type { ResultItem } from "../../types/navigation.js";
 import {
   formatDate,
   formatDateTime,
@@ -13,7 +15,6 @@ import {
 
 interface SummaryViewProps {
   readonly item: ResultItem | undefined;
-  readonly category: NavigatorCategory | undefined;
 }
 
 // Row component for consistent formatting
@@ -39,7 +40,7 @@ function SummaryRow({
 
 // Record summary for objects (companies, people, etc.)
 function RecordSummary({ data }: { readonly data: RecordInfo }) {
-  const values = data.values as Record<string, unknown>;
+  const values = data.values;
   const displayFields: Array<{ label: string; key: string }> = [
     { label: "Name", key: "name" },
     { label: "Full Name", key: "full_name" },
@@ -61,7 +62,7 @@ function RecordSummary({ data }: { readonly data: RecordInfo }) {
       </Box>
       {displayFields.map(({ label, key }) => {
         const fieldValue = values[key];
-        if (!fieldValue) {
+        if (!fieldValue?.length) {
           return null;
         }
         return (
@@ -151,9 +152,9 @@ function MeetingSummary({ data }: { readonly data: MeetingInfo }) {
               Participants
             </Text>
           </Box>
-          {data.participants.slice(0, 5).map((participant) => {
+          {data.participants.slice(0, 5).map((participant, idx) => {
             const participantKey = [
-              participant.emailAddress ?? "unknown",
+              participant.emailAddress ?? `idx-${idx}`,
               participant.status,
               participant.isOrganizer ? "organizer" : "attendee",
             ].join(":");
@@ -180,7 +181,12 @@ function MeetingSummary({ data }: { readonly data: MeetingInfo }) {
 
 // Webhook summary
 function WebhookSummary({ data }: { readonly data: WebhookInfo }) {
-  const statusColor = data.status === "active" ? "green" : "yellow";
+  const statusColor =
+    data.status === "active"
+      ? "green"
+      : data.status === "degraded"
+        ? "yellow"
+        : "red";
 
   return (
     <Box flexDirection="column" gap={1}>
@@ -226,25 +232,22 @@ function GenericSummary({ item }: { readonly item: ResultItem }) {
   );
 }
 
-export function SummaryView({ item, category }: SummaryViewProps) {
+export function SummaryView({ item }: SummaryViewProps) {
   if (!item) {
     return <Text dimColor={true}>Select an item to view details</Text>;
   }
 
-  // Render entity-specific summary based on category
-  if (category) {
-    switch (category.type) {
-      case "object":
-        return <RecordSummary data={item.data as RecordInfo} />;
-      case "notes":
-        return <NoteSummary data={item.data as NoteInfo} />;
-      case "tasks":
-        return <TaskSummary data={item.data as TaskInfo} />;
-      case "meetings":
-        return <MeetingSummary data={item.data as MeetingInfo} />;
-      case "webhooks":
-        return <WebhookSummary data={item.data as WebhookInfo} />;
-    }
+  switch (item.type) {
+    case "object":
+      return <RecordSummary data={item.data} />;
+    case "notes":
+      return <NoteSummary data={item.data} />;
+    case "tasks":
+      return <TaskSummary data={item.data} />;
+    case "meetings":
+      return <MeetingSummary data={item.data} />;
+    case "webhooks":
+      return <WebhookSummary data={item.data} />;
   }
 
   return <GenericSummary item={item} />;

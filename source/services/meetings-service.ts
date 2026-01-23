@@ -1,18 +1,6 @@
 import type { AttioClient } from "attio-ts-sdk";
 import { getV2Meetings } from "attio-ts-sdk";
-
-export interface MeetingInfo {
-  readonly id: string;
-  readonly title: string;
-  readonly description: string;
-  readonly startAt: string;
-  readonly endAt: string;
-  readonly participants: readonly {
-    readonly emailAddress: string | null;
-    readonly isOrganizer: boolean;
-    readonly status: string;
-  }[];
-}
+import type { MeetingInfo } from "../types/attio.js";
 
 export interface QueryMeetingsResult {
   readonly meetings: readonly MeetingInfo[];

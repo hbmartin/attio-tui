@@ -32,7 +32,7 @@ function loadConfigFromDisk(): AppConfig {
   }
 
   const content = readFileSync(configPath, "utf-8");
-  const parsed = JSON.parse(content) as unknown;
+  const parsed: unknown = JSON.parse(content);
   return parseConfig(parsed);
 }
 
@@ -67,10 +67,6 @@ export function useConfig(): UseConfigResult {
       setLoading(false);
     }
   }, []);
-
-  useEffect(() => {
-    latestConfigRef.current = config;
-  }, [config]);
 
   // Save config updates
   const saveConfig = useCallback((updates: Partial<AppConfig>) => {

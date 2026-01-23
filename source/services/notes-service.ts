@@ -1,20 +1,19 @@
 import type { AttioClient } from "attio-ts-sdk";
 import { getV2Notes } from "attio-ts-sdk";
-
-export interface NoteInfo {
-  readonly id: string;
-  readonly parentObject: string;
-  readonly parentRecordId: string;
-  readonly title: string;
-  readonly contentPlaintext: string;
-  readonly createdAt: string;
-  readonly createdByType: string;
-  readonly createdById: string;
-}
+import type { NoteInfo } from "../types/attio.js";
 
 export interface QueryNotesResult {
   readonly notes: readonly NoteInfo[];
   readonly nextCursor: string | null;
+}
+
+function parseNotesOffset(cursor: string | undefined): number {
+  if (cursor && /^\d+$/.test(cursor)) {
+    const parsed = Number.parseInt(cursor, 10);
+    return Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  return 0;
 }
 
 // Fetch notes with pagination
@@ -28,12 +27,13 @@ export async function fetchNotes(
   } = {},
 ): Promise<QueryNotesResult> {
   const { limit = 25, cursor, parentObject, parentRecordId } = options;
+  const parsedOffset = parseNotesOffset(cursor);
 
   const response = await getV2Notes({
     client,
     query: {
       limit,
-      ...(cursor ? { offset: Number.parseInt(cursor, 10) } : {}),
+      offset: parsedOffset,
       ...(parentObject ? { parent_object: parentObject } : {}),
       ...(parentRecordId ? { parent_record_id: parentRecordId } : {}),
     },
@@ -56,7 +56,7 @@ export async function fetchNotes(
   }));
 
   // Calculate next cursor based on offset
-  const currentOffset = cursor ? Number.parseInt(cursor, 10) : 0;
+  const currentOffset = parsedOffset;
   const nextCursor =
     notes.length === limit ? String(currentOffset + limit) : null;
 

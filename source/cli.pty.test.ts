@@ -64,7 +64,20 @@ async function ensureSpawnHelperExecutable(): Promise<void> {
     await access(helperPath, constants.X_OK);
   } catch {
     // pnpm can install prebuilt helpers without executable perms if scripts are blocked.
-    await chmod(helperPath, 0o755);
+    try {
+      await chmod(helperPath, 0o755);
+    } catch (chmodError: unknown) {
+      if (
+        chmodError instanceof Error &&
+        (chmodError as NodeJS.ErrnoException).code === "ENOENT"
+      ) {
+        throw new Error(
+          `spawn-helper not found at expected path: ${helperPath}. ` +
+            `Ensure node-pty prebuilds are installed for ${process.platform}-${process.arch}.`,
+        );
+      }
+      throw chmodError;
+    }
   }
 }
 

@@ -51,7 +51,8 @@ describe("App (Ink renderer)", () => {
     } finally {
       instance.cleanup();
       if (originalHome === undefined) {
-        process.env["HOME"] = undefined;
+        // biome-ignore lint/performance/noDelete: process.env requires delete to remove vars; assignment sets string "undefined"
+        delete process.env["HOME"];
       } else {
         process.env["HOME"] = originalHome;
       }

@@ -17,7 +17,7 @@ vi.mock("attio-ts-sdk", async () => {
   };
 });
 
-const TEST_API_KEY = "attio_test_key_1234567890";
+const TEST_API_KEY = "test-api-key-placeholder";
 
 afterEach(() => {
   vi.clearAllMocks();

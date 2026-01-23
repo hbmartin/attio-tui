@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   findKeyAction,
   GLOBAL_KEYBINDINGS,
+  type KeyBinding,
   LIST_KEYBINDINGS,
   matchesKeybinding,
 } from "./keybindings.js";
@@ -9,51 +10,51 @@ import {
 describe("matchesKeybinding", () => {
   it("should match simple key", () => {
     const input = { key: "j", ctrl: false, shift: false, meta: false };
-    const binding = { key: "j", action: "moveDown" as const };
+    const binding: KeyBinding = { key: "j", action: "moveDown" };
     expect(matchesKeybinding(input, binding)).toBe(true);
   });
 
   it("should not match different key", () => {
     const input = { key: "k", ctrl: false, shift: false, meta: false };
-    const binding = { key: "j", action: "moveDown" as const };
+    const binding: KeyBinding = { key: "j", action: "moveDown" };
     expect(matchesKeybinding(input, binding)).toBe(false);
   });
 
   it("should match key with ctrl modifier", () => {
     const input = { key: "c", ctrl: true, shift: false, meta: false };
-    const binding = { key: "c", ctrl: true, action: "copyId" as const };
+    const binding: KeyBinding = { key: "c", ctrl: true, action: "copyId" };
     expect(matchesKeybinding(input, binding)).toBe(true);
   });
 
   it("should not match when ctrl modifier differs", () => {
     const input = { key: "c", ctrl: false, shift: false, meta: false };
-    const binding = { key: "c", ctrl: true, action: "copyId" as const };
+    const binding: KeyBinding = { key: "c", ctrl: true, action: "copyId" };
     expect(matchesKeybinding(input, binding)).toBe(false);
   });
 
   it("should match key with shift modifier", () => {
     const input = { key: "tab", ctrl: false, shift: true, meta: false };
-    const binding = {
+    const binding: KeyBinding = {
       key: "tab",
       shift: true,
-      action: "previousPane" as const,
+      action: "previousPane",
     };
     expect(matchesKeybinding(input, binding)).toBe(true);
   });
 
   it("should not match when shift modifier differs", () => {
     const input = { key: "tab", ctrl: false, shift: false, meta: false };
-    const binding = {
+    const binding: KeyBinding = {
       key: "tab",
       shift: true,
-      action: "previousPane" as const,
+      action: "previousPane",
     };
     expect(matchesKeybinding(input, binding)).toBe(false);
   });
 
   it("should handle undefined modifiers as false", () => {
     const input = { key: "j" };
-    const binding = { key: "j", action: "moveDown" as const };
+    const binding: KeyBinding = { key: "j", action: "moveDown" };
     expect(matchesKeybinding(input, binding)).toBe(true);
   });
 });

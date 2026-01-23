@@ -75,7 +75,7 @@ describe("createInitialNavigationState", () => {
 describe("getNavigatorCategoryKey", () => {
   it("should return key for object category", () => {
     const category = {
-      type: "object" as const,
+      type: "object",
       objectSlug: parseObjectSlug("companies"),
     };
     expect(getNavigatorCategoryKey(category)).toBe("object-companies");
@@ -83,7 +83,7 @@ describe("getNavigatorCategoryKey", () => {
 
   it("should return key for list category", () => {
     const category = {
-      type: "list" as const,
+      type: "list",
       listId: parseListId("550e8400-e29b-41d4-a716-446655440000"),
     };
     expect(getNavigatorCategoryKey(category)).toBe(
@@ -92,32 +92,32 @@ describe("getNavigatorCategoryKey", () => {
   });
 
   it("should return type for notes category", () => {
-    const category = { type: "notes" as const };
+    const category = { type: "notes" };
     expect(getNavigatorCategoryKey(category)).toBe("notes");
   });
 
   it("should return type for tasks category", () => {
-    const category = { type: "tasks" as const };
+    const category = { type: "tasks" };
     expect(getNavigatorCategoryKey(category)).toBe("tasks");
   });
 
   it("should return type for meetings category", () => {
-    const category = { type: "meetings" as const };
+    const category = { type: "meetings" };
     expect(getNavigatorCategoryKey(category)).toBe("meetings");
   });
 
   it("should return type for webhooks category", () => {
-    const category = { type: "webhooks" as const };
+    const category = { type: "webhooks" };
     expect(getNavigatorCategoryKey(category)).toBe("webhooks");
   });
 
   it("should return unique keys for different objects", () => {
     const cat1 = {
-      type: "object" as const,
+      type: "object",
       objectSlug: parseObjectSlug("companies"),
     };
     const cat2 = {
-      type: "object" as const,
+      type: "object",
       objectSlug: parseObjectSlug("people"),
     };
     expect(getNavigatorCategoryKey(cat1)).not.toBe(
@@ -127,11 +127,11 @@ describe("getNavigatorCategoryKey", () => {
 
   it("should return unique keys for different lists", () => {
     const cat1 = {
-      type: "list" as const,
+      type: "list",
       listId: parseListId("550e8400-e29b-41d4-a716-446655440000"),
     };
     const cat2 = {
-      type: "list" as const,
+      type: "list",
       listId: parseListId("550e8400-e29b-41d4-a716-446655440001"),
     };
     expect(getNavigatorCategoryKey(cat1)).not.toBe(

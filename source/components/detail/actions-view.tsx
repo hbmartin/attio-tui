@@ -20,7 +20,7 @@ const ACTIONS: readonly ActionItem[] = [
   { key: "Ctrl+O", label: "Open", description: "Open in browser" },
   { key: "Ctrl+R", label: "Refresh", description: "Refresh current data" },
   { key: ":", label: "Command", description: "Open command palette" },
-] as const;
+];
 
 export function ActionsView({ item }: ActionsViewProps) {
   if (!item) {

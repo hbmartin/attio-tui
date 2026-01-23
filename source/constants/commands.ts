@@ -89,7 +89,7 @@ export const DEFAULT_COMMANDS: readonly Command[] = [
     shortcut: "Ctrl+D",
     action: { type: "toggle", toggleId: "debug" },
   },
-] as const;
+];
 
 // Filter commands based on search query
 export function filterCommands(
