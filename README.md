@@ -72,7 +72,7 @@ That's it. You're in.
 | `Tab` / `Shift+Tab` | Switch between panes |
 | `1` / `2` / `3` | Jump to Navigator / Results / Detail |
 | `:` | Open command palette |
-| `Ctrl+C` | Copy selected item's ID |
+| `y` | Copy selected item's ID (yank) |
 | `Ctrl+O` | Open in browser |
 | `Ctrl+R` | Refresh data |
 | `Ctrl+D` | Toggle debug panel |
