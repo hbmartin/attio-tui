@@ -170,6 +170,13 @@ pnpm dev
 # Build
 pnpm build
 
+# Run the built app
+node dist/cli.js
+
+# Or link it globally for local testing
+pnpm link --global
+attio-tui
+
 # Run tests
 pnpm test
 
