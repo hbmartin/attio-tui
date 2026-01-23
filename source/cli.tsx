@@ -3,17 +3,9 @@ import process from "node:process";
 import { render } from "ink";
 import meow from "meow";
 import App from "./app.js";
+import { PtyDebug } from "./utils/pty-debug.js";
 
-const ptyDebugRaw = process.env["ATTIO_TUI_PTY_DEBUG"];
-const ptyDebugEnabled =
-  ptyDebugRaw === "1" || ptyDebugRaw?.toLowerCase() === "true";
-
-const logPtyDebug = (message: string): void => {
-  if (!ptyDebugEnabled) {
-    return;
-  }
-  process.stderr.write(`[PTY-DEBUG] ${message}\n`);
-};
+const ptyDebugEnabled = PtyDebug.isEnabled();
 
 const cli = meow(
   `
@@ -43,16 +35,20 @@ const cli = meow(
 );
 
 if (ptyDebugEnabled) {
-  logPtyDebug(`pid=${process.pid}`);
-  logPtyDebug(
+  PtyDebug.log(`pid=${process.pid}`);
+  PtyDebug.log(
     `node=${process.version} platform=${process.platform} arch=${process.arch}`,
   );
-  logPtyDebug(`cwd=${process.cwd()}`);
-  logPtyDebug(`argv=${JSON.stringify(process.argv)}`);
-  logPtyDebug(
+  PtyDebug.log(`cwd=${process.cwd()}`);
+  PtyDebug.log(`argv=${JSON.stringify(process.argv)}`);
+  PtyDebug.log(
     `tty stdin=${Boolean(process.stdin.isTTY)} stdout=${Boolean(process.stdout.isTTY)} stderr=${Boolean(process.stderr.isTTY)}`,
   );
-  logPtyDebug(
+  PtyDebug.log(
+    `stdout columns=${process.stdout.columns ?? "<unset>"} rows=${process.stdout.rows ?? "<unset>"}`,
+  );
+  PtyDebug.log(`stdin isRaw=${String(process.stdin.isRaw)}`);
+  PtyDebug.log(
     `env=${JSON.stringify({
       CI: process.env["CI"],
       TERM: process.env["TERM"],
@@ -62,29 +58,35 @@ if (ptyDebugEnabled) {
       FORCE_COLOR: process.env["FORCE_COLOR"],
     })}`,
   );
-  logPtyDebug(`flags.debug=${String(cli.flags.debug)}`);
+  PtyDebug.log(`flags.debug=${String(cli.flags.debug)}`);
   process.on("uncaughtException", (error) => {
-    logPtyDebug(
+    PtyDebug.log(
       `uncaughtException: ${error instanceof Error ? (error.stack ?? error.message) : String(error)}`,
     );
+    process.exit(1);
   });
   process.on("unhandledRejection", (reason) => {
-    logPtyDebug(
+    PtyDebug.log(
       `unhandledRejection: ${reason instanceof Error ? (reason.stack ?? reason.message) : String(reason)}`,
     );
+    process.exit(1);
   });
 }
 
+if (ptyDebugEnabled) {
+  PtyDebug.log("render start");
+}
 const app = render(<App initialDebugEnabled={cli.flags.debug} />);
 if (ptyDebugEnabled) {
+  PtyDebug.log("render returned");
   app
     .waitUntilExit()
     .then(() => {
-      logPtyDebug("render exit");
+      PtyDebug.log("render exit");
     })
     .catch((error) => {
-      logPtyDebug(
-        `render exit error: ${error instanceof Error ? error.message : String(error)}`,
+      PtyDebug.log(
+        `render exit error: ${error instanceof Error ? (error.stack ?? error.message) : String(error)}`,
       );
     });
 }

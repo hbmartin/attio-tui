@@ -7,6 +7,7 @@ import {
   parseConfig,
 } from "../schemas/config-schema.js";
 import { getConfigDir, getConfigPath } from "../utils/config-path.js";
+import { PtyDebug } from "../utils/pty-debug.js";
 
 interface UseConfigResult {
   readonly config: AppConfig;
@@ -27,11 +28,14 @@ function ensureConfigDir(): void {
 // Load config from disk
 function loadConfigFromDisk(): AppConfig {
   const configPath = getConfigPath();
-  if (!existsSync(configPath)) {
+  const exists = existsSync(configPath);
+  PtyDebug.log(`config path=${configPath} exists=${String(exists)}`);
+  if (!exists) {
     return DEFAULT_CONFIG;
   }
 
   const content = readFileSync(configPath, "utf-8");
+  PtyDebug.log(`config read bytes=${content.length}`);
   const parsed: unknown = JSON.parse(content);
   return parseConfig(parsed);
 }
@@ -60,6 +64,7 @@ export function useConfig(): UseConfigResult {
       setConfig(loadedConfig);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unknown error";
+      PtyDebug.log(`config load error: ${message}`);
       setError(`Failed to load config: ${message}`);
       latestConfigRef.current = DEFAULT_CONFIG;
       setConfig(DEFAULT_CONFIG);
@@ -77,6 +82,7 @@ export function useConfig(): UseConfigResult {
       saveConfigToDisk(newConfig);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unknown error";
+      PtyDebug.log(`config save error: ${message}`);
       setError(`Failed to save config: ${message}`);
     }
   }, []);

@@ -1,6 +1,6 @@
 import { join } from "node:path";
 import process from "node:process";
-import { Box, Text, useApp as useInkApp } from "ink";
+import { Box, Text, useApp as useInkApp, useStdin, useStdout } from "ink";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ColumnPicker } from "./components/columns/index.js";
 import { CommandPalette } from "./components/command-palette/command-palette.js";
@@ -52,6 +52,7 @@ import {
 } from "./utils/columns.js";
 import { exportJsonToFile } from "./utils/export.js";
 import { openBrowser } from "./utils/open-browser.js";
+import { PtyDebug } from "./utils/pty-debug.js";
 
 // Static categories for the skeleton - will be replaced with dynamic loading
 function getStaticCategories(): readonly NavigatorCategory[] {
@@ -103,6 +104,20 @@ function getCategorySlug(
     return category.objectSlug;
   }
   return;
+}
+
+function usePtyDebugInk(): void {
+  const { stdout } = useStdout();
+  const { stdin, isRawModeSupported } = useStdin();
+
+  useEffect(() => {
+    PtyDebug.log(
+      `ink stdout isTTY=${Boolean(stdout.isTTY)} columns=${stdout.columns ?? "<unset>"} rows=${stdout.rows ?? "<unset>"}`,
+    );
+    PtyDebug.log(
+      `ink stdin isTTY=${Boolean(stdin.isTTY)} isRawModeSupported=${String(isRawModeSupported)} isRaw=${String(stdin.isRaw)}`,
+    );
+  }, [stdout, stdin, isRawModeSupported]);
 }
 
 function MainApp() {
@@ -694,6 +709,16 @@ function AppWithClient() {
   const isConfigured =
     configState.status === "ready" ? configState.isConfigured : false;
 
+  useEffect(() => {
+    if (configState.status === "error") {
+      PtyDebug.log(`config status=error message=${errorMessage}`);
+      return;
+    }
+    PtyDebug.log(
+      `config status=${configState.status} isConfigured=${String(isConfigured)}`,
+    );
+  }, [configState.status, errorMessage, isConfigured]);
+
   const renderByStatus = {
     loading: () => (
       <Box padding={1}>
@@ -726,6 +751,14 @@ export default function App({ initialDebugEnabled }: AppProps) {
       debugEnabled: initialDebugEnabled,
     };
   }, [initialDebugEnabled]);
+
+  usePtyDebugInk();
+  useEffect(() => {
+    PtyDebug.log("app mount");
+    return () => {
+      PtyDebug.log("app unmount");
+    };
+  }, []);
 
   return (
     <ClientProvider>

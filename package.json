@@ -18,7 +18,7 @@
     "node": ">=24"
   },
   "scripts": {
-    "build": "tsc",
+    "build": "tsc -p tsconfig.build.json",
     "dev": "tsc --watch",
     "lint": "biome check --error-on-warnings",
     "lint:report": "biome check . --reporter=json | jq -r '  .diagnostics[]  | .category' | sort | uniq -c | sort -nr",
