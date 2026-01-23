@@ -7,6 +7,23 @@ import {
 } from "../../constants/webhook-events.js";
 import type { WebhookEventType } from "../../types/attio.js";
 
+interface VisibleItem {
+  readonly type: "category" | "event";
+}
+
+interface VisibleItemCategory extends VisibleItem {
+  readonly type: "category";
+  readonly label: string;
+}
+
+interface VisibleItemEvent extends VisibleItem {
+  readonly type: "event";
+  readonly event: WebhookEventDefinition;
+  readonly globalIndex: number;
+}
+
+type VisibleItemEntry = VisibleItemCategory | VisibleItemEvent;
+
 interface WebhookSubscriptionPickerProps {
   readonly selectedEvents: readonly WebhookEventType[];
   readonly onToggleEvent: (eventType: WebhookEventType) => void;
@@ -78,20 +95,7 @@ export function WebhookSubscriptionPicker({
   const windowEnd = Math.min(totalEvents, windowStart + windowSize);
 
   // Build visible items with category headers
-  interface WebhookCategoryItem {
-    readonly type: "category";
-    readonly label: string;
-  }
-
-  interface WebhookEventItem {
-    readonly type: "event";
-    readonly event: WebhookEventDefinition;
-    readonly globalIndex: number;
-  }
-
-  type VisibleItem = WebhookCategoryItem | WebhookEventItem;
-
-  const visibleItems: VisibleItem[] = [];
+  const visibleItems: VisibleItemEntry[] = [];
 
   let globalIndex = 0;
   for (const category of WEBHOOK_EVENT_CATEGORIES) {

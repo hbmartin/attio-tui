@@ -357,11 +357,11 @@ function MainApp() {
         webhookModal.selectedEvents,
       );
     } else if (webhookModal.mode === "edit") {
-      webhookOps.handleUpdate(
-        webhookModal.webhookId,
-        webhookModal.targetUrl,
-        webhookModal.selectedEvents,
-      );
+      webhookOps.handleUpdate({
+        webhookId: webhookModal.webhookId,
+        targetUrl: webhookModal.targetUrl,
+        selectedEvents: webhookModal.selectedEvents,
+      });
     }
   }, [webhookModal, webhookOps]);
 

@@ -71,11 +71,15 @@ export function useWebhookOperations({
   );
 
   const handleUpdate = useCallback(
-    async (
-      webhookId: string,
-      targetUrl: string,
-      selectedEvents: readonly WebhookEventType[],
-    ) =>
+    async ({
+      webhookId,
+      targetUrl,
+      selectedEvents,
+    }: {
+      webhookId: string;
+      targetUrl: string;
+      selectedEvents: readonly WebhookEventType[];
+    }) =>
       submitOperation({
         operation: (activeClient) =>
           updateWebhook(activeClient, webhookId, {
