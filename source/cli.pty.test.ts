@@ -194,6 +194,23 @@ async function ensureSpawnHelperExecutable(): Promise<void> {
     "spawn-helper",
   );
 
+  const helperExists = await access(helperPath, constants.F_OK)
+    .then(() => true)
+    .catch((error: unknown) => {
+      if (
+        error instanceof Error &&
+        "code" in error &&
+        error.code === "ENOENT"
+      ) {
+        return false;
+      }
+      throw error;
+    });
+
+  if (!helperExists) {
+    return;
+  }
+
   try {
     await access(helperPath, constants.X_OK);
   } catch {
@@ -205,10 +222,7 @@ async function ensureSpawnHelperExecutable(): Promise<void> {
         "code" in chmodError &&
         chmodError.code === "ENOENT"
       ) {
-        throw new Error(
-          `spawn-helper not found at expected path: ${helperPath}. ` +
-            `Ensure node-pty prebuilds are installed for ${process.platform}-${process.arch}.`,
-        );
+        return;
       }
       throw chmodError;
     }
@@ -278,8 +292,7 @@ describe.sequential("CLI (PTY)", () => {
     // Type some characters
     await session.type("abc");
 
-    // Wait a moment for render
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    await session.waitFor("•••");
 
     // Should show dots, not the actual characters
     const output = session.getStrippedOutput();
