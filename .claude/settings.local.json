@@ -29,7 +29,9 @@
       "Bash(pnpm biome check:*)",
       "Bash(pnpm biome format:*)",
       "Bash(ls:*)",
-      "Bash(pnpm dupes:*)"
+      "Bash(pnpm dupes:*)",
+      "Bash(grep:*)",
+      "Bash(xargs:*)"
     ]
   }
 }

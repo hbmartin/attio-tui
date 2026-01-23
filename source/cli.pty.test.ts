@@ -455,6 +455,22 @@ async function ensureSpawnHelperExecutable(): Promise<void> {
   const nodePtyEntry = require.resolve("node-pty");
   const packageRoot = dirname(dirname(nodePtyEntry));
 
+  // spawn-helper is only required on macOS. On Linux, node-pty uses forkpty()
+  // directly and doesn't need the spawn-helper binary.
+  if (process.platform !== "darwin") {
+    spawnHelperDetails = {
+      helperPath: "(not required on this platform)",
+      nodePtyEntry,
+      packageRoot,
+      exists: true,
+      executable: true,
+      chmodAttempted: false,
+      chmodSucceeded: false,
+      locationChecks: [],
+    };
+    return;
+  }
+
   // Check same directories as node-pty (in order): build/Release, build/Debug, prebuilds/{platform}-{arch}
   const candidateDirs = [
     "build/Release",
