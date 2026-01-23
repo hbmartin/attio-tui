@@ -1,7 +1,6 @@
 import type { WebhookEventType } from "../types/attio.js";
 import type { Columns } from "../types/columns.js";
 import {
-  COMMAND_PALETTE_MAX_VISIBLE,
   createInitialNavigationState,
   DETAIL_TABS,
   type DetailTab,
@@ -54,7 +53,11 @@ export type AppAction =
   | { readonly type: "OPEN_COMMAND_PALETTE" }
   | { readonly type: "CLOSE_COMMAND_PALETTE" }
   | { readonly type: "SET_COMMAND_QUERY"; readonly query: string }
-  | { readonly type: "NAVIGATE_COMMAND"; readonly direction: "up" | "down" }
+  | {
+      readonly type: "NAVIGATE_COMMAND";
+      readonly direction: "up" | "down";
+      readonly maxIndex: number;
+    }
   | { readonly type: "SELECT_COMMAND" }
   // Column picker
   | {
@@ -421,7 +424,7 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       };
 
     case "NAVIGATE_COMMAND": {
-      const maxIndex = COMMAND_PALETTE_MAX_VISIBLE - 1;
+      const { maxIndex } = action;
       return {
         ...state,
         navigation: {

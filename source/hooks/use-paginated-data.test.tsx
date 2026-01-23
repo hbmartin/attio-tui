@@ -60,6 +60,7 @@ interface HookSnapshot {
   readonly hasNextPage: boolean;
   readonly loadMore: () => Promise<void>;
   readonly refresh: () => Promise<void>;
+  readonly checkPrefetch: (selectedIndex: number) => void;
 }
 
 interface HookHarnessProps {
@@ -78,6 +79,46 @@ function HookHarness({ fetchFn, onUpdate }: HookHarnessProps): JSX.Element {
 }
 
 describe("usePaginatedData", () => {
+  it("prefetches when selection nears the end of the list", async () => {
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValueOnce({
+        items: ["alpha", "beta", "gamma"],
+        nextCursor: "next",
+      })
+      .mockResolvedValueOnce({ items: ["delta"], nextCursor: null });
+
+    let latest: HookSnapshot | undefined;
+
+    const instance = render(
+      <HookHarness
+        fetchFn={fetchFn}
+        onUpdate={(snapshot) => {
+          latest = snapshot;
+        }}
+      />,
+    );
+
+    try {
+      await waitForCondition(
+        () => Boolean(latest) && latest?.data.length === 3,
+      );
+
+      if (!latest) {
+        throw new Error("Expected hook state to be available");
+      }
+
+      latest.checkPrefetch(2);
+
+      await waitForCondition(() => latest?.data.length === 4);
+
+      expect(fetchFn).toHaveBeenCalledTimes(2);
+      expect(latest.data[3]).toBe("delta");
+      expect(latest.hasNextPage).toBe(false);
+    } finally {
+      instance.cleanup();
+    }
+  });
   it("prevents overlapping loadMore requests", async () => {
     const deferred = createDeferred<PaginatedResult<string>>();
     let callCount = 0;

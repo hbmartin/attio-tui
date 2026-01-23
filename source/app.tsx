@@ -39,7 +39,10 @@ import type {
   DebugTimingSnapshot,
 } from "./types/debug.js";
 import { type ObjectSlug, parseObjectSlug } from "./types/ids.js";
-import type { NavigatorCategory } from "./types/navigation.js";
+import {
+  COMMAND_PALETTE_MAX_VISIBLE,
+  type NavigatorCategory,
+} from "./types/navigation.js";
 import { writeToClipboard } from "./utils/clipboard.js";
 import {
   getAvailableColumns,
@@ -188,6 +191,7 @@ function MainApp() {
     error: categoryError,
     hasNextPage,
     refresh,
+    checkPrefetch,
   } = useCategoryData({
     client,
     categoryType,
@@ -372,10 +376,22 @@ function MainApp() {
     });
   }, [dispatch, showStatusMessage, debugEnabled]);
 
+  // Filter commands for command palette
+  const filteredCommands = filterCommands(
+    DEFAULT_COMMANDS,
+    commandPaletteQuery,
+  );
+  const commandPaletteVisibleCount = Math.min(
+    filteredCommands.length,
+    COMMAND_PALETTE_MAX_VISIBLE,
+  );
+  const commandPaletteMaxIndex = Math.max(0, commandPaletteVisibleCount - 1);
+
   // Handle keyboard actions
   const handleAction = useActionHandler({
     focusedPane,
     commandPaletteOpen,
+    commandPaletteMaxIndex,
     dispatch,
     exit,
     onCopyId: copySelectedId,
@@ -392,11 +408,12 @@ function MainApp() {
     enabled: isKeyboardEnabled,
   });
 
-  // Filter commands for command palette
-  const filteredCommands = filterCommands(
-    DEFAULT_COMMANDS,
-    commandPaletteQuery,
-  );
+  useEffect(() => {
+    if (categoryItems.length === 0) {
+      return;
+    }
+    checkPrefetch(resultSelectedIndex);
+  }, [categoryItems.length, checkPrefetch, resultSelectedIndex]);
 
   // Handle webhook commands - defined before executeCommand since it's used there
   const handleWebhookCommand = useCallback(

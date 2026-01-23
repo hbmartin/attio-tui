@@ -6,6 +6,7 @@ import type { PaneId } from "../types/navigation.js";
 interface UseActionHandlerOptions {
   readonly focusedPane: PaneId;
   readonly commandPaletteOpen: boolean;
+  readonly commandPaletteMaxIndex: number;
   readonly dispatch: React.Dispatch<AppAction>;
   readonly exit: () => void;
   readonly onCopyId: () => void;
@@ -29,10 +30,15 @@ const SIMPLE_ACTION_MAP: Partial<Record<KeyAction, AppAction>> = {
 function handleMoveUp(
   focusedPane: PaneId,
   commandPaletteOpen: boolean,
+  commandPaletteMaxIndex: number,
   dispatch: React.Dispatch<AppAction>,
 ): void {
   if (commandPaletteOpen) {
-    dispatch({ type: "NAVIGATE_COMMAND", direction: "up" });
+    dispatch({
+      type: "NAVIGATE_COMMAND",
+      direction: "up",
+      maxIndex: commandPaletteMaxIndex,
+    });
     return;
   }
   if (focusedPane === "navigator") {
@@ -45,10 +51,15 @@ function handleMoveUp(
 function handleMoveDown(
   focusedPane: PaneId,
   commandPaletteOpen: boolean,
+  commandPaletteMaxIndex: number,
   dispatch: React.Dispatch<AppAction>,
 ): void {
   if (commandPaletteOpen) {
-    dispatch({ type: "NAVIGATE_COMMAND", direction: "down" });
+    dispatch({
+      type: "NAVIGATE_COMMAND",
+      direction: "down",
+      maxIndex: commandPaletteMaxIndex,
+    });
     return;
   }
   if (focusedPane === "navigator") {
@@ -84,6 +95,7 @@ export function useActionHandler(options: UseActionHandlerOptions) {
   const {
     focusedPane,
     commandPaletteOpen,
+    commandPaletteMaxIndex,
     dispatch,
     exit,
     onCopyId,
@@ -117,10 +129,20 @@ export function useActionHandler(options: UseActionHandlerOptions) {
       // Handle complex actions
       switch (action) {
         case "moveUp":
-          handleMoveUp(focusedPane, commandPaletteOpen, dispatch);
+          handleMoveUp(
+            focusedPane,
+            commandPaletteOpen,
+            commandPaletteMaxIndex,
+            dispatch,
+          );
           break;
         case "moveDown":
-          handleMoveDown(focusedPane, commandPaletteOpen, dispatch);
+          handleMoveDown(
+            focusedPane,
+            commandPaletteOpen,
+            commandPaletteMaxIndex,
+            dispatch,
+          );
           break;
         case "moveRight":
           handleMoveRight(focusedPane, dispatch);
@@ -140,6 +162,7 @@ export function useActionHandler(options: UseActionHandlerOptions) {
     [
       focusedPane,
       commandPaletteOpen,
+      commandPaletteMaxIndex,
       dispatch,
       exit,
       onCopyId,
