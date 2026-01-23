@@ -82,6 +82,37 @@ export interface CommandPaletteState {
   readonly selectedIndex: number;
 }
 
+// Webhook form step
+export type WebhookFormStep = "url" | "subscriptions" | "review";
+
+export const WEBHOOK_FORM_STEPS: readonly WebhookFormStep[] = [
+  "url",
+  "subscriptions",
+  "review",
+];
+
+// Webhook modal state using discriminated union
+export type WebhookModalState =
+  | { readonly mode: "closed" }
+  | {
+      readonly mode: "create";
+      readonly step: WebhookFormStep;
+      readonly targetUrl: string;
+      readonly selectedEvents: readonly string[];
+    }
+  | {
+      readonly mode: "edit";
+      readonly webhookId: string;
+      readonly step: WebhookFormStep;
+      readonly targetUrl: string;
+      readonly selectedEvents: readonly string[];
+    }
+  | {
+      readonly mode: "delete";
+      readonly webhookId: string;
+      readonly webhookUrl: string;
+    };
+
 // Application navigation state
 export interface NavigationState {
   readonly focusedPane: PaneId;
@@ -89,6 +120,7 @@ export interface NavigationState {
   readonly results: ResultsState;
   readonly detail: DetailState;
   readonly commandPalette: CommandPaletteState;
+  readonly webhookModal: WebhookModalState;
 }
 
 // Generate a stable key for a NavigatorCategory
@@ -130,6 +162,9 @@ export function createInitialNavigationState(): NavigationState {
       isOpen: false,
       query: "",
       selectedIndex: 0,
+    },
+    webhookModal: {
+      mode: "closed",
     },
   };
 }

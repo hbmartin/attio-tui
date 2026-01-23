@@ -11,7 +11,8 @@ export interface Command {
 export type CommandAction =
   | { readonly type: "navigation"; readonly target: NavigationTarget }
   | { readonly type: "action"; readonly actionId: ActionId }
-  | { readonly type: "toggle"; readonly toggleId: ToggleId };
+  | { readonly type: "toggle"; readonly toggleId: ToggleId }
+  | { readonly type: "webhook"; readonly webhookAction: WebhookActionId };
 
 export type NavigationTarget =
   | "companies"
@@ -30,3 +31,5 @@ export type ActionId =
   | "quit";
 
 export type ToggleId = "debug";
+
+export type WebhookActionId = "create" | "edit" | "delete";

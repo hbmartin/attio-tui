@@ -1,4 +1,4 @@
-import { Box, Text } from "ink";
+import { Box, Text, useInput } from "ink";
 import type { Command } from "../../types/commands.js";
 import { CommandInput } from "./command-input.js";
 import { CommandList } from "./command-list.js";
@@ -8,6 +8,7 @@ interface CommandPaletteProps {
   readonly query: string;
   readonly commands: readonly Command[];
   readonly selectedIndex: number;
+  readonly onExecute?: (command: Command) => void;
 }
 
 export function CommandPalette({
@@ -15,7 +16,20 @@ export function CommandPalette({
   query,
   commands,
   selectedIndex,
+  onExecute,
 }: CommandPaletteProps) {
+  useInput(
+    (_input, key) => {
+      if (key.return && onExecute) {
+        const selectedCommand = commands[selectedIndex];
+        if (selectedCommand) {
+          onExecute(selectedCommand);
+        }
+      }
+    },
+    { isActive: isOpen },
+  );
+
   if (!isOpen) {
     return null;
   }

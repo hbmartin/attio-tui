@@ -1,5 +1,5 @@
 import { Box, Text, useApp as useInkApp } from "ink";
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
 import { CommandPalette } from "./components/command-palette/command-palette.js";
 import { DetailPane } from "./components/detail/detail-pane.js";
 import { StatusBar } from "./components/layout/status-bar.js";
@@ -7,16 +7,22 @@ import { ThreePaneLayout } from "./components/layout/three-pane-layout.js";
 import { Navigator } from "./components/navigator/navigator.js";
 import { ResultsPane } from "./components/results/results-pane.js";
 import { ApiKeyPrompt } from "./components/setup/api-key-prompt.js";
+import {
+  WebhookDeleteConfirm,
+  WebhookForm,
+} from "./components/webhooks/index.js";
 import { DEFAULT_COMMANDS, filterCommands } from "./constants/commands.js";
 import { useActionHandler } from "./hooks/use-action-handler.js";
 import { useCategoryData } from "./hooks/use-category-data.js";
 import { useKeyboard } from "./hooks/use-keyboard.js";
+import { useWebhookOperations } from "./hooks/use-webhook-operations.js";
 import {
   ClientProvider,
   type ConfigState,
   useClient,
 } from "./state/client-context.js";
 import { AppProvider, useApp } from "./state/context.js";
+import type { Command } from "./types/commands.js";
 import { type ObjectSlug, parseObjectSlug } from "./types/ids.js";
 import type { NavigatorCategory } from "./types/navigation.js";
 
@@ -78,8 +84,14 @@ function MainApp() {
   const { exit } = useInkApp();
 
   const { navigation } = state;
-  const { focusedPane, navigator, results, detail, commandPalette } =
-    navigation;
+  const {
+    focusedPane,
+    navigator,
+    results,
+    detail,
+    commandPalette,
+    webhookModal,
+  } = navigation;
 
   // Get selected category
   const selectedCategory = navigator.categories[navigator.selectedIndex];
@@ -92,10 +104,18 @@ function MainApp() {
     loading: categoryLoading,
     error: categoryError,
     hasNextPage,
+    refresh,
   } = useCategoryData({
     client,
     categoryType,
     categorySlug,
+  });
+
+  // Webhook operations
+  const webhookOps = useWebhookOperations({
+    client,
+    dispatch,
+    onSuccess: refresh,
   });
 
   // Initialize categories on mount
@@ -123,6 +143,9 @@ function MainApp() {
     dispatch({ type: "SET_DETAIL_ITEM", item: selectedItem });
   }, [results.items, results.selectedIndex, dispatch]);
 
+  // Check if webhook modal is open (blocks other keyboard input)
+  const isWebhookModalOpen = webhookModal.mode !== "closed";
+
   // Handle keyboard actions
   const handleAction = useActionHandler({
     focusedPane,
@@ -130,11 +153,12 @@ function MainApp() {
     exit,
   });
 
-  // Setup keyboard handling
+  // Setup keyboard handling (disabled when webhook modal is open)
   useKeyboard({
     focusedPane,
     commandPaletteOpen: commandPalette.isOpen,
     onAction: handleAction,
+    enabled: !isWebhookModalOpen,
   });
 
   // Filter commands for command palette
@@ -142,6 +166,109 @@ function MainApp() {
     DEFAULT_COMMANDS,
     commandPalette.query,
   );
+
+  // Handle webhook commands - defined before executeCommand since it's used there
+  const handleWebhookCommand = useCallback(
+    (webhookAction: "create" | "edit" | "delete") => {
+      const selectedItem = results.items[results.selectedIndex];
+      const isWebhookSelected = selectedItem?.type === "webhooks";
+
+      switch (webhookAction) {
+        case "create":
+          dispatch({ type: "OPEN_WEBHOOK_CREATE" });
+          break;
+
+        case "edit":
+          if (isWebhookSelected) {
+            const webhookData = selectedItem.data;
+            dispatch({
+              type: "OPEN_WEBHOOK_EDIT",
+              webhookId: webhookData.id,
+              targetUrl: webhookData.targetUrl,
+              selectedEvents: webhookData.subscriptions.map((s) => s.eventType),
+            });
+          }
+          break;
+
+        case "delete":
+          if (isWebhookSelected) {
+            const webhookData = selectedItem.data;
+            dispatch({
+              type: "OPEN_WEBHOOK_DELETE",
+              webhookId: webhookData.id,
+              webhookUrl: webhookData.targetUrl,
+            });
+          }
+          break;
+      }
+    },
+    [results.items, results.selectedIndex, dispatch],
+  );
+
+  // Execute command from command palette
+  const executeCommand = useCallback(
+    (command: Command) => {
+      dispatch({ type: "CLOSE_COMMAND_PALETTE" });
+
+      switch (command.action.type) {
+        case "navigation": {
+          const { target } = command.action;
+          const targetIndex = navigator.categories.findIndex((cat) => {
+            if (cat.type === "object") {
+              return cat.objectSlug === target;
+            }
+            return cat.type === target;
+          });
+          if (targetIndex >= 0) {
+            dispatch({ type: "SELECT_CATEGORY", index: targetIndex });
+          }
+          break;
+        }
+
+        case "action":
+          if (command.action.actionId === "quit") {
+            exit();
+          } else if (command.action.actionId === "refresh") {
+            refresh().catch(() => {
+              // Silently ignore refresh errors
+            });
+          }
+          break;
+
+        case "toggle":
+          // Toggle commands - not yet implemented
+          break;
+
+        case "webhook":
+          handleWebhookCommand(command.action.webhookAction);
+          break;
+      }
+    },
+    [dispatch, navigator.categories, exit, refresh, handleWebhookCommand],
+  );
+
+  // Handle webhook form submission
+  const handleWebhookSubmit = useCallback(() => {
+    if (webhookModal.mode === "create") {
+      webhookOps.handleCreate(
+        webhookModal.targetUrl,
+        webhookModal.selectedEvents,
+      );
+    } else if (webhookModal.mode === "edit") {
+      webhookOps.handleUpdate(
+        webhookModal.webhookId,
+        webhookModal.targetUrl,
+        webhookModal.selectedEvents,
+      );
+    }
+  }, [webhookModal, webhookOps]);
+
+  // Handle webhook delete confirmation
+  const handleWebhookDeleteConfirm = useCallback(() => {
+    if (webhookModal.mode === "delete") {
+      webhookOps.handleDelete(webhookModal.webhookId);
+    }
+  }, [webhookModal, webhookOps]);
 
   return (
     <Box flexDirection="column" height="100%">
@@ -188,7 +315,37 @@ function MainApp() {
         query={commandPalette.query}
         commands={filteredCommands}
         selectedIndex={commandPalette.selectedIndex}
+        onExecute={executeCommand}
       />
+
+      {(webhookModal.mode === "create" || webhookModal.mode === "edit") && (
+        <WebhookForm
+          mode={webhookModal.mode}
+          step={webhookModal.step}
+          targetUrl={webhookModal.targetUrl}
+          selectedEvents={webhookModal.selectedEvents}
+          onUrlChange={(url) => dispatch({ type: "WEBHOOK_SET_URL", url })}
+          onToggleEvent={(eventType) =>
+            dispatch({ type: "WEBHOOK_TOGGLE_EVENT", eventType })
+          }
+          onNavigateStep={(direction) =>
+            dispatch({ type: "WEBHOOK_NAVIGATE_STEP", direction })
+          }
+          onSubmit={handleWebhookSubmit}
+          onCancel={() => dispatch({ type: "CLOSE_WEBHOOK_MODAL" })}
+          isSubmitting={webhookOps.isSubmitting}
+          error={webhookOps.error}
+        />
+      )}
+
+      {webhookModal.mode === "delete" && (
+        <WebhookDeleteConfirm
+          webhookUrl={webhookModal.webhookUrl}
+          onConfirm={handleWebhookDeleteConfirm}
+          onCancel={() => dispatch({ type: "CLOSE_WEBHOOK_MODAL" })}
+          isDeleting={webhookOps.isSubmitting}
+        />
+      )}
     </Box>
   );
 }

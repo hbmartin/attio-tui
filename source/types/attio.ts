@@ -166,3 +166,4 @@ export type WebhookCreateSubscriptionInput =
   AttioTypes.WebhookCreateSubscriptionInput;
 export type WebhookUpdateSubscriptionInput =
   AttioTypes.WebhookUpdateSubscriptionInput;
+export type WebhookEventType = WebhookCreateSubscriptionInput["event_type"];

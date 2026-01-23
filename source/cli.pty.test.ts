@@ -127,10 +127,11 @@ class PtySession {
     this.term?.write(data);
   }
 
-  type(text: string): void {
-    // Type each character individually with small delay for reliability
+  async type(text: string): Promise<void> {
+    // Type each character with a small delay to allow processing
     for (const char of text) {
       this.term?.write(char);
+      await new Promise((resolve) => setTimeout(resolve, 10));
     }
   }
 
@@ -193,6 +194,23 @@ async function ensureSpawnHelperExecutable(): Promise<void> {
     "spawn-helper",
   );
 
+  const helperExists = await access(helperPath, constants.F_OK)
+    .then(() => true)
+    .catch((error: unknown) => {
+      if (
+        error instanceof Error &&
+        "code" in error &&
+        error.code === "ENOENT"
+      ) {
+        return false;
+      }
+      throw error;
+    });
+
+  if (!helperExists) {
+    return;
+  }
+
   try {
     await access(helperPath, constants.X_OK);
   } catch {
@@ -204,17 +222,16 @@ async function ensureSpawnHelperExecutable(): Promise<void> {
         "code" in chmodError &&
         chmodError.code === "ENOENT"
       ) {
-        throw new Error(
-          `spawn-helper not found at expected path: ${helperPath}. ` +
-            `Ensure node-pty prebuilds are installed for ${process.platform}-${process.arch}.`,
-        );
+        return;
       }
       throw chmodError;
     }
   }
 }
 
-describe("CLI (PTY)", () => {
+// PTY tests must run sequentially - they spawn external processes
+// that can interfere with each other
+describe.sequential("CLI (PTY)", () => {
   let session: PtySession;
 
   beforeAll(async () => {
@@ -223,6 +240,8 @@ describe("CLI (PTY)", () => {
 
   afterEach(async () => {
     await session?.cleanup();
+    // Small delay between tests to ensure process fully exits
+    await new Promise((resolve) => setTimeout(resolve, 100));
   });
 
   it("renders the welcome screen on launch", async () => {
@@ -256,7 +275,7 @@ describe("CLI (PTY)", () => {
     await session.waitFor("Welcome to Attio TUI");
 
     // Type an invalid API key
-    session.type("invalid_key");
+    await session.type("invalid_key");
     session.write(Keys.ENTER);
 
     await session.waitFor("Invalid API key format");
@@ -271,10 +290,9 @@ describe("CLI (PTY)", () => {
     await session.waitFor("Welcome to Attio TUI");
 
     // Type some characters
-    session.type("abc");
+    await session.type("abc");
 
-    // Wait a moment for render
-    await new Promise((resolve) => setTimeout(resolve, 100));
+    await session.waitFor("•••");
 
     // Should show dots, not the actual characters
     const output = session.getStrippedOutput();
@@ -289,7 +307,7 @@ describe("CLI (PTY)", () => {
     await session.waitFor("Welcome to Attio TUI");
 
     // Type 5 characters
-    session.type("abcde");
+    await session.type("abcde");
     await new Promise((resolve) => setTimeout(resolve, 100));
 
     // Delete 2 characters
