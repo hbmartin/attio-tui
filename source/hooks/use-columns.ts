@@ -7,6 +7,7 @@ import {
   type ColumnsConfig,
   ColumnsConfigSchema,
 } from "../schemas/columns-schema.js";
+import type { Columns } from "../types/columns.js";
 import { getColumnsPath, getConfigDir } from "../utils/config-path.js";
 
 interface UseColumnsResult {
@@ -15,7 +16,7 @@ interface UseColumnsResult {
   readonly error: string | undefined;
   readonly saveColumns: (columns: ColumnsConfig) => void;
   readonly setColumnsForEntity: (
-    entityKey: string,
+    entityKey: Columns.EntityKey,
     columns: readonly ColumnConfig[],
   ) => void;
 }
@@ -93,7 +94,7 @@ export function useColumns(): UseColumnsResult {
   }, []);
 
   const setColumnsForEntity = useCallback(
-    (entityKey: string, nextColumns: readonly ColumnConfig[]) => {
+    (entityKey: Columns.EntityKey, nextColumns: readonly ColumnConfig[]) => {
       const updated: ColumnsConfig = {
         ...latestColumnsRef.current,
         [entityKey]: [...nextColumns],

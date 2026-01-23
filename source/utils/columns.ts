@@ -5,7 +5,9 @@ import {
 import type { ColumnConfig, ColumnsConfig } from "../schemas/columns-schema.js";
 import { Columns } from "../types/columns.js";
 
-function resolveEntityKey(entityKey: Columns.EntityKey | undefined): string {
+function resolveEntityKey(
+  entityKey: Columns.EntityKey | undefined,
+): Columns.EntityKey {
   if (entityKey && COLUMN_DEFINITIONS[entityKey]) {
     return entityKey;
   }

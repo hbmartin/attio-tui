@@ -9,6 +9,7 @@ import {
   type ColumnsConfig,
   ColumnsConfigSchema,
 } from "../schemas/columns-schema.js";
+import type { Columns } from "../types/columns.js";
 import { useColumns } from "./use-columns.js";
 
 vi.mock("node:fs", () => ({
@@ -29,7 +30,7 @@ interface HookSnapshot {
   readonly error: string | undefined;
   readonly saveColumns: (columns: ColumnsConfig) => void;
   readonly setColumnsForEntity: (
-    entityKey: string,
+    entityKey: Columns.EntityKey,
     columns: readonly ColumnConfig[],
   ) => void;
 }

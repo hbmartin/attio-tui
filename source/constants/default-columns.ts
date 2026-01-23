@@ -304,7 +304,7 @@ export const COLUMN_DEFINITIONS: Record<
   tasks: TASK_COLUMNS,
   meetings: MEETING_COLUMNS,
   webhooks: WEBHOOK_COLUMNS,
-};
+} satisfies Record<Columns.KnownEntityKey, readonly Columns.Definition[]>;
 
 const defaultOnly = (attribute: string): ColumnConfig => ({ attribute });
 
@@ -345,4 +345,4 @@ export const DEFAULT_COLUMNS: ColumnsConfig = {
     defaultOnly("status"),
     defaultOnly("subscriptions"),
   ],
-};
+} satisfies Record<Columns.KnownEntityKey, readonly ColumnConfig[]>;
