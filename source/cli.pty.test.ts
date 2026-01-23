@@ -28,6 +28,12 @@ function normalizeOutput(text: string): string {
   return stripAnsi(stripOsc(text)).replace(CARRIAGE_RETURN_PATTERN, "");
 }
 
+interface SpawnHelperLocationCheck {
+  readonly path: string;
+  readonly exists: boolean;
+  readonly executable: boolean;
+}
+
 interface SpawnHelperDetails {
   readonly helperPath: string;
   readonly nodePtyEntry: string;
@@ -37,6 +43,7 @@ interface SpawnHelperDetails {
   readonly chmodAttempted: boolean;
   readonly chmodSucceeded: boolean;
   readonly chmodError?: string;
+  readonly locationChecks: readonly SpawnHelperLocationCheck[];
 }
 
 const DEBUG_ENV_KEYS: readonly string[] = [
@@ -396,6 +403,11 @@ class PtySession {
       details.push(
         `node-pty: entry=${spawnHelperDetails.nodePtyEntry} root=${spawnHelperDetails.packageRoot}`,
       );
+      for (const check of spawnHelperDetails.locationChecks) {
+        details.push(
+          `spawn-helper check: ${check.path} exists=${check.exists} executable=${check.executable}`,
+        );
+      }
     } else {
       details.push("spawn-helper: details unavailable");
     }
@@ -442,21 +454,50 @@ const require = createRequire(import.meta.url);
 async function ensureSpawnHelperExecutable(): Promise<void> {
   const nodePtyEntry = require.resolve("node-pty");
   const packageRoot = dirname(dirname(nodePtyEntry));
-  const helperPath = join(
-    packageRoot,
-    "prebuilds",
-    `${process.platform}-${process.arch}`,
-    "spawn-helper",
-  );
 
-  const helperExists = await access(helperPath, constants.F_OK)
-    .then(() => true)
-    .catch((error: unknown) => {
-      if (getErrorCode(error) === "ENOENT") {
-        return false;
-      }
-      throw error;
-    });
+  // Check same directories as node-pty (in order): build/Release, build/Debug, prebuilds/{platform}-{arch}
+  const candidateDirs = [
+    "build/Release",
+    "build/Debug",
+    `prebuilds/${process.platform}-${process.arch}`,
+  ];
+
+  const locationChecks: SpawnHelperLocationCheck[] = [];
+  let helperPath: string | undefined;
+  let helperExists = false;
+
+  for (const dir of candidateDirs) {
+    const candidatePath = join(packageRoot, dir, "spawn-helper");
+    const exists = await access(candidatePath, constants.F_OK)
+      .then(() => true)
+      .catch((error: unknown) => {
+        if (getErrorCode(error) === "ENOENT") {
+          return false;
+        }
+        throw error;
+      });
+    const executable = exists
+      ? await access(candidatePath, constants.X_OK)
+          .then(() => true)
+          .catch(() => false)
+      : false;
+
+    locationChecks.push({ path: candidatePath, exists, executable });
+
+    if (exists && helperPath === undefined) {
+      helperPath = candidatePath;
+      helperExists = true;
+    }
+  }
+
+  // Use first found path, or fall back to prebuilds path for error messaging
+  if (helperPath === undefined) {
+    helperPath = join(
+      packageRoot,
+      `prebuilds/${process.platform}-${process.arch}`,
+      "spawn-helper",
+    );
+  }
 
   let executable = false;
   let chmodAttempted = false;
@@ -496,6 +537,7 @@ async function ensureSpawnHelperExecutable(): Promise<void> {
     chmodAttempted,
     chmodSucceeded,
     chmodError,
+    locationChecks,
   };
   if (!helperExists) {
     throw new Error(`node-pty spawn-helper not found at ${helperPath}`);
