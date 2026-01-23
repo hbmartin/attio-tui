@@ -49,6 +49,7 @@ export function usePaginatedData<T>({
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unknown error";
       setError(message);
+      throw err;
     } finally {
       setLoading(false);
     }

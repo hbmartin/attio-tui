@@ -15,6 +15,7 @@ import { DEFAULT_COMMANDS, filterCommands } from "./constants/commands.js";
 import { useActionHandler } from "./hooks/use-action-handler.js";
 import { useCategoryData } from "./hooks/use-category-data.js";
 import { useKeyboard } from "./hooks/use-keyboard.js";
+import { useTemporaryStatusMessage } from "./hooks/use-temporary-status-message.js";
 import { useWebhookOperations } from "./hooks/use-webhook-operations.js";
 import {
   ClientProvider,
@@ -82,6 +83,18 @@ function MainApp() {
   const { state, dispatch } = useApp();
   const { client } = useClient();
   const { exit } = useInkApp();
+  const { message: statusMessage, showMessage: showStatusMessage } =
+    useTemporaryStatusMessage({ timeoutMs: 3000 });
+  const handleRefreshError = useCallback(
+    (error: unknown) => {
+      const message = error instanceof Error ? error.message : "Unknown error";
+      showStatusMessage({
+        text: `Refresh failed: ${message}`,
+        tone: "error",
+      });
+    },
+    [showStatusMessage],
+  );
 
   const { navigation } = state;
   const {
@@ -110,12 +123,15 @@ function MainApp() {
     categoryType,
     categorySlug,
   });
+  const refreshWithFeedback = useCallback((): void => {
+    refresh().catch(handleRefreshError);
+  }, [refresh, handleRefreshError]);
 
   // Webhook operations
   const webhookOps = useWebhookOperations({
     client,
     dispatch,
-    onSuccess: refresh,
+    onSuccess: refreshWithFeedback,
   });
 
   // Initialize categories on mount
@@ -228,9 +244,7 @@ function MainApp() {
           if (command.action.actionId === "quit") {
             exit();
           } else if (command.action.actionId === "refresh") {
-            refresh().catch(() => {
-              // Silently ignore refresh errors
-            });
+            refreshWithFeedback();
           }
           break;
 
@@ -243,7 +257,7 @@ function MainApp() {
           break;
       }
     },
-    [dispatch, navigator.categories, exit, refresh, handleWebhookCommand],
+    [dispatch, navigator.categories, exit, refreshWithFeedback, handleWebhookCommand],
   );
 
   // Handle webhook form submission
@@ -305,6 +319,7 @@ function MainApp() {
             itemCount={results.items.length}
             selectedIndex={results.selectedIndex}
             loading={navigator.loading || results.loading}
+            statusMessage={statusMessage}
           />
         }
       />
