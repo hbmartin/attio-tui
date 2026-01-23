@@ -19,6 +19,23 @@ const ACTIONS: readonly ActionItem[] = [
   },
   { key: "Ctrl+O", label: "Open", description: "Open in browser" },
   { key: "Ctrl+R", label: "Refresh", description: "Refresh current data" },
+  { key: "Ctrl+D", label: "Debug", description: "Toggle debug panel" },
+  {
+    key: ":copy id",
+    label: "Copy ID",
+    description: "Copy selected item ID to clipboard",
+  },
+  { key: ":open", label: "Open", description: "Open selected item" },
+  {
+    key: ":export json",
+    label: "Export JSON",
+    description: "Export selected item as JSON",
+  },
+  {
+    key: ":toggle debug",
+    label: "Debug",
+    description: "Toggle debug panel",
+  },
   {
     key: ":columns",
     label: "Columns",

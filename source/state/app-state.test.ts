@@ -30,6 +30,21 @@ const makeNoteItem = (id: string, title: string): ResultItem => ({
 describe("appReducer", () => {
   const initialState = createInitialAppState();
 
+  describe("debug", () => {
+    it("should toggle debug", () => {
+      const result = appReducer(initialState, { type: "TOGGLE_DEBUG" });
+      expect(result.debugEnabled).toBe(true);
+    });
+
+    it("should set debug enabled", () => {
+      const result = appReducer(initialState, {
+        type: "SET_DEBUG_ENABLED",
+        enabled: true,
+      });
+      expect(result.debugEnabled).toBe(true);
+    });
+  });
+
   describe("pane focus", () => {
     it("should focus a specific pane", () => {
       const action: AppAction = { type: "FOCUS_PANE", paneId: "results" };

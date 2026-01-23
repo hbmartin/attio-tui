@@ -6,6 +6,7 @@ import { fetchNotes } from "../services/notes-service.js";
 import { queryRecords } from "../services/objects-service.js";
 import { fetchTasks } from "../services/tasks-service.js";
 import { fetchWebhooks } from "../services/webhooks-service.js";
+import type { DebugRequestLogEntryInput } from "../types/debug.js";
 import type { ObjectSlug } from "../types/ids.js";
 import type { NavigatorCategory, ResultItem } from "../types/navigation.js";
 import {
@@ -20,6 +21,7 @@ interface UseCategoryDataOptions {
   readonly client: AttioClient | undefined;
   readonly categoryType: NavigatorCategory["type"];
   readonly categorySlug?: ObjectSlug;
+  readonly onRequestLog?: (entry: DebugRequestLogEntryInput) => void;
 }
 
 interface UseCategoryDataResult {
@@ -36,10 +38,24 @@ interface CategoryDataPage {
   readonly nextCursor: string | null;
 }
 
+function getRequestLabel(
+  categoryType: NavigatorCategory["type"],
+  categorySlug?: ObjectSlug,
+): string {
+  if (categoryType === "object") {
+    return `query records (${categorySlug ?? "object"})`;
+  }
+  if (categoryType === "list") {
+    return "fetch lists";
+  }
+  return `fetch ${categoryType}`;
+}
+
 export function useCategoryData({
   client,
   categoryType,
   categorySlug,
+  onRequestLog,
 }: UseCategoryDataOptions): UseCategoryDataResult {
   const fetchData = useCallback(
     async (cursor?: string): Promise<CategoryDataPage> => {
@@ -47,70 +63,101 @@ export function useCategoryData({
         return { items: [], nextCursor: null };
       }
 
-      switch (categoryType) {
-        case "object": {
-          if (!categorySlug) {
-            return { items: [], nextCursor: null };
-          }
-          const result = await queryRecords(client, categorySlug, { cursor });
-          return {
-            items: result.records.map((record) => ({
+      const startTime = Date.now();
+      const startedAt = new Date(startTime).toISOString();
+      const detail = cursor ? `cursor ${cursor}` : "initial";
+
+      try {
+        switch (categoryType) {
+          case "object": {
+            if (!categorySlug) {
+              return { items: [], nextCursor: null };
+            }
+            const result = await queryRecords(client, categorySlug, { cursor });
+            const items: ResultItem[] = result.records.map((record) => ({
               type: "object",
               id: record.id,
               title: getRecordTitle(record.values),
               subtitle: getRecordSubtitle(record.values),
               data: record,
-            })),
-            nextCursor: result.nextCursor,
-          };
-        }
+            }));
+            const durationMs = Date.now() - startTime;
+            onRequestLog?.({
+              label: getRequestLabel(categoryType, categorySlug),
+              status: "success",
+              startedAt,
+              durationMs,
+              detail,
+            });
+            return {
+              items,
+              nextCursor: result.nextCursor,
+            };
+          }
 
-        case "list": {
-          const result = await fetchLists(client, { cursor });
-          return {
-            items: result.lists.map((list) => ({
+          case "list": {
+            const result = await fetchLists(client, { cursor });
+            const items: ResultItem[] = result.lists.map((list) => ({
               type: "list",
               id: list.id,
               title: list.name,
               subtitle: `Parent: ${list.parentObject}`,
               data: list,
-            })),
-            nextCursor: result.nextCursor,
-          };
-        }
+            }));
+            const durationMs = Date.now() - startTime;
+            onRequestLog?.({
+              label: getRequestLabel(categoryType),
+              status: "success",
+              startedAt,
+              durationMs,
+              detail,
+            });
+            return { items, nextCursor: result.nextCursor };
+          }
 
-        case "notes": {
-          const result = await fetchNotes(client, { cursor });
-          return {
-            items: result.notes.map((note) => ({
+          case "notes": {
+            const result = await fetchNotes(client, { cursor });
+            const items: ResultItem[] = result.notes.map((note) => ({
               type: "notes",
               id: note.id,
               title: note.title || "Untitled Note",
               subtitle: truncateText(note.contentPlaintext, 50),
               data: note,
-            })),
-            nextCursor: result.nextCursor,
-          };
-        }
+            }));
+            const durationMs = Date.now() - startTime;
+            onRequestLog?.({
+              label: getRequestLabel(categoryType),
+              status: "success",
+              startedAt,
+              durationMs,
+              detail,
+            });
+            return { items, nextCursor: result.nextCursor };
+          }
 
-        case "tasks": {
-          const result = await fetchTasks(client, { cursor });
-          return {
-            items: result.tasks.map((task) => ({
+          case "tasks": {
+            const result = await fetchTasks(client, { cursor });
+            const items: ResultItem[] = result.tasks.map((task) => ({
               type: "tasks",
               id: task.id,
               title: truncateText(task.content, 50),
               subtitle: getTaskSubtitle(task),
               data: task,
-            })),
-            nextCursor: result.nextCursor,
-          };
-        }
+            }));
+            const durationMs = Date.now() - startTime;
+            onRequestLog?.({
+              label: getRequestLabel(categoryType),
+              status: "success",
+              startedAt,
+              durationMs,
+              detail,
+            });
+            return { items, nextCursor: result.nextCursor };
+          }
 
-        case "meetings": {
-          const result = await fetchMeetings(client, { cursor });
-          return {
-            items: result.meetings.map((meeting) => ({
+          case "meetings": {
+            const result = await fetchMeetings(client, { cursor });
+            const items: ResultItem[] = result.meetings.map((meeting) => ({
               type: "meetings",
               id: meeting.id,
               title: meeting.title || "Untitled Meeting",
@@ -119,30 +166,56 @@ export function useCategoryData({
                 endAt: meeting.endAt,
               }),
               data: meeting,
-            })),
-            nextCursor: result.nextCursor,
-          };
-        }
+            }));
+            const durationMs = Date.now() - startTime;
+            onRequestLog?.({
+              label: getRequestLabel(categoryType),
+              status: "success",
+              startedAt,
+              durationMs,
+              detail,
+            });
+            return { items, nextCursor: result.nextCursor };
+          }
 
-        case "webhooks": {
-          const result = await fetchWebhooks(client, { cursor });
-          return {
-            items: result.webhooks.map((webhook) => ({
+          case "webhooks": {
+            const result = await fetchWebhooks(client, { cursor });
+            const items: ResultItem[] = result.webhooks.map((webhook) => ({
               type: "webhooks",
               id: webhook.id,
               title: webhook.targetUrl,
               subtitle: `${webhook.status} - ${webhook.subscriptions.length} subscriptions`,
               data: webhook,
-            })),
-            nextCursor: result.nextCursor,
-          };
-        }
+            }));
+            const durationMs = Date.now() - startTime;
+            onRequestLog?.({
+              label: getRequestLabel(categoryType),
+              status: "success",
+              startedAt,
+              durationMs,
+              detail,
+            });
+            return { items, nextCursor: result.nextCursor };
+          }
 
-        default:
-          return { items: [], nextCursor: null };
+          default:
+            return { items: [], nextCursor: null };
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Unknown error";
+        const durationMs = Date.now() - startTime;
+        onRequestLog?.({
+          label: getRequestLabel(categoryType, categorySlug),
+          status: "error",
+          startedAt,
+          durationMs,
+          detail,
+          errorMessage: message,
+        });
+        throw err;
       }
     },
-    [client, categoryType, categorySlug],
+    [client, categoryType, categorySlug, onRequestLog],
   );
 
   const { data, loading, error, hasNextPage, loadMore, refresh } =

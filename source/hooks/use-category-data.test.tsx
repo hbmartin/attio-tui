@@ -11,6 +11,7 @@ import type { QueryNotesResult } from "../services/notes-service.js";
 import { fetchNotes } from "../services/notes-service.js";
 import { queryRecords } from "../services/objects-service.js";
 import type { ListInfo, NoteInfo, RecordValue } from "../types/attio.js";
+import type { DebugRequestLogEntryInput } from "../types/debug.js";
 import { type ObjectSlug, parseObjectSlug } from "../types/ids.js";
 import type { NavigatorCategory, ResultItem } from "../types/navigation.js";
 import { useCategoryData } from "./use-category-data.js";
@@ -79,6 +80,7 @@ interface CategoryOptions {
   readonly client: AttioClient | undefined;
   readonly categoryType: NavigatorCategory["type"];
   readonly categorySlug?: ObjectSlug;
+  readonly onRequestLog?: (entry: DebugRequestLogEntryInput) => void;
 }
 
 interface CategorySnapshot {
@@ -271,6 +273,7 @@ describe("useCategoryData", () => {
             name: [textRecordValue("Acme Corp")],
           },
           createdAt: "2025-01-01T00:00:00Z",
+          webUrl: "https://app.attio.com/record/record-1",
         },
       ],
       nextCursor: null,
@@ -308,6 +311,7 @@ describe("useCategoryData", () => {
 
   it("reports errors from fetches", async () => {
     const client = createAttioClient({ apiKey: TEST_API_KEY });
+    const onRequestLog = vi.fn();
 
     mockFetchNotes.mockRejectedValueOnce(new Error("Boom"));
 
@@ -315,7 +319,7 @@ describe("useCategoryData", () => {
 
     const instance = render(
       <CategoryHarness
-        options={{ client, categoryType: "notes" }}
+        options={{ client, categoryType: "notes", onRequestLog }}
         onUpdate={(snapshot) => {
           latest = snapshot;
         }}
@@ -332,6 +336,47 @@ describe("useCategoryData", () => {
       expect(latest.items).toHaveLength(0);
       expect(latest.loading).toBe(false);
       expect(latest.error).toBe("Boom");
+      expect(onRequestLog).toHaveBeenCalledTimes(1);
+      expect(onRequestLog.mock.calls[0]?.[0]).toMatchObject({
+        label: "fetch notes",
+        status: "error",
+      });
+    } finally {
+      instance.cleanup();
+    }
+  });
+
+  it("records request logs for successful fetches", async () => {
+    const client = createAttioClient({ apiKey: TEST_API_KEY });
+    const onRequestLog = vi.fn();
+
+    mockFetchNotes.mockResolvedValueOnce({
+      notes: [],
+      nextCursor: null,
+    });
+
+    let latest: CategorySnapshot | undefined;
+
+    const instance = render(
+      <CategoryHarness
+        options={{ client, categoryType: "notes", onRequestLog }}
+        onUpdate={(snapshot) => {
+          latest = snapshot;
+        }}
+      />,
+    );
+
+    try {
+      await waitForCondition(() => Boolean(latest));
+
+      expect(onRequestLog).toHaveBeenCalledTimes(1);
+      const entry = onRequestLog.mock.calls[0]?.[0];
+      expect(entry).toMatchObject({
+        label: "fetch notes",
+        status: "success",
+      });
+      expect(typeof entry?.startedAt).toBe("string");
+      expect(entry?.durationMs).toBeGreaterThanOrEqual(0);
     } finally {
       instance.cleanup();
     }

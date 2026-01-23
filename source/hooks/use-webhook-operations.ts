@@ -44,6 +44,21 @@ export function useWebhookOperations({
     error: undefined,
   });
 
+  const logRequestSafely = useCallback(
+    (entry: DebugRequestLogEntryInput): void => {
+      if (!onRequestLog) {
+        return;
+      }
+
+      try {
+        onRequestLog(entry);
+      } catch {
+        return;
+      }
+    },
+    [onRequestLog],
+  );
+
   const submitOperation = useCallback(
     async ({
       operation,
@@ -63,7 +78,7 @@ export function useWebhookOperations({
         await operation(client);
 
         const durationMs = Date.now() - startTime;
-        onRequestLog?.({
+        logRequestSafely({
           label,
           status: "success",
           startedAt,
@@ -75,7 +90,7 @@ export function useWebhookOperations({
       } catch (err) {
         const message = err instanceof Error ? err.message : fallbackError;
         const durationMs = Date.now() - startTime;
-        onRequestLog?.({
+        logRequestSafely({
           label,
           status: "error",
           startedAt,
@@ -85,7 +100,7 @@ export function useWebhookOperations({
         setState({ isSubmitting: false, error: message });
       }
     },
-    [client, dispatch, onSuccess, onRequestLog],
+    [client, dispatch, logRequestSafely, onSuccess],
   );
 
   const handleCreate = useCallback(
