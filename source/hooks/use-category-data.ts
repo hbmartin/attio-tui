@@ -82,96 +82,80 @@ export function useCategoryData({
       const detail = cursor ? `cursor ${cursor}` : "initial";
 
       try {
+        let items: ResultItem[];
+        let nextCursor: string | null;
+
         switch (categoryType) {
           case "object": {
             if (!categorySlug) {
               return { items: [], nextCursor: null };
             }
-            const result = await queryRecords(client, categorySlug, { cursor });
-            const items: ResultItem[] = result.records.map((record) => ({
+            const { records, nextCursor: nc } = await queryRecords(
+              client,
+              categorySlug,
+              { cursor },
+            );
+            items = records.map((record) => ({
               type: "object",
               id: record.id,
               title: getRecordTitle(record.values),
               subtitle: getRecordSubtitle(record.values),
               data: record,
             }));
-            const durationMs = Date.now() - startTime;
-            safeLog(onRequestLog, {
-              label: getRequestLabel(categoryType, categorySlug),
-              status: "success",
-              startedAt,
-              durationMs,
-              detail,
-            });
-            return {
-              items,
-              nextCursor: result.nextCursor,
-            };
+            nextCursor = nc;
+            break;
           }
 
           case "list": {
-            const result = await fetchLists(client, { cursor });
-            const items: ResultItem[] = result.lists.map((list) => ({
+            const { lists, nextCursor: nc } = await fetchLists(client, {
+              cursor,
+            });
+            items = lists.map((list) => ({
               type: "list",
               id: list.id,
               title: list.name,
               subtitle: `Parent: ${list.parentObject}`,
               data: list,
             }));
-            const durationMs = Date.now() - startTime;
-            safeLog(onRequestLog, {
-              label: getRequestLabel(categoryType),
-              status: "success",
-              startedAt,
-              durationMs,
-              detail,
-            });
-            return { items, nextCursor: result.nextCursor };
+            nextCursor = nc;
+            break;
           }
 
           case "notes": {
-            const result = await fetchNotes(client, { cursor });
-            const items: ResultItem[] = result.notes.map((note) => ({
+            const { notes, nextCursor: nc } = await fetchNotes(client, {
+              cursor,
+            });
+            items = notes.map((note) => ({
               type: "notes",
               id: note.id,
               title: note.title || "Untitled Note",
               subtitle: truncateText(note.contentPlaintext, 50),
               data: note,
             }));
-            const durationMs = Date.now() - startTime;
-            safeLog(onRequestLog, {
-              label: getRequestLabel(categoryType),
-              status: "success",
-              startedAt,
-              durationMs,
-              detail,
-            });
-            return { items, nextCursor: result.nextCursor };
+            nextCursor = nc;
+            break;
           }
 
           case "tasks": {
-            const result = await fetchTasks(client, { cursor });
-            const items: ResultItem[] = result.tasks.map((task) => ({
+            const { tasks, nextCursor: nc } = await fetchTasks(client, {
+              cursor,
+            });
+            items = tasks.map((task) => ({
               type: "tasks",
               id: task.id,
               title: truncateText(task.content, 50),
               subtitle: getTaskSubtitle(task),
               data: task,
             }));
-            const durationMs = Date.now() - startTime;
-            safeLog(onRequestLog, {
-              label: getRequestLabel(categoryType),
-              status: "success",
-              startedAt,
-              durationMs,
-              detail,
-            });
-            return { items, nextCursor: result.nextCursor };
+            nextCursor = nc;
+            break;
           }
 
           case "meetings": {
-            const result = await fetchMeetings(client, { cursor });
-            const items: ResultItem[] = result.meetings.map((meeting) => ({
+            const { meetings, nextCursor: nc } = await fetchMeetings(client, {
+              cursor,
+            });
+            items = meetings.map((meeting) => ({
               type: "meetings",
               id: meeting.id,
               title: meeting.title || "Untitled Meeting",
@@ -181,40 +165,38 @@ export function useCategoryData({
               }),
               data: meeting,
             }));
-            const durationMs = Date.now() - startTime;
-            safeLog(onRequestLog, {
-              label: getRequestLabel(categoryType),
-              status: "success",
-              startedAt,
-              durationMs,
-              detail,
-            });
-            return { items, nextCursor: result.nextCursor };
+            nextCursor = nc;
+            break;
           }
 
           case "webhooks": {
-            const result = await fetchWebhooks(client, { cursor });
-            const items: ResultItem[] = result.webhooks.map((webhook) => ({
+            const { webhooks, nextCursor: nc } = await fetchWebhooks(client, {
+              cursor,
+            });
+            items = webhooks.map((webhook) => ({
               type: "webhooks",
               id: webhook.id,
               title: webhook.targetUrl,
               subtitle: `${webhook.status} - ${webhook.subscriptions.length} subscriptions`,
               data: webhook,
             }));
-            const durationMs = Date.now() - startTime;
-            safeLog(onRequestLog, {
-              label: getRequestLabel(categoryType),
-              status: "success",
-              startedAt,
-              durationMs,
-              detail,
-            });
-            return { items, nextCursor: result.nextCursor };
+            nextCursor = nc;
+            break;
           }
 
           default:
             return { items: [], nextCursor: null };
         }
+
+        const durationMs = Date.now() - startTime;
+        safeLog(onRequestLog, {
+          label: getRequestLabel(categoryType, categorySlug),
+          status: "success",
+          startedAt,
+          durationMs,
+          detail,
+        });
+        return { items, nextCursor };
       } catch (err) {
         const message = err instanceof Error ? err.message : "Unknown error";
         const durationMs = Date.now() - startTime;
