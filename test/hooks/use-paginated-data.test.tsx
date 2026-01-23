@@ -220,6 +220,71 @@ describe("usePaginatedData", () => {
     }
   });
 
+  it("deduplicates refresh when the initial request is still in flight", async () => {
+    const deferred = createDeferred<PaginatedResult<string>>();
+    const fetchFn = vi.fn().mockReturnValue(deferred.promise);
+
+    let latest: HookSnapshot | undefined;
+
+    const instance = render(
+      <HookHarness
+        fetchFn={fetchFn}
+        onUpdate={(snapshot) => {
+          latest = snapshot;
+        }}
+      />,
+    );
+
+    try {
+      await waitForCondition(() => Boolean(latest));
+
+      if (!latest) {
+        throw new Error("Expected hook state to be available");
+      }
+
+      const refreshPromise = latest.refresh();
+
+      expect(fetchFn).toHaveBeenCalledTimes(1);
+
+      deferred.resolve({ items: ["alpha"], nextCursor: null });
+      await refreshPromise;
+
+      await waitForCondition(() => latest?.data.length === 1);
+    } finally {
+      instance.cleanup();
+    }
+  });
+
+  it("cooldowns refresh after an initial error", async () => {
+    const fetchFn = vi.fn().mockRejectedValue(new Error("Boom"));
+
+    let latest: HookSnapshot | undefined;
+
+    const instance = render(
+      <HookHarness
+        fetchFn={fetchFn}
+        options={{ loadMoreCooldownMs: 10_000 }}
+        onUpdate={(snapshot) => {
+          latest = snapshot;
+        }}
+      />,
+    );
+
+    try {
+      await waitForCondition(() => latest?.error === "Boom");
+
+      if (!latest) {
+        throw new Error("Expected hook state to be available");
+      }
+
+      await latest.refresh();
+
+      expect(fetchFn).toHaveBeenCalledTimes(1);
+    } finally {
+      instance.cleanup();
+    }
+  });
+
   it("cooldowns loadMore after an error", async () => {
     const fetchFn = vi
       .fn()

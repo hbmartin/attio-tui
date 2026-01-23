@@ -36,6 +36,7 @@ export function usePaginatedData<T>({
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [isPrefetching, setIsPrefetching] = useState(false);
   const loadMoreInFlightRef = useRef(false);
+  const initialInFlightRef = useRef<Promise<void> | null>(null);
   const resetKeyRef = useRef(resetKey);
   const loadMoreCooldownUntilRef = useRef(0);
 
@@ -44,22 +45,36 @@ export function usePaginatedData<T>({
     if (!enabled) {
       return;
     }
+    if (Date.now() < loadMoreCooldownUntilRef.current) {
+      return;
+    }
+    if (initialInFlightRef.current) {
+      await initialInFlightRef.current;
+      return;
+    }
 
     setLoading(true);
     setError(undefined);
 
-    try {
-      const result = await fetchFn();
-      setData(result.items);
-      setNextCursor(result.nextCursor);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Unknown error";
-      setError(message);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, [fetchFn, enabled]);
+    const request = (async () => {
+      try {
+        const result = await fetchFn();
+        setData(result.items);
+        setNextCursor(result.nextCursor);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Unknown error";
+        setError(message);
+        loadMoreCooldownUntilRef.current = Date.now() + loadMoreCooldownMs;
+        throw err;
+      } finally {
+        setLoading(false);
+        initialInFlightRef.current = null;
+      }
+    })();
+
+    initialInFlightRef.current = request;
+    await request;
+  }, [fetchFn, enabled, loadMoreCooldownMs]);
 
   // Load more data
   const loadMore = useCallback(async () => {
@@ -122,6 +137,9 @@ export function usePaginatedData<T>({
     setData([]);
     setNextCursor(null);
     setError(undefined);
+    loadMoreCooldownUntilRef.current = 0;
+    initialInFlightRef.current = null;
+    loadMoreInFlightRef.current = false;
   }, [resetKey]);
 
   // Fetch on mount and when enabled changes
