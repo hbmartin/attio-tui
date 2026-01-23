@@ -390,4 +390,238 @@ describe("appReducer", () => {
       expect(result.navigation.commandPalette.selectedIndex).toBe(1);
     });
   });
+
+  describe("webhook modal", () => {
+    it("should open webhook create modal", () => {
+      const action: AppAction = { type: "OPEN_WEBHOOK_CREATE" };
+      const result = appReducer(initialState, action);
+      expect(result.navigation.webhookModal.mode).toBe("create");
+      if (result.navigation.webhookModal.mode === "create") {
+        expect(result.navigation.webhookModal.step).toBe("url");
+        expect(result.navigation.webhookModal.targetUrl).toBe("");
+        expect(result.navigation.webhookModal.selectedEvents).toEqual([]);
+      }
+    });
+
+    it("should open webhook edit modal", () => {
+      const action: AppAction = {
+        type: "OPEN_WEBHOOK_EDIT",
+        webhookId: "webhook-1",
+        targetUrl: "https://example.com/webhook",
+        selectedEvents: ["record.created", "note.created"],
+      };
+      const result = appReducer(initialState, action);
+      expect(result.navigation.webhookModal.mode).toBe("edit");
+      if (result.navigation.webhookModal.mode === "edit") {
+        expect(result.navigation.webhookModal.webhookId).toBe("webhook-1");
+        expect(result.navigation.webhookModal.targetUrl).toBe(
+          "https://example.com/webhook",
+        );
+        expect(result.navigation.webhookModal.selectedEvents).toEqual([
+          "record.created",
+          "note.created",
+        ]);
+      }
+    });
+
+    it("should open webhook delete confirmation", () => {
+      const action: AppAction = {
+        type: "OPEN_WEBHOOK_DELETE",
+        webhookId: "webhook-1",
+        webhookUrl: "https://example.com/webhook",
+      };
+      const result = appReducer(initialState, action);
+      expect(result.navigation.webhookModal.mode).toBe("delete");
+      if (result.navigation.webhookModal.mode === "delete") {
+        expect(result.navigation.webhookModal.webhookId).toBe("webhook-1");
+        expect(result.navigation.webhookModal.webhookUrl).toBe(
+          "https://example.com/webhook",
+        );
+      }
+    });
+
+    it("should close webhook modal", () => {
+      const state: AppState = {
+        ...initialState,
+        navigation: {
+          ...initialState.navigation,
+          webhookModal: {
+            mode: "create",
+            step: "url",
+            targetUrl: "https://example.com",
+            selectedEvents: [],
+          },
+        },
+      };
+      const action: AppAction = { type: "CLOSE_WEBHOOK_MODAL" };
+      const result = appReducer(state, action);
+      expect(result.navigation.webhookModal.mode).toBe("closed");
+    });
+
+    it("should set webhook URL", () => {
+      const state: AppState = {
+        ...initialState,
+        navigation: {
+          ...initialState.navigation,
+          webhookModal: {
+            mode: "create",
+            step: "url",
+            targetUrl: "",
+            selectedEvents: [],
+          },
+        },
+      };
+      const action: AppAction = {
+        type: "WEBHOOK_SET_URL",
+        url: "https://example.com/webhook",
+      };
+      const result = appReducer(state, action);
+      if (result.navigation.webhookModal.mode === "create") {
+        expect(result.navigation.webhookModal.targetUrl).toBe(
+          "https://example.com/webhook",
+        );
+      }
+    });
+
+    it("should toggle webhook event selection", () => {
+      const state: AppState = {
+        ...initialState,
+        navigation: {
+          ...initialState.navigation,
+          webhookModal: {
+            mode: "create",
+            step: "subscriptions",
+            targetUrl: "https://example.com",
+            selectedEvents: ["record.created"],
+          },
+        },
+      };
+
+      // Toggle on a new event
+      const addAction: AppAction = {
+        type: "WEBHOOK_TOGGLE_EVENT",
+        eventType: "note.created",
+      };
+      const addResult = appReducer(state, addAction);
+      if (addResult.navigation.webhookModal.mode === "create") {
+        expect(addResult.navigation.webhookModal.selectedEvents).toContain(
+          "note.created",
+        );
+        expect(addResult.navigation.webhookModal.selectedEvents).toContain(
+          "record.created",
+        );
+      }
+
+      // Toggle off an existing event
+      const removeAction: AppAction = {
+        type: "WEBHOOK_TOGGLE_EVENT",
+        eventType: "record.created",
+      };
+      const removeResult = appReducer(state, removeAction);
+      if (removeResult.navigation.webhookModal.mode === "create") {
+        expect(
+          removeResult.navigation.webhookModal.selectedEvents,
+        ).not.toContain("record.created");
+      }
+    });
+
+    it("should navigate webhook form steps", () => {
+      const state: AppState = {
+        ...initialState,
+        navigation: {
+          ...initialState.navigation,
+          webhookModal: {
+            mode: "create",
+            step: "url",
+            targetUrl: "https://example.com",
+            selectedEvents: [],
+          },
+        },
+      };
+
+      // Navigate next
+      const nextAction: AppAction = {
+        type: "WEBHOOK_NAVIGATE_STEP",
+        direction: "next",
+      };
+      const nextResult = appReducer(state, nextAction);
+      if (nextResult.navigation.webhookModal.mode === "create") {
+        expect(nextResult.navigation.webhookModal.step).toBe("subscriptions");
+      }
+
+      // Navigate to review
+      const reviewState: AppState = {
+        ...initialState,
+        navigation: {
+          ...initialState.navigation,
+          webhookModal: {
+            mode: "create",
+            step: "subscriptions",
+            targetUrl: "https://example.com",
+            selectedEvents: ["record.created"],
+          },
+        },
+      };
+      const toReviewResult = appReducer(reviewState, nextAction);
+      if (toReviewResult.navigation.webhookModal.mode === "create") {
+        expect(toReviewResult.navigation.webhookModal.step).toBe("review");
+      }
+
+      // Navigate previous from review
+      const prevAction: AppAction = {
+        type: "WEBHOOK_NAVIGATE_STEP",
+        direction: "previous",
+      };
+      const prevResult = appReducer(toReviewResult, prevAction);
+      if (prevResult.navigation.webhookModal.mode === "create") {
+        expect(prevResult.navigation.webhookModal.step).toBe("subscriptions");
+      }
+    });
+
+    it("should not allow navigating before first step", () => {
+      const state: AppState = {
+        ...initialState,
+        navigation: {
+          ...initialState.navigation,
+          webhookModal: {
+            mode: "create",
+            step: "url",
+            targetUrl: "",
+            selectedEvents: [],
+          },
+        },
+      };
+      const action: AppAction = {
+        type: "WEBHOOK_NAVIGATE_STEP",
+        direction: "previous",
+      };
+      const result = appReducer(state, action);
+      if (result.navigation.webhookModal.mode === "create") {
+        expect(result.navigation.webhookModal.step).toBe("url");
+      }
+    });
+
+    it("should not allow navigating past last step", () => {
+      const state: AppState = {
+        ...initialState,
+        navigation: {
+          ...initialState.navigation,
+          webhookModal: {
+            mode: "create",
+            step: "review",
+            targetUrl: "https://example.com",
+            selectedEvents: ["record.created"],
+          },
+        },
+      };
+      const action: AppAction = {
+        type: "WEBHOOK_NAVIGATE_STEP",
+        direction: "next",
+      };
+      const result = appReducer(state, action);
+      if (result.navigation.webhookModal.mode === "create") {
+        expect(result.navigation.webhookModal.step).toBe("review");
+      }
+    });
+  });
 });

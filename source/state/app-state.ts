@@ -8,6 +8,8 @@ import {
   PANE_ORDER,
   type PaneId,
   type ResultItem,
+  WEBHOOK_FORM_STEPS,
+  type WebhookFormStep,
 } from "../types/navigation.js";
 
 // Discriminated union for all app actions
@@ -48,7 +50,27 @@ export type AppAction =
   | { readonly type: "CLOSE_COMMAND_PALETTE" }
   | { readonly type: "SET_COMMAND_QUERY"; readonly query: string }
   | { readonly type: "NAVIGATE_COMMAND"; readonly direction: "up" | "down" }
-  | { readonly type: "SELECT_COMMAND" };
+  | { readonly type: "SELECT_COMMAND" }
+  // Webhook modal
+  | { readonly type: "OPEN_WEBHOOK_CREATE" }
+  | {
+      readonly type: "OPEN_WEBHOOK_EDIT";
+      readonly webhookId: string;
+      readonly targetUrl: string;
+      readonly selectedEvents: readonly string[];
+    }
+  | {
+      readonly type: "OPEN_WEBHOOK_DELETE";
+      readonly webhookId: string;
+      readonly webhookUrl: string;
+    }
+  | { readonly type: "CLOSE_WEBHOOK_MODAL" }
+  | { readonly type: "WEBHOOK_SET_URL"; readonly url: string }
+  | { readonly type: "WEBHOOK_TOGGLE_EVENT"; readonly eventType: string }
+  | {
+      readonly type: "WEBHOOK_NAVIGATE_STEP";
+      readonly direction: "next" | "previous";
+    };
 
 export interface AppState {
   readonly navigation: NavigationState;
@@ -99,6 +121,19 @@ function navigatePaneIndex(
   }
   const newIndex = (currentIndex + 1) % PANE_ORDER.length;
   return PANE_ORDER[newIndex] ?? "navigator";
+}
+
+function navigateWebhookStep(
+  current: WebhookFormStep,
+  direction: "next" | "previous",
+): WebhookFormStep {
+  const currentIndex = WEBHOOK_FORM_STEPS.indexOf(current);
+  if (direction === "previous") {
+    const newIndex = Math.max(0, currentIndex - 1);
+    return WEBHOOK_FORM_STEPS[newIndex] ?? "url";
+  }
+  const newIndex = Math.min(WEBHOOK_FORM_STEPS.length - 1, currentIndex + 1);
+  return WEBHOOK_FORM_STEPS[newIndex] ?? "url";
 }
 
 export function appReducer(state: AppState, action: AppAction): AppState {
@@ -389,5 +424,114 @@ export function appReducer(state: AppState, action: AppAction): AppState {
           },
         },
       };
+
+    // Webhook modal actions
+    case "OPEN_WEBHOOK_CREATE":
+      return {
+        ...state,
+        navigation: {
+          ...state.navigation,
+          webhookModal: {
+            mode: "create",
+            step: "url",
+            targetUrl: "",
+            selectedEvents: [],
+          },
+        },
+      };
+
+    case "OPEN_WEBHOOK_EDIT":
+      return {
+        ...state,
+        navigation: {
+          ...state.navigation,
+          webhookModal: {
+            mode: "edit",
+            webhookId: action.webhookId,
+            step: "url",
+            targetUrl: action.targetUrl,
+            selectedEvents: action.selectedEvents,
+          },
+        },
+      };
+
+    case "OPEN_WEBHOOK_DELETE":
+      return {
+        ...state,
+        navigation: {
+          ...state.navigation,
+          webhookModal: {
+            mode: "delete",
+            webhookId: action.webhookId,
+            webhookUrl: action.webhookUrl,
+          },
+        },
+      };
+
+    case "CLOSE_WEBHOOK_MODAL":
+      return {
+        ...state,
+        navigation: {
+          ...state.navigation,
+          webhookModal: { mode: "closed" },
+        },
+      };
+
+    case "WEBHOOK_SET_URL": {
+      const { webhookModal } = state.navigation;
+      if (webhookModal.mode !== "create" && webhookModal.mode !== "edit") {
+        return state;
+      }
+      return {
+        ...state,
+        navigation: {
+          ...state.navigation,
+          webhookModal: {
+            ...webhookModal,
+            targetUrl: action.url,
+          },
+        },
+      };
+    }
+
+    case "WEBHOOK_TOGGLE_EVENT": {
+      const { webhookModal } = state.navigation;
+      if (webhookModal.mode !== "create" && webhookModal.mode !== "edit") {
+        return state;
+      }
+      const events = webhookModal.selectedEvents;
+      const eventIndex = events.indexOf(action.eventType);
+      const newEvents =
+        eventIndex >= 0
+          ? events.filter((e) => e !== action.eventType)
+          : [...events, action.eventType];
+      return {
+        ...state,
+        navigation: {
+          ...state.navigation,
+          webhookModal: {
+            ...webhookModal,
+            selectedEvents: newEvents,
+          },
+        },
+      };
+    }
+
+    case "WEBHOOK_NAVIGATE_STEP": {
+      const { webhookModal } = state.navigation;
+      if (webhookModal.mode !== "create" && webhookModal.mode !== "edit") {
+        return state;
+      }
+      return {
+        ...state,
+        navigation: {
+          ...state.navigation,
+          webhookModal: {
+            ...webhookModal,
+            step: navigateWebhookStep(webhookModal.step, action.direction),
+          },
+        },
+      };
+    }
   }
 }

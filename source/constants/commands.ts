@@ -89,6 +89,26 @@ export const DEFAULT_COMMANDS: readonly Command[] = [
     shortcut: "Ctrl+D",
     action: { type: "toggle", toggleId: "debug" },
   },
+
+  // Webhook commands
+  {
+    id: "webhook-create",
+    label: "Webhook Create",
+    description: "Create a new webhook",
+    action: { type: "webhook", webhookAction: "create" },
+  },
+  {
+    id: "webhook-edit",
+    label: "Webhook Edit",
+    description: "Edit selected webhook",
+    action: { type: "webhook", webhookAction: "edit" },
+  },
+  {
+    id: "webhook-delete",
+    label: "Webhook Delete",
+    description: "Delete selected webhook",
+    action: { type: "webhook", webhookAction: "delete" },
+  },
 ];
 
 // Filter commands based on search query
