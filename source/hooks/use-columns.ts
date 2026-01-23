@@ -81,9 +81,14 @@ export function useColumns(): UseColumnsResult {
     setColumns(() => nextColumns);
     try {
       saveColumnsToDisk(nextColumns);
+      setError(undefined);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unknown error";
       setError(`Failed to save columns: ${message}`);
+      if (err instanceof Error) {
+        throw err;
+      }
+      throw new Error(message);
     }
   }, []);
 

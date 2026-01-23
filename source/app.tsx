@@ -203,15 +203,24 @@ function MainApp() {
   });
 
   const handleSaveColumns = useCallback(
-    (nextColumns: readonly ColumnConfig[]) => {
+    async (nextColumns: readonly ColumnConfig[]) => {
       if (columnPicker.mode !== "open") {
         return;
       }
-      setColumnsForEntity(columnPicker.entityKey, nextColumns);
-      showStatusMessage({
-        tone: "info",
-        text: `Saved ${columnPicker.title}`,
-      });
+
+      try {
+        await setColumnsForEntity(columnPicker.entityKey, nextColumns);
+        showStatusMessage({
+          tone: "info",
+          text: `Saved ${columnPicker.title}`,
+        });
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Unknown error";
+        showStatusMessage({
+          tone: "error",
+          text: `Failed to save ${columnPicker.title}: ${message}`,
+        });
+      }
     },
     [columnPicker, setColumnsForEntity, showStatusMessage],
   );
