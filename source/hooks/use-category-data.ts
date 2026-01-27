@@ -79,6 +79,10 @@ export function useCategoryData({
         return { items: [], nextCursor: null };
       }
 
+      if (categoryType === "object" && !categorySlug) {
+        return { items: [], nextCursor: null };
+      }
+
       const startTime = Date.now();
       const startedAt = new Date(startTime).toISOString();
       const detail = cursor ? `cursor ${cursor}` : "initial";
