@@ -43,6 +43,8 @@ import {
   COMMAND_PALETTE_MAX_VISIBLE,
   type NavigatorCategory,
 } from "./types/navigation.js";
+import { ActionLogger } from "./utils/action-logger.js";
+import { exportBugReport } from "./utils/bug-report.js";
 import { writeToClipboard } from "./utils/clipboard.js";
 import {
   getAvailableColumns,
@@ -53,6 +55,7 @@ import {
 import { exportJsonToFile } from "./utils/export.js";
 import { openBrowser } from "./utils/open-browser.js";
 import { PtyDebug } from "./utils/pty-debug.js";
+import { exportStateSnapshot } from "./utils/state-export.js";
 
 // Static categories for the skeleton - will be replaced with dynamic loading
 function getStaticCategories(): readonly NavigatorCategory[] {
@@ -125,6 +128,7 @@ function MainApp() {
   const { debugEnabled } = state;
   const { client } = useClient();
   const { exit } = useInkApp();
+  const { stdout } = useStdout();
   const { message: statusMessage, showMessage: showStatusMessage } =
     useTemporaryStatusMessage({ timeoutMs: 3000 });
   const handleRefreshError = useCallback(
@@ -490,6 +494,10 @@ function MainApp() {
         }
 
         case "action": {
+          const terminalDimensions = {
+            columns: stdout.columns ?? 80,
+            rows: stdout.rows ?? 24,
+          };
           const actionHandlers: Record<ActionId, () => void> = {
             copyId: copySelectedId,
             openInBrowser: openSelectedItem,
@@ -502,6 +510,51 @@ function MainApp() {
               });
             },
             columns: openColumnsPicker,
+            dumpState: () => {
+              exportStateSnapshot({
+                state,
+                requestLog,
+                terminalDimensions,
+                appStartedAt: appStartRef.current,
+              })
+                .then((filePath) => {
+                  showStatusMessage({
+                    tone: "info",
+                    text: `State exported to ${filePath}`,
+                  });
+                })
+                .catch((err) => {
+                  const message =
+                    err instanceof Error ? err.message : "Unknown error";
+                  showStatusMessage({
+                    tone: "error",
+                    text: `State export failed: ${message}`,
+                  });
+                });
+            },
+            bugReport: () => {
+              exportBugReport({
+                state,
+                requestLog,
+                actionHistory: ActionLogger.getEntries(),
+                terminalDimensions,
+                appStartedAt: appStartRef.current,
+              })
+                .then((filePath) => {
+                  showStatusMessage({
+                    tone: "info",
+                    text: `Bug report exported to ${filePath}`,
+                  });
+                })
+                .catch((err) => {
+                  const message =
+                    err instanceof Error ? err.message : "Unknown error";
+                  showStatusMessage({
+                    tone: "error",
+                    text: `Bug report failed: ${message}`,
+                  });
+                });
+            },
             quit: exit,
           };
 
@@ -533,6 +586,9 @@ function MainApp() {
       openColumnsPicker,
       showStatusMessage,
       toggleDebugPanel,
+      state,
+      requestLog,
+      stdout,
     ],
   );
 

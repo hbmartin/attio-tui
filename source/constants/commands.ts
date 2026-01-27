@@ -80,6 +80,18 @@ export const DEFAULT_COMMANDS: readonly Command[] = [
     action: { type: "action", actionId: "columns" },
   },
   {
+    id: "dump-state",
+    label: "Dump State",
+    description: "Export debug state snapshot to file",
+    action: { type: "action", actionId: "dumpState" },
+  },
+  {
+    id: "bug-report",
+    label: "Bug Report",
+    description: "Export full debug bundle for offline analysis",
+    action: { type: "action", actionId: "bugReport" },
+  },
+  {
     id: "quit",
     label: "Quit",
     description: "Exit the application",

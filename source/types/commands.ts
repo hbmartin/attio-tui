@@ -29,6 +29,8 @@ export type ActionId =
   | "exportJson"
   | "help"
   | "columns"
+  | "dumpState"
+  | "bugReport"
   | "quit";
 
 export type ToggleId = "debug";
