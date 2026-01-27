@@ -1,4 +1,5 @@
 import { Box, Text } from "ink";
+import { useAccessibility } from "../../hooks/use-accessibility.js";
 import type { NavigatorCategory } from "../../types/navigation.js";
 
 interface NavItemProps {
@@ -51,15 +52,25 @@ function getTextColor(selected: boolean, focused: boolean): string | undefined {
   return;
 }
 
+/**
+ * Navigation item component with visual selection indicators.
+ * In screen reader mode, shows clearer text labels instead of icons.
+ */
 export function NavItem({ category, selected, focused }: NavItemProps) {
+  const { isScreenReaderEnabled } = useAccessibility();
   const backgroundColor = selected && focused ? "blue" : undefined;
   const textColor = getTextColor(selected, focused);
+  const label = getCategoryLabel(category);
+
+  // In screen reader mode, show clearer text without icons
+  const displayText = isScreenReaderEnabled
+    ? `${selected ? "[Selected] " : ""}${label}`
+    : `${selected ? ">" : " "} ${getCategoryIcon(category)} ${label}`;
 
   return (
     <Box>
       <Text backgroundColor={backgroundColor} color={textColor}>
-        {selected ? ">" : " "} {getCategoryIcon(category)}{" "}
-        {getCategoryLabel(category)}
+        {displayText}
       </Text>
     </Box>
   );

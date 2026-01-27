@@ -29,6 +29,10 @@ function getTabTextColor(isActive: boolean, focused: boolean): string {
   return "gray";
 }
 
+/**
+ * Tab navigation component for the detail pane.
+ * Shows tabs with visual indicators for active state and focus.
+ */
 export function DetailTabs({ activeTab, focused }: DetailTabsProps) {
   return (
     <Box gap={1}>
@@ -36,16 +40,18 @@ export function DetailTabs({ activeTab, focused }: DetailTabsProps) {
         const isActive = tab === activeTab;
         const backgroundColor = isActive && focused ? "blue" : undefined;
         const textColor = getTabTextColor(isActive, focused);
+        const label = getTabLabel(tab);
 
         return (
-          <Text
-            key={tab}
-            backgroundColor={backgroundColor}
-            color={textColor}
-            bold={isActive}
-          >
-            [{getTabLabel(tab)}]
-          </Text>
+          <Box key={tab}>
+            <Text
+              backgroundColor={backgroundColor}
+              color={textColor}
+              bold={isActive}
+            >
+              [{label}]
+            </Text>
+          </Box>
         );
       })}
     </Box>

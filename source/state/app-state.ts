@@ -29,6 +29,7 @@ export type AppAction =
     }
   | { readonly type: "SELECT_CATEGORY"; readonly index: number }
   | { readonly type: "NAVIGATE_CATEGORY"; readonly direction: "up" | "down" }
+  | { readonly type: "NAVIGATE_CATEGORY_BY_OFFSET"; readonly offset: number }
   | { readonly type: "SET_NAVIGATOR_LOADING"; readonly loading: boolean }
   // Results
   | {
@@ -43,6 +44,7 @@ export type AppAction =
     }
   | { readonly type: "SELECT_RESULT"; readonly index: number }
   | { readonly type: "NAVIGATE_RESULT"; readonly direction: "up" | "down" }
+  | { readonly type: "NAVIGATE_RESULT_BY_OFFSET"; readonly offset: number }
   | { readonly type: "SET_RESULTS_LOADING"; readonly loading: boolean }
   | { readonly type: "SET_SEARCH_QUERY"; readonly query: string }
   // Detail
@@ -112,6 +114,16 @@ function navigateIndex(
   }
   // Ensure index never goes negative (handles empty list where maxIndex = -1)
   return Math.max(0, Math.min(maxIndex, current + 1));
+}
+
+function navigateByOffset(
+  current: number,
+  offset: number,
+  maxIndex: number,
+): number {
+  const newIndex = current + offset;
+  // Clamp to valid range [0, maxIndex]
+  return Math.max(0, Math.min(maxIndex, newIndex));
 }
 
 function navigateTabIndex(
@@ -245,6 +257,24 @@ export function appReducer(state: AppState, action: AppAction): AppState {
       };
     }
 
+    case "NAVIGATE_CATEGORY_BY_OFFSET": {
+      const maxIndex = state.navigation.navigator.categories.length - 1;
+      return {
+        ...state,
+        navigation: {
+          ...state.navigation,
+          navigator: {
+            ...state.navigation.navigator,
+            selectedIndex: navigateByOffset(
+              state.navigation.navigator.selectedIndex,
+              action.offset,
+              maxIndex,
+            ),
+          },
+        },
+      };
+    }
+
     case "SET_NAVIGATOR_LOADING":
       return {
         ...state,
@@ -310,6 +340,24 @@ export function appReducer(state: AppState, action: AppAction): AppState {
             selectedIndex: navigateIndex(
               state.navigation.results.selectedIndex,
               action.direction,
+              maxIndex,
+            ),
+          },
+        },
+      };
+    }
+
+    case "NAVIGATE_RESULT_BY_OFFSET": {
+      const maxIndex = state.navigation.results.items.length - 1;
+      return {
+        ...state,
+        navigation: {
+          ...state.navigation,
+          results: {
+            ...state.navigation.results,
+            selectedIndex: navigateByOffset(
+              state.navigation.results.selectedIndex,
+              action.offset,
               maxIndex,
             ),
           },

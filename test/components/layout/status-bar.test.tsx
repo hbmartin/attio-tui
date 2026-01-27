@@ -21,7 +21,11 @@ describe("StatusBar", () => {
     );
 
     try {
-      expect(instance.lastFrame()).toContain("Refresh failed");
+      const frame = instance.lastFrame();
+      // The status message may wrap across lines in narrow terminals,
+      // so check for both parts separately
+      expect(frame).toContain("Refresh");
+      expect(frame).toContain("failed");
     } finally {
       instance.cleanup();
     }

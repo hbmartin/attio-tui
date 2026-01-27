@@ -9,6 +9,10 @@ export type KeyAction =
   | "moveRight"
   | "selectItem"
   | "goBack"
+  | "jumpToTop"
+  | "jumpToBottom"
+  | "pageUp"
+  | "pageDown"
   // Pane focus
   | "nextPane"
   | "previousPane"
@@ -21,6 +25,8 @@ export type KeyAction =
   // Command palette
   | "openCommandPalette"
   | "closeCommandPalette"
+  // Help
+  | "toggleHelp"
   // Actions
   | "copyId"
   | "openInBrowser"
@@ -50,6 +56,9 @@ export const GLOBAL_KEYBINDINGS: readonly KeyBinding[] = [
   { key: ":", action: "openCommandPalette" },
   { key: "escape", action: "closeCommandPalette" },
 
+  // Help overlay
+  { key: "?", action: "toggleHelp" },
+
   // Quick actions
   { key: "y", action: "copyId" },
   { key: "o", ctrl: true, action: "openInBrowser" },
@@ -73,6 +82,16 @@ export const LIST_KEYBINDINGS: readonly KeyBinding[] = [
   { key: "upArrow", action: "moveUp" },
   { key: "leftArrow", action: "moveLeft" },
   { key: "rightArrow", action: "moveRight" },
+
+  // Jump navigation (vim-style)
+  { key: "G", action: "jumpToBottom" },
+  { key: "g", action: "jumpToTop" },
+
+  // Page navigation
+  { key: "pageUp", action: "pageUp" },
+  { key: "pageDown", action: "pageDown" },
+  { key: "u", ctrl: true, action: "pageUp" },
+  { key: "d", ctrl: true, action: "pageDown" },
 
   // Selection
   { key: "return", action: "selectItem" },
