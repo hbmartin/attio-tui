@@ -39,6 +39,7 @@ export function usePaginatedData<T>({
   const initialInFlightRef = useRef<Promise<void> | null>(null);
   const resetKeyRef = useRef(resetKey);
   const loadMoreCooldownUntilRef = useRef(0);
+  const requestEpochRef = useRef(0);
 
   // Initial fetch
   const fetchInitial = useCallback(async () => {
@@ -53,22 +54,31 @@ export function usePaginatedData<T>({
       return;
     }
 
+    const epoch = requestEpochRef.current;
     setLoading(true);
     setError(undefined);
 
     const request = (async () => {
       try {
         const result = await fetchFn();
+        if (epoch !== requestEpochRef.current) {
+          return;
+        }
         setData(result.items);
         setNextCursor(result.nextCursor);
       } catch (err) {
+        if (epoch !== requestEpochRef.current) {
+          return;
+        }
         const message = err instanceof Error ? err.message : "Unknown error";
         setError(message);
         loadMoreCooldownUntilRef.current = Date.now() + loadMoreCooldownMs;
         throw err;
       } finally {
-        setLoading(false);
-        initialInFlightRef.current = null;
+        if (epoch === requestEpochRef.current) {
+          setLoading(false);
+          initialInFlightRef.current = null;
+        }
       }
     })();
 
@@ -90,26 +100,34 @@ export function usePaginatedData<T>({
       return;
     }
 
+    const epoch = requestEpochRef.current;
     setIsPrefetching(true);
     loadMoreInFlightRef.current = true;
 
     try {
       const result = await fetchFn(nextCursor);
+      if (epoch !== requestEpochRef.current) {
+        return;
+      }
       setData((prev) => [...prev, ...result.items]);
       setNextCursor(result.nextCursor);
     } catch (err) {
+      if (epoch !== requestEpochRef.current) {
+        return;
+      }
       const message = err instanceof Error ? err.message : "Unknown error";
       setError(message);
       loadMoreCooldownUntilRef.current = Date.now() + loadMoreCooldownMs;
     } finally {
-      setIsPrefetching(false);
-      loadMoreInFlightRef.current = false;
+      if (epoch === requestEpochRef.current) {
+        setIsPrefetching(false);
+        loadMoreInFlightRef.current = false;
+      }
     }
   }, [fetchFn, nextCursor, loading, isPrefetching, loadMoreCooldownMs]);
 
   // Refresh data (start from beginning)
   const refresh = useCallback(async () => {
-    setError(undefined);
     await fetchInitial();
   }, [fetchInitial]);
 
@@ -134,9 +152,12 @@ export function usePaginatedData<T>({
       return;
     }
     resetKeyRef.current = resetKey;
+    requestEpochRef.current += 1;
     setData([]);
     setNextCursor(null);
     setError(undefined);
+    setLoading(false);
+    setIsPrefetching(false);
     loadMoreCooldownUntilRef.current = 0;
     initialInFlightRef.current = null;
     loadMoreInFlightRef.current = false;

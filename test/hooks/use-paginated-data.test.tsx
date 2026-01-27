@@ -285,6 +285,156 @@ describe("usePaginatedData", () => {
     }
   });
 
+  it("preserves error when refresh is throttled", async () => {
+    const fetchFn = vi.fn().mockRejectedValue(new Error("Boom"));
+
+    let latest: HookSnapshot | undefined;
+
+    const instance = render(
+      <HookHarness
+        fetchFn={fetchFn}
+        options={{ loadMoreCooldownMs: 10_000 }}
+        onUpdate={(snapshot) => {
+          latest = snapshot;
+        }}
+      />,
+    );
+
+    try {
+      await waitForCondition(() => latest?.error === "Boom");
+
+      if (!latest) {
+        throw new Error("Expected hook state to be available");
+      }
+
+      await latest.refresh();
+
+      // Error should still be present since fetch was throttled
+      expect(latest.error).toBe("Boom");
+      expect(fetchFn).toHaveBeenCalledTimes(1);
+    } finally {
+      instance.cleanup();
+    }
+  });
+
+  it("ignores stale initial fetch response after reset", async () => {
+    const deferred = createDeferred<PaginatedResult<string>>();
+
+    // First fetchFn: slow, will become stale
+    const staleFetchFn = vi.fn(() => deferred.promise);
+    // Second fetchFn: fast, used after reset
+    const freshFetchFn = vi.fn(() =>
+      Promise.resolve({ items: ["fresh"], nextCursor: null }),
+    );
+
+    let latest: HookSnapshot | undefined;
+
+    const instance = render(
+      <HookHarness
+        fetchFn={staleFetchFn}
+        options={{ resetKey: "a" }}
+        onUpdate={(snapshot) => {
+          latest = snapshot;
+        }}
+      />,
+    );
+
+    try {
+      await waitForCondition(() => Boolean(latest) && latest?.loading === true);
+
+      // Reset with a new fetchFn while the first fetch is still in flight
+      instance.rerender(
+        <HookHarness
+          fetchFn={freshFetchFn}
+          options={{ resetKey: "b" }}
+          onUpdate={(snapshot) => {
+            latest = snapshot;
+          }}
+        />,
+      );
+
+      // Wait for the post-reset fetch to complete
+      await waitForCondition(() => latest?.data.length === 1);
+
+      expect(latest?.data[0]).toBe("fresh");
+
+      // Now resolve the stale first request — should be ignored
+      deferred.resolve({ items: ["stale"], nextCursor: null });
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      // Data should still be "fresh", not overwritten by "stale"
+      expect(latest?.data).toEqual(["fresh"]);
+    } finally {
+      instance.cleanup();
+    }
+  });
+
+  it("ignores stale loadMore response after reset", async () => {
+    const deferred = createDeferred<PaginatedResult<string>>();
+
+    // Initial fetchFn: returns data with a next page, then a slow loadMore
+    const initialFetchFn = vi
+      .fn()
+      .mockResolvedValueOnce({ items: ["alpha"], nextCursor: "next" })
+      .mockReturnValueOnce(deferred.promise);
+
+    // Post-reset fetchFn
+    const freshFetchFn = vi.fn(() =>
+      Promise.resolve({ items: ["fresh"], nextCursor: null }),
+    );
+
+    let latest: HookSnapshot | undefined;
+
+    const instance = render(
+      <HookHarness
+        fetchFn={initialFetchFn}
+        options={{ resetKey: "a" }}
+        onUpdate={(snapshot) => {
+          latest = snapshot;
+        }}
+      />,
+    );
+
+    try {
+      await waitForCondition(
+        () => Boolean(latest) && latest?.data.length === 1,
+      );
+
+      if (!latest) {
+        throw new Error("Expected hook state to be available");
+      }
+
+      // Start a loadMore that won't resolve yet
+      const loadMorePromise = latest.loadMore();
+
+      // Reset with a new fetchFn while loadMore is in flight
+      instance.rerender(
+        <HookHarness
+          fetchFn={freshFetchFn}
+          options={{ resetKey: "b" }}
+          onUpdate={(snapshot) => {
+            latest = snapshot;
+          }}
+        />,
+      );
+
+      // Wait for the post-reset initial fetch to complete
+      await waitForCondition(
+        () => latest?.data.length === 1 && latest?.data[0] === "fresh",
+      );
+
+      // Resolve the stale loadMore — should be ignored
+      deferred.resolve({ items: ["stale-extra"], nextCursor: null });
+      await loadMorePromise;
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      // Data should still be just "fresh"
+      expect(latest?.data).toEqual(["fresh"]);
+    } finally {
+      instance.cleanup();
+    }
+  });
+
   it("cooldowns loadMore after an error", async () => {
     const fetchFn = vi
       .fn()
