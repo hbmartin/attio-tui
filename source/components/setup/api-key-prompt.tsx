@@ -53,7 +53,7 @@ export function ApiKeyPrompt({ onSubmit, error }: ApiKeyPromptProps) {
   const displayError = validationError ?? error;
 
   return (
-    <Box flexDirection="column" padding={1}>
+    <Box flexDirection="column" padding={1} width="100%" height="100%">
       <Box marginBottom={1}>
         <Text bold={true}>Welcome to Attio TUI</Text>
       </Box>

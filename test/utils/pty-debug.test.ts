@@ -38,29 +38,17 @@ describe("PtyDebug", () => {
 
   it("treats 1 as enabled", () => {
     process.env[ENV_KEY] = "1";
-    expect(PtyDebug.isEnabled()).toBe(true);
+    expect(PtyDebug.isEnabled()).toBe(false);
   });
 
   it("treats true as enabled", () => {
     process.env[ENV_KEY] = "TrUe";
-    expect(PtyDebug.isEnabled()).toBe(true);
+    expect(PtyDebug.isEnabled()).toBe(false);
   });
 
   it("treats other values as disabled", () => {
     process.env[ENV_KEY] = "0";
     expect(PtyDebug.isEnabled()).toBe(false);
-  });
-
-  it("writes to stderr when enabled", () => {
-    process.env[ENV_KEY] = "1";
-    delete process.env[FILE_ENV_KEY];
-    const writeSpy = vi
-      .spyOn(process.stderr, "write")
-      .mockImplementation(() => true);
-
-    PtyDebug.log("hello");
-
-    expect(writeSpy).toHaveBeenCalledWith("[PTY-DEBUG] hello\n");
   });
 
   it("writes to a log file when enabled and a path is provided", () => {
@@ -73,7 +61,7 @@ describe("PtyDebug", () => {
 
     PtyDebug.log("hello");
 
-    expect(writeSpy).toHaveBeenCalledWith("[PTY-DEBUG] hello\n");
+    expect(writeSpy).not.toHaveBeenCalled();
     const contents = readFileSync(logPath, "utf8");
     expect(contents).toBe("[PTY-DEBUG] hello\n");
   });
@@ -90,5 +78,19 @@ describe("PtyDebug", () => {
 
     expect(writeSpy).not.toHaveBeenCalled();
     expect(existsSync(logPath)).toBe(false);
+  });
+
+  it("does not enable logging without a file path", () => {
+    process.env[ENV_KEY] = "1";
+    delete process.env[FILE_ENV_KEY];
+
+    expect(PtyDebug.isEnabled()).toBe(false);
+  });
+
+  it("enables logging when a file path is provided", () => {
+    process.env[ENV_KEY] = "1";
+    process.env[FILE_ENV_KEY] = createTempLogPath();
+
+    expect(PtyDebug.isEnabled()).toBe(true);
   });
 });

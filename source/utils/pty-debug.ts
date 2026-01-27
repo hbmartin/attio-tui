@@ -18,10 +18,8 @@ function writeLogToFile(line: string): void {
   }
   try {
     appendFileSync(filePath, `${line}\n`);
-  } catch (error) {
-    const message =
-      error instanceof Error ? (error.stack ?? error.message) : String(error);
-    process.stderr.write(`[PTY-DEBUG] log file error: ${message}\n`);
+  } catch {
+    // Ignore log file errors to avoid console noise.
   }
 }
 
@@ -32,7 +30,10 @@ export namespace PtyDebug {
     if (!raw) {
       return false;
     }
-    return raw === "1" || raw.toLowerCase() === "true";
+    if (!(raw === "1" || raw.toLowerCase() === "true")) {
+      return false;
+    }
+    return Boolean(getLogFilePath());
   }
 
   export function log(message: string): void {
@@ -40,7 +41,6 @@ export namespace PtyDebug {
       return;
     }
     const line = `[PTY-DEBUG] ${message}`;
-    process.stderr.write(`${line}\n`);
     writeLogToFile(line);
   }
 }

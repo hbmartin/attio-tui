@@ -1,3 +1,6 @@
+import { mkdtempSync, readFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import process from "node:process";
 import type { AttioClient } from "attio-ts-sdk";
 import { createAttioClient } from "attio-ts-sdk";
@@ -128,10 +131,17 @@ const mockFetchNotes = vi.mocked(fetchNotes);
 const mockQueryRecords = vi.mocked(queryRecords);
 
 const TEST_API_KEY = process.env.TEST_API_KEY ?? "test-api-key-placeholder";
+const DEBUG_ENV_KEY = "ATTIO_TUI_PTY_DEBUG";
+const DEBUG_FILE_ENV_KEY = "ATTIO_TUI_PTY_DEBUG_FILE";
 
 beforeEach(() => {
   vi.clearAllMocks();
 });
+
+function createTempLogPath(): string {
+  const tempDir = mkdtempSync(join(tmpdir(), "attio-tui-"));
+  return join(tempDir, "pty-debug.log");
+}
 
 describe("useCategoryData", () => {
   it("loads list items and maps display fields", async () => {
@@ -421,6 +431,59 @@ describe("useCategoryData", () => {
       expect(mockFetchLists).not.toHaveBeenCalled();
     } finally {
       instance.cleanup();
+    }
+  });
+
+  it("logs network calls when PTY debug is enabled", async () => {
+    const originalDebug = process.env[DEBUG_ENV_KEY];
+    const originalFile = process.env[DEBUG_FILE_ENV_KEY];
+    process.env[DEBUG_ENV_KEY] = "1";
+    const logPath = createTempLogPath();
+    process.env[DEBUG_FILE_ENV_KEY] = logPath;
+
+    const client = createAttioClient({ apiKey: TEST_API_KEY });
+    const lists: readonly ListInfo[] = [
+      {
+        id: "list-1",
+        apiSlug: "growth",
+        name: "Growth Prospects",
+        parentObject: "companies",
+      },
+    ];
+
+    mockFetchLists.mockResolvedValueOnce({ lists, nextCursor: null });
+
+    let latest: CategorySnapshot | undefined;
+
+    const instance = render(
+      <CategoryHarness
+        options={{ client, categoryType: "list" }}
+        onUpdate={(snapshot) => {
+          latest = snapshot;
+        }}
+      />,
+    );
+
+    try {
+      await waitForCondition(
+        () => Boolean(latest) && latest?.items.length === 1,
+      );
+
+      const contents = readFileSync(logPath, "utf8");
+      expect(contents).toContain('request start label="fetch lists"');
+      expect(contents).toContain('request success label="fetch lists"');
+    } finally {
+      instance.cleanup();
+      if (originalDebug === undefined) {
+        delete process.env[DEBUG_ENV_KEY];
+      } else {
+        process.env[DEBUG_ENV_KEY] = originalDebug;
+      }
+      if (originalFile === undefined) {
+        delete process.env[DEBUG_FILE_ENV_KEY];
+      } else {
+        process.env[DEBUG_FILE_ENV_KEY] = originalFile;
+      }
     }
   });
 });

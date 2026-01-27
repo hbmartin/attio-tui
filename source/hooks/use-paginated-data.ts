@@ -9,6 +9,8 @@ interface UsePaginatedDataOptions<T> {
   readonly fetchFn: (cursor?: string) => Promise<PaginatedResult<T>>;
   readonly enabled?: boolean;
   readonly prefetchThreshold?: number;
+  readonly resetKey?: string;
+  readonly loadMoreCooldownMs?: number;
 }
 
 interface UsePaginatedDataResult<T> {
@@ -25,6 +27,8 @@ export function usePaginatedData<T>({
   fetchFn,
   enabled = true,
   prefetchThreshold = 5,
+  resetKey,
+  loadMoreCooldownMs = 1500,
 }: UsePaginatedDataOptions<T>): UsePaginatedDataResult<T> {
   const [data, setData] = useState<readonly T[]>([]);
   const [loading, setLoading] = useState(false);
@@ -32,31 +36,51 @@ export function usePaginatedData<T>({
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [isPrefetching, setIsPrefetching] = useState(false);
   const loadMoreInFlightRef = useRef(false);
+  const initialInFlightRef = useRef<Promise<void> | null>(null);
+  const resetKeyRef = useRef(resetKey);
+  const loadMoreCooldownUntilRef = useRef(0);
 
   // Initial fetch
   const fetchInitial = useCallback(async () => {
     if (!enabled) {
       return;
     }
+    if (Date.now() < loadMoreCooldownUntilRef.current) {
+      return;
+    }
+    if (initialInFlightRef.current) {
+      await initialInFlightRef.current;
+      return;
+    }
 
     setLoading(true);
     setError(undefined);
 
-    try {
-      const result = await fetchFn();
-      setData(result.items);
-      setNextCursor(result.nextCursor);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Unknown error";
-      setError(message);
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  }, [fetchFn, enabled]);
+    const request = (async () => {
+      try {
+        const result = await fetchFn();
+        setData(result.items);
+        setNextCursor(result.nextCursor);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Unknown error";
+        setError(message);
+        loadMoreCooldownUntilRef.current = Date.now() + loadMoreCooldownMs;
+        throw err;
+      } finally {
+        setLoading(false);
+        initialInFlightRef.current = null;
+      }
+    })();
+
+    initialInFlightRef.current = request;
+    await request;
+  }, [fetchFn, enabled, loadMoreCooldownMs]);
 
   // Load more data
   const loadMore = useCallback(async () => {
+    if (Date.now() < loadMoreCooldownUntilRef.current) {
+      return;
+    }
     if (
       !nextCursor ||
       loading ||
@@ -76,16 +100,16 @@ export function usePaginatedData<T>({
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unknown error";
       setError(message);
+      loadMoreCooldownUntilRef.current = Date.now() + loadMoreCooldownMs;
     } finally {
       setIsPrefetching(false);
       loadMoreInFlightRef.current = false;
     }
-  }, [fetchFn, nextCursor, loading, isPrefetching]);
+  }, [fetchFn, nextCursor, loading, isPrefetching, loadMoreCooldownMs]);
 
   // Refresh data (start from beginning)
   const refresh = useCallback(async () => {
-    setData([]);
-    setNextCursor(null);
+    setError(undefined);
     await fetchInitial();
   }, [fetchInitial]);
 
@@ -93,6 +117,9 @@ export function usePaginatedData<T>({
   const checkPrefetch = useCallback(
     (selectedIndex: number) => {
       const itemsRemaining = data.length - selectedIndex - 1;
+      if (Date.now() < loadMoreCooldownUntilRef.current) {
+        return;
+      }
       if (itemsRemaining <= prefetchThreshold && nextCursor && !isPrefetching) {
         loadMore().catch(() => {
           // Error is already handled in loadMore
@@ -101,6 +128,19 @@ export function usePaginatedData<T>({
     },
     [data.length, prefetchThreshold, nextCursor, isPrefetching, loadMore],
   );
+
+  useEffect(() => {
+    if (resetKeyRef.current === resetKey) {
+      return;
+    }
+    resetKeyRef.current = resetKey;
+    setData([]);
+    setNextCursor(null);
+    setError(undefined);
+    loadMoreCooldownUntilRef.current = 0;
+    initialInFlightRef.current = null;
+    loadMoreInFlightRef.current = false;
+  }, [resetKey]);
 
   // Fetch on mount and when enabled changes
   useEffect(() => {

@@ -721,12 +721,12 @@ function AppWithClient() {
 
   const renderByStatus = {
     loading: () => (
-      <Box padding={1}>
+      <Box padding={1} width="100%" height="100%" flexDirection="column">
         <Text color="yellow">Loading configuration...</Text>
       </Box>
     ),
     error: () => (
-      <Box padding={1}>
+      <Box padding={1} width="100%" height="100%" flexDirection="column">
         <Text color="red">Error: {errorMessage}</Text>
       </Box>
     ),

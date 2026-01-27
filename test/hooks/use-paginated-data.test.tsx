@@ -63,13 +63,25 @@ interface HookSnapshot {
   readonly checkPrefetch: (selectedIndex: number) => void;
 }
 
+interface HookOptions {
+  readonly enabled?: boolean;
+  readonly prefetchThreshold?: number;
+  readonly resetKey?: string;
+  readonly loadMoreCooldownMs?: number;
+}
+
 interface HookHarnessProps {
   readonly fetchFn: (cursor?: string) => Promise<PaginatedResult<string>>;
   readonly onUpdate: (snapshot: HookSnapshot) => void;
+  readonly options?: HookOptions;
 }
 
-function HookHarness({ fetchFn, onUpdate }: HookHarnessProps): JSX.Element {
-  const snapshot = usePaginatedData<string>({ fetchFn });
+function HookHarness({
+  fetchFn,
+  onUpdate,
+  options,
+}: HookHarnessProps): JSX.Element {
+  const snapshot = usePaginatedData<string>({ fetchFn, ...options });
 
   useEffect(() => {
     onUpdate(snapshot);
@@ -201,8 +213,114 @@ describe("usePaginatedData", () => {
 
       await waitForCondition(() => latest?.error === "Boom");
 
-      expect(latest.data).toHaveLength(0);
+      expect(latest.data).toHaveLength(1);
       expect(fetchFn).toHaveBeenCalledTimes(2);
+    } finally {
+      instance.cleanup();
+    }
+  });
+
+  it("deduplicates refresh when the initial request is still in flight", async () => {
+    const deferred = createDeferred<PaginatedResult<string>>();
+    const fetchFn = vi.fn().mockReturnValue(deferred.promise);
+
+    let latest: HookSnapshot | undefined;
+
+    const instance = render(
+      <HookHarness
+        fetchFn={fetchFn}
+        onUpdate={(snapshot) => {
+          latest = snapshot;
+        }}
+      />,
+    );
+
+    try {
+      await waitForCondition(() => Boolean(latest));
+
+      if (!latest) {
+        throw new Error("Expected hook state to be available");
+      }
+
+      const refreshPromise = latest.refresh();
+
+      expect(fetchFn).toHaveBeenCalledTimes(1);
+
+      deferred.resolve({ items: ["alpha"], nextCursor: null });
+      await refreshPromise;
+
+      await waitForCondition(() => latest?.data.length === 1);
+    } finally {
+      instance.cleanup();
+    }
+  });
+
+  it("cooldowns refresh after an initial error", async () => {
+    const fetchFn = vi.fn().mockRejectedValue(new Error("Boom"));
+
+    let latest: HookSnapshot | undefined;
+
+    const instance = render(
+      <HookHarness
+        fetchFn={fetchFn}
+        options={{ loadMoreCooldownMs: 10_000 }}
+        onUpdate={(snapshot) => {
+          latest = snapshot;
+        }}
+      />,
+    );
+
+    try {
+      await waitForCondition(() => latest?.error === "Boom");
+
+      if (!latest) {
+        throw new Error("Expected hook state to be available");
+      }
+
+      await latest.refresh();
+
+      expect(fetchFn).toHaveBeenCalledTimes(1);
+    } finally {
+      instance.cleanup();
+    }
+  });
+
+  it("cooldowns loadMore after an error", async () => {
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValueOnce({ items: ["alpha"], nextCursor: "next" })
+      .mockRejectedValueOnce(new Error("Boom"));
+
+    let latest: HookSnapshot | undefined;
+
+    const instance = render(
+      <HookHarness
+        fetchFn={fetchFn}
+        options={{ prefetchThreshold: 1, loadMoreCooldownMs: 10_000 }}
+        onUpdate={(snapshot) => {
+          latest = snapshot;
+        }}
+      />,
+    );
+
+    try {
+      await waitForCondition(
+        () => Boolean(latest) && latest?.data.length === 1,
+      );
+
+      if (!latest) {
+        throw new Error("Expected hook state to be available");
+      }
+
+      latest.checkPrefetch(0);
+      await waitForCondition(() => latest?.error === "Boom");
+
+      const callsAfterError = fetchFn.mock.calls.length;
+      latest.checkPrefetch(0);
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(fetchFn).toHaveBeenCalledTimes(callsAfterError);
     } finally {
       instance.cleanup();
     }

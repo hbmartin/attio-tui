@@ -1,3 +1,6 @@
+import { mkdtempSync, readFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import process from "node:process";
 import type { AttioClient } from "attio-ts-sdk";
 import { createAttioClient } from "attio-ts-sdk";
@@ -76,6 +79,13 @@ async function waitForCondition(
 const mockCreateWebhook = vi.mocked(createWebhook);
 
 const TEST_API_KEY = process.env.TEST_API_KEY ?? "test-api-key-placeholder";
+const DEBUG_ENV_KEY = "ATTIO_TUI_PTY_DEBUG";
+const DEBUG_FILE_ENV_KEY = "ATTIO_TUI_PTY_DEBUG_FILE";
+
+function createTempLogPath(): string {
+  const tempDir = mkdtempSync(join(tmpdir(), "attio-tui-"));
+  return join(tempDir, "pty-debug.log");
+}
 
 function buildWebhookInfo(): WebhookInfo {
   return {
@@ -174,6 +184,58 @@ describe("useWebhookOperations", () => {
       expect(onSuccess).not.toHaveBeenCalled();
     } finally {
       instance.unmount();
+    }
+  });
+
+  it("logs webhook operations when PTY debug is enabled", async () => {
+    const originalDebug = process.env[DEBUG_ENV_KEY];
+    const originalFile = process.env[DEBUG_FILE_ENV_KEY];
+    process.env[DEBUG_ENV_KEY] = "1";
+    const logPath = createTempLogPath();
+    process.env[DEBUG_FILE_ENV_KEY] = logPath;
+
+    const client = createAttioClient({ apiKey: TEST_API_KEY });
+    const dispatch = vi.fn();
+
+    mockCreateWebhook.mockResolvedValueOnce(buildWebhookInfo());
+
+    let latest: HookSnapshot | undefined;
+
+    const instance = render(
+      <HookHarness
+        options={{ client, dispatch }}
+        onUpdate={(snapshot) => {
+          latest = snapshot;
+        }}
+      />,
+    );
+
+    try {
+      await waitForCondition(() => Boolean(latest));
+
+      if (!latest) {
+        throw new Error("Expected hook state to be available");
+      }
+
+      await latest.handleCreate("https://example.com/webhook", []);
+
+      await waitForCondition(() => latest?.isSubmitting === false);
+
+      const contents = readFileSync(logPath, "utf8");
+      expect(contents).toContain('request start label="create webhook"');
+      expect(contents).toContain('request success label="create webhook"');
+    } finally {
+      instance.unmount();
+      if (originalDebug === undefined) {
+        delete process.env[DEBUG_ENV_KEY];
+      } else {
+        process.env[DEBUG_ENV_KEY] = originalDebug;
+      }
+      if (originalFile === undefined) {
+        delete process.env[DEBUG_FILE_ENV_KEY];
+      } else {
+        process.env[DEBUG_FILE_ENV_KEY] = originalFile;
+      }
     }
   });
 });

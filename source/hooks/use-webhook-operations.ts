@@ -8,6 +8,7 @@ import {
 import type { AppAction } from "../state/app-state.js";
 import type { WebhookEventType } from "../types/attio.js";
 import type { DebugRequestLogEntryInput } from "../types/debug.js";
+import { PtyDebug } from "../utils/pty-debug.js";
 
 interface UseWebhookOperationsOptions {
   readonly client: AttioClient | undefined;
@@ -73,6 +74,7 @@ export function useWebhookOperations({
       setState({ isSubmitting: true, error: undefined });
       const startTime = Date.now();
       const startedAt = new Date(startTime).toISOString();
+      PtyDebug.log(`request start label="${label}" detail=webhook`);
 
       try {
         await operation(client);
@@ -84,6 +86,9 @@ export function useWebhookOperations({
           startedAt,
           durationMs,
         });
+        PtyDebug.log(
+          `request success label="${label}" durationMs=${durationMs}`,
+        );
         setState({ isSubmitting: false, error: undefined });
         dispatch({ type: "CLOSE_WEBHOOK_MODAL" });
         onSuccess?.();
@@ -97,6 +102,9 @@ export function useWebhookOperations({
           durationMs,
           errorMessage: message,
         });
+        PtyDebug.log(
+          `request error label="${label}" durationMs=${durationMs} message="${message}"`,
+        );
         setState({ isSubmitting: false, error: message });
       }
     },
