@@ -93,9 +93,10 @@ function HelpSection({ title, bindings }: KeyBindingSection) {
 export function HelpOverlay({ isOpen, onClose, onQuit }: HelpOverlayProps) {
   useInput(
     (input, key) => {
-      if (key.escape || input === "?") {
+      const normalizedInput = input.toLowerCase();
+      if (key.escape || normalizedInput === "?") {
         onClose();
-      } else if (input === "q") {
+      } else if (normalizedInput === "q") {
         onQuit();
       }
     },
@@ -118,7 +119,7 @@ export function HelpOverlay({ isOpen, onClose, onQuit }: HelpOverlayProps) {
         <Text bold={true} color="blue">
           Keyboard Shortcuts
         </Text>
-        <Text dimColor={true}>(Press ? or Esc to close)</Text>
+        <Text dimColor={true}>(Press ? or Esc to close, or q to quit)</Text>
       </Box>
 
       <Box flexDirection="row" gap={4}>
