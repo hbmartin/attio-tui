@@ -1,5 +1,6 @@
 import { Text } from "ink";
 import { render } from "ink-testing-library";
+import type { ReactElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   AriaRoles,
@@ -86,7 +87,7 @@ describe("useAccessibility (environment detection)", () => {
     );
 
     // Test the hook by rendering a component that uses it
-    function TestComponent() {
+    function TestComponent(): ReactElement {
       const { isScreenReaderEnabled } = useAccessibility();
       return <Text>{isScreenReaderEnabled ? "enabled" : "disabled"}</Text>;
     }
@@ -107,7 +108,7 @@ describe("useAccessibility (environment detection)", () => {
       "../../source/hooks/use-accessibility.js"
     );
 
-    function TestComponent() {
+    function TestComponent(): ReactElement {
       const { isScreenReaderEnabled } = useAccessibility();
       return <Text>{isScreenReaderEnabled ? "enabled" : "disabled"}</Text>;
     }
