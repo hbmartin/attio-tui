@@ -1,5 +1,6 @@
-import process from "node:process";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { Text } from "ink";
+import { render } from "ink-testing-library";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   AriaRoles,
   createSelectableLabel,
@@ -56,37 +57,66 @@ describe("use-accessibility", () => {
       expect(AriaRoles.MENU_ITEM).toBe("menuitem");
       expect(AriaRoles.TAB).toBe("tab");
       expect(AriaRoles.TAB_LIST).toBe("tablist");
+      expect(AriaRoles.TAB_PANEL).toBe("tabpanel");
+      expect(AriaRoles.REGION).toBe("region");
       expect(AriaRoles.STATUS).toBe("status");
       expect(AriaRoles.ALERT).toBe("alert");
       expect(AriaRoles.DIALOG).toBe("dialog");
+      expect(AriaRoles.SEARCH).toBe("search");
+      expect(AriaRoles.TEXTBOX).toBe("textbox");
+      expect(AriaRoles.BUTTON).toBe("button");
     });
   });
 });
 
 describe("useAccessibility (environment detection)", () => {
-  const originalEnv = { ...process.env };
-
   beforeEach(() => {
-    // Reset environment for each test
-    delete process.env.ATTIO_TUI_ACCESSIBLE;
-    delete process.env.TERM_PROGRAM;
+    vi.resetModules();
   });
 
   afterEach(() => {
-    // Restore original environment
-    process.env = { ...originalEnv };
+    vi.unstubAllEnvs();
   });
 
-  it("detects screen reader mode from ATTIO_TUI_ACCESSIBLE env var", async () => {
-    process.env.ATTIO_TUI_ACCESSIBLE = "1";
+  it("returns isScreenReaderEnabled=true when ATTIO_TUI_ACCESSIBLE=1", async () => {
+    vi.stubEnv("ATTIO_TUI_ACCESSIBLE", "1");
 
-    // Dynamic import to pick up new env
     const { useAccessibility } = await import(
       "../../source/hooks/use-accessibility.js"
     );
 
-    // We can't easily test hooks outside React, so we just verify the module loads
-    expect(useAccessibility).toBeDefined();
-    expect(typeof useAccessibility).toBe("function");
+    // Test the hook by rendering a component that uses it
+    function TestComponent() {
+      const { isScreenReaderEnabled } = useAccessibility();
+      return <Text>{isScreenReaderEnabled ? "enabled" : "disabled"}</Text>;
+    }
+
+    const instance = render(<TestComponent />);
+    try {
+      expect(instance.lastFrame()).toContain("enabled");
+    } finally {
+      instance.cleanup();
+    }
+  });
+
+  it("returns isScreenReaderEnabled=false when no accessibility env is set", async () => {
+    vi.stubEnv("ATTIO_TUI_ACCESSIBLE", "");
+    vi.stubEnv("TERM_PROGRAM", "");
+
+    const { useAccessibility } = await import(
+      "../../source/hooks/use-accessibility.js"
+    );
+
+    function TestComponent() {
+      const { isScreenReaderEnabled } = useAccessibility();
+      return <Text>{isScreenReaderEnabled ? "enabled" : "disabled"}</Text>;
+    }
+
+    const instance = render(<TestComponent />);
+    try {
+      expect(instance.lastFrame()).toContain("disabled");
+    } finally {
+      instance.cleanup();
+    }
   });
 });

@@ -18,7 +18,9 @@ function prepareStdin(instance: RenderInstance): void {
 
 describe("HelpOverlay", () => {
   it("renders nothing when closed", () => {
-    const instance = render(<HelpOverlay isOpen={false} onClose={vi.fn()} />);
+    const instance = render(
+      <HelpOverlay isOpen={false} onClose={vi.fn()} onQuit={vi.fn()} />,
+    );
     prepareStdin(instance);
 
     try {
@@ -29,7 +31,9 @@ describe("HelpOverlay", () => {
   });
 
   it("renders help content when open", () => {
-    const instance = render(<HelpOverlay isOpen={true} onClose={vi.fn()} />);
+    const instance = render(
+      <HelpOverlay isOpen={true} onClose={vi.fn()} onQuit={vi.fn()} />,
+    );
     prepareStdin(instance);
 
     try {
@@ -45,7 +49,9 @@ describe("HelpOverlay", () => {
   });
 
   it("shows navigation keybindings", () => {
-    const instance = render(<HelpOverlay isOpen={true} onClose={vi.fn()} />);
+    const instance = render(
+      <HelpOverlay isOpen={true} onClose={vi.fn()} onQuit={vi.fn()} />,
+    );
     prepareStdin(instance);
 
     try {
@@ -60,7 +66,9 @@ describe("HelpOverlay", () => {
   });
 
   it("shows pane focus keybindings", () => {
-    const instance = render(<HelpOverlay isOpen={true} onClose={vi.fn()} />);
+    const instance = render(
+      <HelpOverlay isOpen={true} onClose={vi.fn()} onQuit={vi.fn()} />,
+    );
     prepareStdin(instance);
 
     try {
@@ -73,7 +81,9 @@ describe("HelpOverlay", () => {
   });
 
   it("shows action keybindings", () => {
-    const instance = render(<HelpOverlay isOpen={true} onClose={vi.fn()} />);
+    const instance = render(
+      <HelpOverlay isOpen={true} onClose={vi.fn()} onQuit={vi.fn()} />,
+    );
     prepareStdin(instance);
 
     try {
@@ -88,7 +98,9 @@ describe("HelpOverlay", () => {
   });
 
   it("shows close instructions", () => {
-    const instance = render(<HelpOverlay isOpen={true} onClose={vi.fn()} />);
+    const instance = render(
+      <HelpOverlay isOpen={true} onClose={vi.fn()} onQuit={vi.fn()} />,
+    );
     prepareStdin(instance);
 
     try {
@@ -100,7 +112,9 @@ describe("HelpOverlay", () => {
   });
 
   it("shows tip about command palette", () => {
-    const instance = render(<HelpOverlay isOpen={true} onClose={vi.fn()} />);
+    const instance = render(
+      <HelpOverlay isOpen={true} onClose={vi.fn()} onQuit={vi.fn()} />,
+    );
     prepareStdin(instance);
 
     try {
@@ -111,4 +125,9 @@ describe("HelpOverlay", () => {
       instance.cleanup();
     }
   });
+
+  // Note: Interactive keyboard tests (testing onClose/onQuit callbacks) require
+  // PTY-based testing. See test/cli.pty.test.ts for examples of testing keyboard
+  // input with the actual terminal. The ink-testing-library stdin.write approach
+  // has limitations with useInput handlers.
 });

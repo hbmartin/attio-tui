@@ -715,7 +715,7 @@ function MainApp() {
         />
       )}
 
-      <HelpOverlay isOpen={helpOverlayOpen} onClose={closeHelp} />
+      <HelpOverlay isOpen={helpOverlayOpen} onClose={closeHelp} onQuit={exit} />
     </Box>
   );
 }

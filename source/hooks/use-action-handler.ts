@@ -99,11 +99,13 @@ function handleTabNavigation(
 
 function handleJumpToTop(
   focusedPane: PaneId,
+  navigatorItemCount: number,
+  resultsItemCount: number,
   dispatch: React.Dispatch<AppAction>,
 ): void {
-  if (focusedPane === "navigator") {
+  if (focusedPane === "navigator" && navigatorItemCount > 0) {
     dispatch({ type: "SELECT_CATEGORY", index: 0 });
-  } else if (focusedPane === "results") {
+  } else if (focusedPane === "results" && resultsItemCount > 0) {
     dispatch({ type: "SELECT_RESULT", index: 0 });
   }
 }
@@ -114,11 +116,11 @@ function handleJumpToBottom(
   resultsItemCount: number,
   dispatch: React.Dispatch<AppAction>,
 ): void {
-  if (focusedPane === "navigator") {
-    const lastIndex = Math.max(0, navigatorItemCount - 1);
+  if (focusedPane === "navigator" && navigatorItemCount > 0) {
+    const lastIndex = navigatorItemCount - 1;
     dispatch({ type: "SELECT_CATEGORY", index: lastIndex });
-  } else if (focusedPane === "results") {
-    const lastIndex = Math.max(0, resultsItemCount - 1);
+  } else if (focusedPane === "results" && resultsItemCount > 0) {
+    const lastIndex = resultsItemCount - 1;
     dispatch({ type: "SELECT_RESULT", index: lastIndex });
   }
 }
@@ -206,7 +208,12 @@ export function useActionHandler(options: UseActionHandlerOptions) {
           handleTabNavigation(action, focusedPane, dispatch);
           break;
         case "jumpToTop":
-          handleJumpToTop(focusedPane, dispatch);
+          handleJumpToTop(
+            focusedPane,
+            navigatorItemCount,
+            resultsItemCount,
+            dispatch,
+          );
           break;
         case "jumpToBottom":
           handleJumpToBottom(

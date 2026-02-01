@@ -21,9 +21,9 @@ const DEFAULT_DIMENSIONS: TerminalDimensions = {
 export const TerminalBreakpoints = {
   /** Very narrow terminal (< 60 columns) */
   NARROW: 60,
-  /** Medium terminal (60-100 columns) */
+  /** Medium terminal (60-119 columns) */
   MEDIUM: 100,
-  /** Wide terminal (> 100 columns) */
+  /** Wide terminal (>= 120 columns) */
   WIDE: 120,
 } as const;
 
