@@ -1,39 +1,19 @@
 /**
- * Keyboard simulation tests documenting how to test interactive CLI behavior
- * by simulating keyboard input via stdin.write().
+ * Keyboard simulation tests documenting escape sequences for terminal key input.
  *
- * Based on ink-testing-library best practices from the TUI guide.
+ * NOTE: Full interactive keyboard testing with callbacks requires PTY-based tests
+ * (see cli.pty.test.ts). The ink-testing-library stdin.write approach has limitations
+ * with useInput handlers. For component-level keyboard testing, consider using
+ * PTY tests which spawn the actual CLI process.
+ *
+ * This file primarily serves as documentation and validation of escape sequence constants.
  */
 
 import { describe, expect, it } from "vitest";
+import { ESCAPE_SEQUENCES } from "./utils/keyboard-constants.js";
 
-describe("Keyboard Simulation Documentation", () => {
-  /**
-   * Common escape sequences for special keys.
-   * These can be used with stdin.write() to simulate special keys in ink-testing-library.
-   *
-   * Example usage:
-   * ```tsx
-   * const instance = render(<MyComponent />);
-   * instance.stdin.write("\x1B"); // Send Escape
-   * instance.stdin.write("\r");   // Send Enter
-   * instance.stdin.write("q");    // Send 'q' character
-   * ```
-   */
-  const ESCAPE_SEQUENCES = {
-    escape: "\x1B",
-    enter: "\r",
-    backspace: "\x7F",
-    tab: "\t",
-    upArrow: "\x1B[A",
-    downArrow: "\x1B[B",
-    rightArrow: "\x1B[C",
-    leftArrow: "\x1B[D",
-    ctrlC: "\x03",
-    ctrlD: "\x04",
-  };
-
-  it("documents escape sequences for reference", () => {
+describe("Keyboard Simulation", () => {
+  it("validates escape sequence constants", () => {
     expect(ESCAPE_SEQUENCES.escape).toBe("\x1B");
     expect(ESCAPE_SEQUENCES.enter).toBe("\r");
     expect(ESCAPE_SEQUENCES.backspace).toBe("\x7F");
@@ -42,31 +22,27 @@ describe("Keyboard Simulation Documentation", () => {
     expect(ESCAPE_SEQUENCES.downArrow).toBe("\x1B[B");
     expect(ESCAPE_SEQUENCES.rightArrow).toBe("\x1B[C");
     expect(ESCAPE_SEQUENCES.leftArrow).toBe("\x1B[D");
+    expect(ESCAPE_SEQUENCES.ctrlC).toBe("\x03");
+    expect(ESCAPE_SEQUENCES.ctrlD).toBe("\x04");
   });
 
-  it("documents keyboard testing patterns", () => {
+  it("documents keyboard testing patterns for reference", () => {
     /**
      * Pattern for testing keyboard input in Ink components:
      *
-     * 1. Render the component using ink-testing-library
-     * 2. Use instance.stdin.write() to send key sequences
-     * 3. Add a small delay for async processing
-     * 4. Assert on the results (callback calls, frame content)
-     * 5. Always call instance.cleanup() in finally block
+     * 1. For unit testing static rendering: Use ink-testing-library render()
+     *    and assert on lastFrame() content
      *
-     * Example test:
-     * ```tsx
-     * it("responds to keyboard input", async () => {
-     *   const onAction = vi.fn();
-     *   const instance = render(<Component onAction={onAction} />);
-     *   try {
-     *     instance.stdin.write("j"); // Simulate 'j' key
-     *     await delay(50);
-     *     expect(onAction).toHaveBeenCalledWith("moveDown");
-     *   } finally {
-     *     instance.cleanup();
-     *   }
-     * });
+     * 2. For interactive keyboard testing: Use PTY-based tests (cli.pty.test.ts)
+     *    which spawn the actual CLI and can reliably test keyboard input
+     *
+     * Example PTY test pattern:
+     * ```ts
+     * const session = new PtySession();
+     * await session.start();
+     * await session.waitFor("Expected text");
+     * session.write(Keys.ENTER);
+     * await session.waitFor("Response text");
      * ```
      */
     expect(true).toBe(true);

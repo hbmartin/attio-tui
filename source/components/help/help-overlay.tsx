@@ -21,7 +21,7 @@ const HELP_SECTIONS: readonly KeyBindingSection[] = [
       { keys: "Enter / Space", description: "Select item" },
       { keys: "Backspace", description: "Go back" },
       { keys: "G", description: "Jump to bottom" },
-      { keys: "g g", description: "Jump to top" },
+      { keys: "g", description: "Jump to top" },
     ],
   },
   {
@@ -57,6 +57,7 @@ const HELP_SECTIONS: readonly KeyBindingSection[] = [
 interface HelpOverlayProps {
   readonly isOpen: boolean;
   readonly onClose: () => void;
+  readonly onQuit: () => void;
 }
 
 function KeyBindingRow({ keys, description }: KeyBindingHelp) {
@@ -89,11 +90,13 @@ function HelpSection({ title, bindings }: KeyBindingSection) {
   );
 }
 
-export function HelpOverlay({ isOpen, onClose }: HelpOverlayProps) {
+export function HelpOverlay({ isOpen, onClose, onQuit }: HelpOverlayProps) {
   useInput(
     (input, key) => {
-      if (key.escape || input === "?" || input === "q") {
+      if (key.escape || input === "?") {
         onClose();
+      } else if (input === "q") {
+        onQuit();
       }
     },
     { isActive: isOpen },

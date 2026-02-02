@@ -22,10 +22,8 @@ describe("StatusBar", () => {
 
     try {
       const frame = instance.lastFrame();
-      // The status message may wrap across lines in narrow terminals,
-      // so check for both parts separately
-      expect(frame).toContain("Refresh");
-      expect(frame).toContain("failed");
+      // Use regex to assert "Refresh" appears before "failed" allowing for wrapping
+      expect(frame).toMatch(/Refresh[\s\S]*failed/);
     } finally {
       instance.cleanup();
     }
