@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import process from "node:process";
-import { render } from "ink";
+import { withFullScreen } from "fullscreen-ink";
 import meow from "meow";
 import App from "./app.js";
 import { PtyDebug } from "./utils/pty-debug.js";
@@ -76,15 +76,20 @@ if (ptyDebugEnabled) {
 if (ptyDebugEnabled) {
   PtyDebug.log("render start");
 }
-const app = render(<App initialDebugEnabled={cli.flags.debug} />);
+const ink = withFullScreen(<App initialDebugEnabled={cli.flags.debug} />);
+ink.start().catch((error: unknown) => {
+  PtyDebug.log(
+    `start error: ${error instanceof Error ? (error.stack ?? error.message) : String(error)}`,
+  );
+});
 if (ptyDebugEnabled) {
   PtyDebug.log("render returned");
-  app
+  ink
     .waitUntilExit()
     .then(() => {
       PtyDebug.log("render exit");
     })
-    .catch((error) => {
+    .catch((error: unknown) => {
       PtyDebug.log(
         `render exit error: ${error instanceof Error ? (error.stack ?? error.message) : String(error)}`,
       );
