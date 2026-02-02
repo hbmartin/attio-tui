@@ -5,7 +5,10 @@ import {
   AttioRetryError,
 } from "attio-ts-sdk";
 import { describe, expect, it } from "vitest";
-import { extractErrorMessage } from "../../source/utils/error-messages.js";
+import {
+  errorToDebugString,
+  extractErrorMessage,
+} from "../../source/utils/error-messages.js";
 
 describe("extractErrorMessage", () => {
   describe("basic errors", () => {
@@ -204,5 +207,28 @@ describe("extractErrorMessage", () => {
         "Rate limited by Attio API: Rate limit exceeded (retries exhausted)",
       );
     });
+  });
+});
+
+describe("errorToDebugString", () => {
+  it("returns stack trace for Error with stack", () => {
+    const error = new Error("Test error");
+    const result = errorToDebugString(error);
+    expect(result).toContain("Test error");
+    expect(result).toContain("at "); // stack trace includes "at " prefixes
+  });
+
+  it("returns message when stack is unavailable", () => {
+    const error = new Error("No stack error");
+    error.stack = undefined;
+    expect(errorToDebugString(error)).toBe("No stack error");
+  });
+
+  it("converts non-Error values to string", () => {
+    expect(errorToDebugString("string error")).toBe("string error");
+    expect(errorToDebugString(null)).toBe("null");
+    expect(errorToDebugString(undefined)).toBe("undefined");
+    expect(errorToDebugString(42)).toBe("42");
+    expect(errorToDebugString({ custom: "object" })).toBe("[object Object]");
   });
 });

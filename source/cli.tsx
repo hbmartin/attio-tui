@@ -3,6 +3,7 @@ import process from "node:process";
 import { withFullScreen } from "fullscreen-ink";
 import meow from "meow";
 import App from "./app.js";
+import { errorToDebugString } from "./utils/error-messages.js";
 import { PtyDebug } from "./utils/pty-debug.js";
 
 const cli = meow(
@@ -71,15 +72,11 @@ if (ptyDebugEnabled) {
     `flags.debug=${String(cli.flags.debug)} flags.verbose=${String(cli.flags.verbose)}`,
   );
   process.on("uncaughtException", (error) => {
-    PtyDebug.log(
-      `uncaughtException: ${error instanceof Error ? (error.stack ?? error.message) : String(error)}`,
-    );
+    PtyDebug.log(`uncaughtException: ${errorToDebugString(error)}`);
     process.exit(1);
   });
   process.on("unhandledRejection", (reason) => {
-    PtyDebug.log(
-      `unhandledRejection: ${reason instanceof Error ? (reason.stack ?? reason.message) : String(reason)}`,
-    );
+    PtyDebug.log(`unhandledRejection: ${errorToDebugString(reason)}`);
     process.exit(1);
   });
 }
@@ -87,12 +84,9 @@ if (ptyDebugEnabled) {
 if (ptyDebugEnabled) {
   PtyDebug.log("render start");
 }
-const ink = withFullScreen(
-  <App initialDebugEnabled={cli.flags.debug || cli.flags.verbose} />,
-);
+const ink = withFullScreen(<App initialDebugEnabled={cli.flags.debug} />);
 ink.start().catch((error: unknown) => {
-  const message =
-    error instanceof Error ? (error.stack ?? error.message) : String(error);
+  const message = errorToDebugString(error);
   PtyDebug.log(`start error: ${message}`);
   process.stderr.write(`start error: ${message}\n`);
   process.exit(1);
@@ -105,8 +99,6 @@ if (ptyDebugEnabled) {
       PtyDebug.log("render exit");
     })
     .catch((error: unknown) => {
-      PtyDebug.log(
-        `render exit error: ${error instanceof Error ? (error.stack ?? error.message) : String(error)}`,
-      );
+      PtyDebug.log(`render exit error: ${errorToDebugString(error)}`);
     });
 }

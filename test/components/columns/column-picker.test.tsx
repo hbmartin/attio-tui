@@ -28,10 +28,6 @@ async function waitForCondition(
   throw new Error("Timed out waiting for component update");
 }
 
-async function flushUpdates(): Promise<void> {
-  await new Promise((resolve) => setTimeout(resolve, 0));
-}
-
 interface PreparedStdin {
   readonly send: (data: string) => void;
 }
@@ -96,12 +92,23 @@ describe("ColumnPicker", () => {
         () => instance.stdin.listenerCount("readable") > 0,
       );
 
-      send("\u001B[B");
-      await flushUpdates();
-      send(" ");
-      await flushUpdates();
-      send("\r");
+      // Move cursor to Email row
+      send("j");
+      await waitForCondition(() => {
+        const frame = lastFrame() ?? "";
+        // Cursor indicator '>' should be on the Email row
+        return frame.includes("> [ ] Email") || frame.includes(">  [ ] Email");
+      });
 
+      // Toggle Email selection
+      send(" ");
+      await waitForCondition(() => {
+        const frame = lastFrame() ?? "";
+        return frame.includes("[x] Email");
+      });
+
+      // Save
+      send("\r");
       await waitForCondition(() => onSave.mock.calls.length > 0);
 
       expect(onSave).toHaveBeenCalledWith([
@@ -136,10 +143,16 @@ describe("ColumnPicker", () => {
         () => instance.stdin.listenerCount("readable") > 0,
       );
 
+      // Reset to defaults - should uncheck Email
       send("r");
-      await flushUpdates();
-      send("\r");
+      await waitForCondition(() => {
+        const frame = instance.lastFrame() ?? "";
+        // Email should now be unchecked after reset
+        return frame.includes("[ ] Email");
+      });
 
+      // Save
+      send("\r");
       await waitForCondition(() => onSave.mock.calls.length > 0);
 
       expect(onSave).toHaveBeenCalledWith([{ attribute: "name" }]);

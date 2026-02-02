@@ -15,7 +15,9 @@ export function useTemporaryStatusMessage({
   timeoutMs = 3000,
 }: UseTemporaryStatusMessageOptions = {}): UseTemporaryStatusMessageResult {
   const [message, setMessage] = useState<StatusMessage | undefined>();
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>();
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined,
+  );
 
   const clearMessage = useCallback(() => {
     if (timeoutRef.current) {
