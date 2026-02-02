@@ -87,11 +87,15 @@ if (ptyDebugEnabled) {
 if (ptyDebugEnabled) {
   PtyDebug.log("render start");
 }
-const ink = withFullScreen(<App initialDebugEnabled={cli.flags.debug} />);
+const ink = withFullScreen(
+  <App initialDebugEnabled={cli.flags.debug || cli.flags.verbose} />,
+);
 ink.start().catch((error: unknown) => {
-  PtyDebug.log(
-    `start error: ${error instanceof Error ? (error.stack ?? error.message) : String(error)}`,
-  );
+  const message =
+    error instanceof Error ? (error.stack ?? error.message) : String(error);
+  PtyDebug.log(`start error: ${message}`);
+  process.stderr.write(`start error: ${message}\n`);
+  process.exit(1);
 });
 if (ptyDebugEnabled) {
   PtyDebug.log("render returned");

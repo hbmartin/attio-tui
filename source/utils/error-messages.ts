@@ -29,25 +29,72 @@ function getRootCause(error: unknown): unknown {
 }
 
 /**
+ * Checks if a value is a non-null object (for duck-typing property access).
+ */
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+/**
  * Extracts structured information from an error, including SDK-specific details.
+ * Uses duck-typing to extract fields from error-like objects that may not be
+ * instanceof AttioError (e.g., root causes from cause chains, serialized errors).
  */
 function extractErrorInfo(error: unknown): ErrorInfo {
   if (!(error instanceof Error)) {
+    // Handle non-Error objects that might have error-like properties
+    if (isRecord(error)) {
+      const message =
+        typeof error["message"] === "string" ? error["message"] : String(error);
+      const status =
+        typeof error["status"] === "number" ? error["status"] : undefined;
+      const code =
+        typeof error["code"] === "string" ? error["code"] : undefined;
+      const isNetworkError =
+        typeof error["isNetworkError"] === "boolean"
+          ? error["isNetworkError"]
+          : undefined;
+      return {
+        message,
+        status,
+        code,
+        isNetworkError,
+        isRateLimited: status === 429,
+      };
+    }
     return { message: String(error) };
   }
 
-  const isAttioError = error instanceof AttioError;
-  const status = isAttioError ? error.status : undefined;
-  const code = isAttioError ? error.code : undefined;
-  const isNetworkError = isAttioError ? error.isNetworkError : undefined;
-  const isRateLimited = status === 429;
+  // For AttioError instances, access properties directly
+  if (error instanceof AttioError) {
+    return {
+      message: error.message,
+      status: error.status,
+      code: error.code,
+      isNetworkError: error.isNetworkError,
+      isRateLimited: error.status === 429,
+    };
+  }
+
+  // For other Error instances, duck-type the SDK-specific properties
+  // This handles cases where errors have these properties but aren't AttioError instances
+  const status =
+    "status" in error && typeof error.status === "number"
+      ? error.status
+      : undefined;
+  const code =
+    "code" in error && typeof error.code === "string" ? error.code : undefined;
+  const isNetworkError =
+    "isNetworkError" in error && typeof error.isNetworkError === "boolean"
+      ? error.isNetworkError
+      : undefined;
 
   return {
     message: error.message,
     status,
     code,
     isNetworkError,
-    isRateLimited,
+    isRateLimited: status === 429,
   };
 }
 

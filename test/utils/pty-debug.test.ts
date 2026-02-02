@@ -121,11 +121,21 @@ describe("PtyDebug", () => {
 
   it("reports file errors once", async () => {
     process.env[ENV_KEY] = "1";
-    const logPath = join(createTempDir(), "missing", "debug.log");
+    const logPath = createTempLogPath();
     process.env[FILE_ENV_KEY] = logPath;
     const writeSpy = vi
       .spyOn(process.stderr, "write")
       .mockImplementation(() => true);
+
+    vi.doMock("node:fs", async (importOriginal) => {
+      const original = await importOriginal<typeof import("node:fs")>();
+      return {
+        ...original,
+        appendFileSync: () => {
+          throw new Error("Mocked write failure");
+        },
+      };
+    });
 
     const PtyDebug = await loadPtyDebug();
     PtyDebug.log("hello");
