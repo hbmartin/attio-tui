@@ -3,7 +3,8 @@
   "compilerOptions": {
     "outDir": "dist",
     "jsx": "react-jsx",
-    "noUnusedLocals": false
+    "noUnusedLocals": false,
+    "erasableSyntaxOnly": false
   },
   "include": ["source"]
 }

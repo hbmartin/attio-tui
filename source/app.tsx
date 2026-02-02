@@ -1,7 +1,14 @@
 import { join } from "node:path";
 import process from "node:process";
 import { Box, Text, useApp as useInkApp, useStdin, useStdout } from "ink";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  type JSX,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { ColumnPicker } from "./components/columns/index.js";
 import { CommandPalette } from "./components/command-palette/command-palette.js";
 import { DebugPanel } from "./components/debug/debug-panel.js";
