@@ -65,11 +65,11 @@ export function NavItem({ category, selected, focused }: NavItemProps) {
   // In screen reader mode, show clearer text without icons
   const displayText = isScreenReaderEnabled
     ? `${selected ? "[Selected] " : ""}${label}`
-    : `${selected ? ">" : " "} ${getCategoryIcon(category)} ${label}`;
+    : `${getCategoryIcon(category)} ${label}`;
 
   return (
     <Box>
-      <Text backgroundColor={backgroundColor} color={textColor}>
+      <Text backgroundColor={backgroundColor} color={textColor} wrap="truncate">
         {displayText}
       </Text>
     </Box>
