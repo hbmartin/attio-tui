@@ -49,9 +49,10 @@ describe("ApiKeyPrompt", () => {
     let contents = readFileSync(logPath, "utf8");
     expect(contents).toContain("[PTY-DEBUG] api-key prompt mount\n");
 
-    instance.cleanup();
+    instance.unmount();
 
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    // Wait for React's useEffect cleanup to run
+    await new Promise((resolve) => setTimeout(resolve, 50));
 
     contents = readFileSync(logPath, "utf8");
     expect(contents).toContain("[PTY-DEBUG] api-key prompt unmount\n");
