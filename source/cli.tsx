@@ -1,11 +1,9 @@
 #!/usr/bin/env node
 import process from "node:process";
-import { render } from "ink";
+import { withFullScreen } from "fullscreen-ink";
 import meow from "meow";
 import App from "./app.js";
 import { PtyDebug } from "./utils/pty-debug.js";
-
-const ptyDebugEnabled = PtyDebug.isEnabled();
 
 const cli = meow(
   `
@@ -13,7 +11,8 @@ const cli = meow(
 	  $ attio-tui
 
 	Options
-		--debug  Enable debug mode
+		--debug    Enable debug panel + PTY logging
+		--verbose  Enable PTY logging
 
 	Navigation
 		Tab/Shift+Tab  Switch between panes
@@ -30,9 +29,19 @@ const cli = meow(
         type: "boolean",
         default: false,
       },
+      verbose: {
+        type: "boolean",
+        default: false,
+      },
     },
   },
 );
+
+const shouldEnablePtyDebug = cli.flags.debug || cli.flags.verbose;
+if (shouldEnablePtyDebug) {
+  process.env["ATTIO_TUI_PTY_DEBUG"] = "1";
+}
+const ptyDebugEnabled = PtyDebug.isEnabled();
 
 if (ptyDebugEnabled) {
   PtyDebug.log(`pid=${process.pid}`);
@@ -58,7 +67,9 @@ if (ptyDebugEnabled) {
       FORCE_COLOR: process.env["FORCE_COLOR"],
     })}`,
   );
-  PtyDebug.log(`flags.debug=${String(cli.flags.debug)}`);
+  PtyDebug.log(
+    `flags.debug=${String(cli.flags.debug)} flags.verbose=${String(cli.flags.verbose)}`,
+  );
   process.on("uncaughtException", (error) => {
     PtyDebug.log(
       `uncaughtException: ${error instanceof Error ? (error.stack ?? error.message) : String(error)}`,
@@ -76,15 +87,20 @@ if (ptyDebugEnabled) {
 if (ptyDebugEnabled) {
   PtyDebug.log("render start");
 }
-const app = render(<App initialDebugEnabled={cli.flags.debug} />);
+const ink = withFullScreen(<App initialDebugEnabled={cli.flags.debug} />);
+ink.start().catch((error: unknown) => {
+  PtyDebug.log(
+    `start error: ${error instanceof Error ? (error.stack ?? error.message) : String(error)}`,
+  );
+});
 if (ptyDebugEnabled) {
   PtyDebug.log("render returned");
-  app
+  ink
     .waitUntilExit()
     .then(() => {
       PtyDebug.log("render exit");
     })
-    .catch((error) => {
+    .catch((error: unknown) => {
       PtyDebug.log(
         `render exit error: ${error instanceof Error ? (error.stack ?? error.message) : String(error)}`,
       );

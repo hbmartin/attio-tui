@@ -19,6 +19,7 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
     "dev": "tsc --watch",
     "lint": "biome check --error-on-warnings",
     "lint:report": "biome check . --reporter=json | jq -r '  .diagnostics[]  | .category' | sort | uniq -c | sort -nr",
@@ -40,6 +41,7 @@
   ],
   "dependencies": {
     "attio-ts-sdk": "^1.0.0",
+    "fullscreen-ink": "^0.1.0",
     "ink": "^4.1.0",
     "meow": "^11.0.0",
     "react": "^18.2.0",

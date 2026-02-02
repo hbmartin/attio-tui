@@ -10,6 +10,9 @@ interface DebugPanelProps {
   readonly requestLog: readonly DebugRequestLogEntry[];
   readonly timing: DebugTimingSnapshot;
   readonly state: DebugStateSnapshot;
+  readonly ptyDebugEnabled: boolean;
+  readonly ptyLogPath: string | undefined;
+  readonly accessibleMode: boolean;
 }
 
 function formatDuration(durationMs: number): string {
@@ -46,7 +49,14 @@ function formatRequestLine(entry: DebugRequestLogEntry): string {
   return `${entry.label}${detail}${error}`;
 }
 
-export function DebugPanel({ requestLog, timing, state }: DebugPanelProps) {
+export function DebugPanel({
+  requestLog,
+  timing,
+  state,
+  ptyDebugEnabled,
+  ptyLogPath,
+  accessibleMode,
+}: DebugPanelProps) {
   const { appStartedAt } = timing;
   const {
     focusedPane,
@@ -77,6 +87,19 @@ export function DebugPanel({ requestLog, timing, state }: DebugPanelProps) {
       <Text bold={true} color="yellow">
         Debug Panel
       </Text>
+
+      <Box flexDirection="column" marginTop={1}>
+        <Text bold={true}>Configuration</Text>
+        <Text dimColor={true}>
+          PTY logging: {ptyDebugEnabled ? "enabled" : "disabled"}
+        </Text>
+        {ptyDebugEnabled && ptyLogPath && (
+          <Text dimColor={true}>Log file: {ptyLogPath}</Text>
+        )}
+        <Text dimColor={true}>
+          Accessible mode: {accessibleMode ? "on" : "off"}
+        </Text>
+      </Box>
 
       <Box flexDirection="column" marginTop={1}>
         <Text bold={true}>Timing</Text>

@@ -9,6 +9,7 @@ import { fetchWebhooks } from "../services/webhooks-service.js";
 import type { DebugRequestLogEntryInput } from "../types/debug.js";
 import type { ObjectSlug } from "../types/ids.js";
 import type { NavigatorCategory, ResultItem } from "../types/navigation.js";
+import { extractErrorMessage } from "../utils/error-messages.js";
 import {
   formatMeetingTime,
   getTaskSubtitle,
@@ -205,7 +206,7 @@ export function useCategoryData({
         );
         return { items, nextCursor };
       } catch (err) {
-        const message = err instanceof Error ? err.message : "Unknown error";
+        const message = extractErrorMessage(err);
         const durationMs = Date.now() - startTime;
         safeLog(onRequestLog, {
           label: requestLabel,
@@ -218,7 +219,10 @@ export function useCategoryData({
         PtyDebug.log(
           `request error label="${requestLabel}" durationMs=${durationMs} message="${message}"`,
         );
-        throw err;
+        // Re-throw with improved message for display
+        const displayError = new Error(message);
+        displayError.cause = err;
+        throw displayError;
       }
     },
     [client, categoryType, categorySlug, onRequestLog],

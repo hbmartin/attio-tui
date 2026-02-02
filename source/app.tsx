@@ -17,6 +17,7 @@ import {
   WebhookForm,
 } from "./components/webhooks/index.js";
 import { DEFAULT_COMMANDS, filterCommands } from "./constants/commands.js";
+import { useAccessibility } from "./hooks/use-accessibility.js";
 import { useActionHandler } from "./hooks/use-action-handler.js";
 import { useCategoryData } from "./hooks/use-category-data.js";
 import { useColumns } from "./hooks/use-columns.js";
@@ -124,6 +125,7 @@ function usePtyDebugInk(): void {
 function MainApp() {
   const { state, dispatch } = useApp();
   const { debugEnabled } = state;
+  const { isScreenReaderEnabled } = useAccessibility();
   const { client } = useClient();
   const { exit } = useInkApp();
   const { message: statusMessage, showMessage: showStatusMessage } =
@@ -140,6 +142,8 @@ function MainApp() {
   );
   const appStartRef = useRef(Date.now());
   const requestIdRef = useRef(0);
+  const ptyDebugEnabled = PtyDebug.isEnabled();
+  const ptyLogPath = PtyDebug.getLogPath();
   const [requestLog, setRequestLog] = useState<readonly DebugRequestLogEntry[]>(
     [],
   );
@@ -652,6 +656,7 @@ function MainApp() {
             selectedIndex={resultSelectedIndex}
             loading={navigatorLoading || resultsLoading}
             statusMessage={statusMessage}
+            debugEnabled={debugEnabled}
           />
         }
       />
@@ -661,6 +666,9 @@ function MainApp() {
           requestLog={requestLog}
           timing={debugTiming}
           state={debugStateSnapshot}
+          ptyDebugEnabled={ptyDebugEnabled}
+          ptyLogPath={ptyLogPath}
+          accessibleMode={isScreenReaderEnabled}
         />
       )}
 

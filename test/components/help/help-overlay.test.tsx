@@ -1,54 +1,11 @@
 import { render } from "ink-testing-library";
 import { describe, expect, it, vi } from "vitest";
 import { HelpOverlay } from "../../../source/components/help/help-overlay.js";
-
-type RenderInstance = ReturnType<typeof render>;
-
-interface PreparedStdin {
-  readonly send: (data: string) => void;
-}
-
-/**
- * Prepares the stdin mock for ink-testing-library with keyboard input support.
- * This is required for components that use useInput.
- */
-function prepareStdin(instance: RenderInstance): PreparedStdin {
-  const queue: Buffer[] = [];
-
-  Object.assign(instance.stdin, {
-    ref: () => undefined,
-    unref: () => undefined,
-    read: () => queue.shift() ?? null,
-  });
-
-  return {
-    send: (data: string) => {
-      queue.push(Buffer.from(data));
-      instance.stdin.emit("readable");
-    },
-  };
-}
-
-async function flushUpdates(): Promise<void> {
-  await new Promise((resolve) => setTimeout(resolve, 0));
-}
-
-async function waitForCondition(
-  condition: () => boolean,
-  options: { timeoutMs?: number; intervalMs?: number } = {},
-): Promise<void> {
-  const { timeoutMs = 2000, intervalMs = 25 } = options;
-  const start = Date.now();
-
-  while (Date.now() - start < timeoutMs) {
-    if (condition()) {
-      return;
-    }
-    await new Promise((resolve) => setTimeout(resolve, intervalMs));
-  }
-
-  throw new Error("Timed out waiting for component update");
-}
+import {
+  flushUpdates,
+  prepareStdin,
+  waitForCondition,
+} from "../../utils/ink-test-helpers.js";
 
 describe("HelpOverlay", () => {
   it("renders nothing when closed", () => {

@@ -227,6 +227,81 @@ source/
 
 See [docs/testing.md](docs/testing.md) for the full testing philosophy.
 
+## Debugging
+
+attio-tui provides several debugging affordances for troubleshooting issues and developing the application.
+
+### Debug Panel (In-App)
+
+Toggle the debug panel to see real-time diagnostics while using the app:
+
+- **Keyboard:** Press `Ctrl+D` to toggle
+- **Command palette:** Type `:debug` or `:toggle debug`
+- **CLI flag:** Start with `attio-tui --debug` to open the panel on launch
+
+The debug panel shows:
+
+| Section | Information |
+|---------|-------------|
+| **Timing** | App uptime, last request duration and timestamp |
+| **State** | Focused pane, active tab, results count, selected index, category, loading states |
+| **Requests** | Last 5 API requests with status (SUCCESS/ERROR), duration, labels, and error messages |
+
+### PTY Debug Logging (Process-Level)
+
+For deep diagnostics including terminal issues, raw mode bugs, and CI debugging, enable PTY-level logging:
+
+```bash
+# Enable PTY debugging with a log file
+ATTIO_TUI_PTY_DEBUG=1 ATTIO_TUI_PTY_DEBUG_FILE=/tmp/attio-debug.log attio-tui
+
+# In another terminal, watch the log
+tail -f /tmp/attio-debug.log
+```
+
+PTY debug captures:
+
+- **Process info:** PID, Node version, platform, architecture, CWD
+- **TTY status:** stdin/stdout/stderr TTY state, raw mode, terminal size
+- **Environment:** `CI`, `TERM`, `TERM_PROGRAM`, `COLORTERM`, `NO_COLOR`, `FORCE_COLOR`
+- **Ink internals:** stdout/stdin details, columns/rows
+- **Lifecycle events:** App mount/unmount, render start/end, config initialization
+- **Exceptions:** Uncaught exceptions and unhandled rejections with full stack traces
+
+### Accessibility / Screen Reader Mode
+
+Enable screen reader mode for accessible output:
+
+```bash
+# Explicitly enable
+ATTIO_TUI_ACCESSIBLE=1 attio-tui
+```
+
+Auto-detected when `TERM_PROGRAM` contains: `screen-reader`, `orca`, `nvda`, or `jaws`.
+
+This mode:
+- Disables ASCII art spinners and complex Unicode
+- Provides full text descriptions instead of abbreviated labels
+- Enables semantic context for screen readers
+
+### Environment Variables Reference
+
+| Variable | Purpose |
+|----------|---------|
+| `ATTIO_TUI_PTY_DEBUG` | Enable PTY debug logging (`1` or `true`) |
+| `ATTIO_TUI_PTY_DEBUG_FILE` | Path for PTY debug log output |
+| `ATTIO_TUI_ACCESSIBLE` | Force accessibility/screen reader mode |
+| `NO_COLOR` | Disable color output |
+| `FORCE_COLOR` | Force color output |
+
+### stderr Output
+
+Non-fatal errors (config save failures, column save failures) are written to stderr to avoid interfering with the TUI. Redirect stderr to capture:
+
+```bash
+attio-tui 2>/tmp/attio-errors.log
+```
+
 ## Troubleshooting
 
 ### "Command not found" after install

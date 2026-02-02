@@ -17,6 +17,7 @@ describe("StatusBar", () => {
         selectedIndex={0}
         loading={false}
         statusMessage={statusMessage}
+        debugEnabled={false}
       />,
     );
 
@@ -24,6 +25,25 @@ describe("StatusBar", () => {
       const frame = instance.lastFrame();
       // Use regex to assert "Refresh" appears before "failed" allowing for wrapping
       expect(frame).toMatch(/Refresh[\s\S]*failed/);
+    } finally {
+      instance.cleanup();
+    }
+  });
+
+  it("renders a debug indicator when enabled", () => {
+    const instance = render(
+      <StatusBar
+        focusedPane="results"
+        itemCount={1}
+        selectedIndex={0}
+        loading={false}
+        debugEnabled={true}
+      />,
+    );
+
+    try {
+      const frame = instance.lastFrame();
+      expect(frame).toContain("[DEBUG]");
     } finally {
       instance.cleanup();
     }
