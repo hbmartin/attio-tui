@@ -1,5 +1,16 @@
 import { AttioError } from "attio-ts-sdk";
 
+/**
+ * Returns a debug-friendly string representation of an error.
+ * Prefers stack trace, falls back to message, then string coercion.
+ */
+export function errorToDebugString(error: unknown): string {
+  if (error instanceof Error) {
+    return error.stack ?? error.message;
+  }
+  return String(error);
+}
+
 interface ErrorInfo {
   readonly message: string;
   readonly status?: number;
