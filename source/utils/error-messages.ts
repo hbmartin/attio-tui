@@ -1,0 +1,135 @@
+import { AttioError } from "attio-ts-sdk";
+
+interface ErrorInfo {
+  readonly message: string;
+  readonly status?: number;
+  readonly code?: string;
+  readonly isNetworkError?: boolean;
+  readonly isRateLimited?: boolean;
+}
+
+/**
+ * Extracts the root cause from an error chain.
+ * Traverses the `cause` property to find the deepest error.
+ */
+function getRootCause(error: unknown): unknown {
+  if (!(error instanceof Error)) {
+    return error;
+  }
+
+  let current: unknown = error;
+  const seen = new Set<unknown>();
+
+  while (current instanceof Error && current.cause && !seen.has(current)) {
+    seen.add(current);
+    current = current.cause;
+  }
+
+  return current;
+}
+
+/**
+ * Extracts structured information from an error, including SDK-specific details.
+ */
+function extractErrorInfo(error: unknown): ErrorInfo {
+  if (!(error instanceof Error)) {
+    return { message: String(error) };
+  }
+
+  const isAttioError = error instanceof AttioError;
+  const status = isAttioError ? error.status : undefined;
+  const code = isAttioError ? error.code : undefined;
+  const isNetworkError = isAttioError ? error.isNetworkError : undefined;
+  const isRateLimited = status === 429;
+
+  return {
+    message: error.message,
+    status,
+    code,
+    isNetworkError,
+    isRateLimited,
+  };
+}
+
+/**
+ * Formats an HTTP status code into a human-readable description.
+ */
+function formatStatusDescription(status: number): string {
+  const descriptions: Record<number, string> = {
+    400: "Bad Request",
+    401: "Unauthorized",
+    403: "Forbidden",
+    404: "Not Found",
+    429: "Rate Limited",
+    500: "Server Error",
+    502: "Bad Gateway",
+    503: "Service Unavailable",
+    504: "Gateway Timeout",
+  };
+  return descriptions[status] ?? `HTTP ${status}`;
+}
+
+/**
+ * Extracts a user-friendly error message from any error, with special handling
+ * for Attio SDK errors including retry exhaustion and cause chains.
+ *
+ * @param error - The error to extract a message from
+ * @returns A descriptive error message suitable for display to users
+ */
+export function extractErrorMessage(error: unknown): string {
+  if (!(error instanceof Error)) {
+    return String(error) || "Unknown error";
+  }
+
+  const topInfo = extractErrorInfo(error);
+  const rootCause = getRootCause(error);
+  const rootInfo =
+    rootCause !== error ? extractErrorInfo(rootCause) : undefined;
+
+  // If this is a retry exhaustion error, focus on the underlying cause
+  if (topInfo.code === "RETRY_EXHAUSTED") {
+    // No cause information available
+    if (!rootInfo) {
+      return "API request failed after retries";
+    }
+
+    const parts: string[] = [];
+
+    if (rootInfo.isRateLimited) {
+      parts.push("Rate limited by Attio API");
+    } else if (rootInfo.isNetworkError) {
+      parts.push("Network error");
+    } else if (rootInfo.status) {
+      parts.push(formatStatusDescription(rootInfo.status));
+    }
+
+    if (rootInfo.message && rootInfo.message !== topInfo.message) {
+      // Clean up common verbose messages
+      const cleanMessage = rootInfo.message
+        .replace(/^(Error: )+/, "")
+        .replace(/\s*\(after \d+ retries?\)$/i, "");
+      if (cleanMessage && !parts.some((p) => cleanMessage.includes(p))) {
+        parts.push(cleanMessage);
+      }
+    }
+
+    if (parts.length > 0) {
+      return `${parts.join(": ")} (retries exhausted)`;
+    }
+    return "API request failed after retries";
+  }
+
+  // For other Attio errors, include status context
+  if (topInfo.status) {
+    const statusDesc = formatStatusDescription(topInfo.status);
+    if (!topInfo.message.includes(String(topInfo.status))) {
+      return `${statusDesc}: ${topInfo.message}`;
+    }
+  }
+
+  if (topInfo.isNetworkError) {
+    return `Network error: ${topInfo.message}`;
+  }
+
+  return topInfo.message || "Unknown error";
+}

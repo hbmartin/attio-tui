@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { extractErrorMessage } from "../utils/error-messages.js";
 
 interface PaginatedResult<T> {
   readonly items: readonly T[];
@@ -62,8 +63,7 @@ export function usePaginatedData<T>({
         setData(result.items);
         setNextCursor(result.nextCursor);
       } catch (err) {
-        const message = err instanceof Error ? err.message : "Unknown error";
-        setError(message);
+        setError(extractErrorMessage(err));
         loadMoreCooldownUntilRef.current = Date.now() + loadMoreCooldownMs;
         throw err;
       } finally {
@@ -98,8 +98,7 @@ export function usePaginatedData<T>({
       setData((prev) => [...prev, ...result.items]);
       setNextCursor(result.nextCursor);
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Unknown error";
-      setError(message);
+      setError(extractErrorMessage(err));
       loadMoreCooldownUntilRef.current = Date.now() + loadMoreCooldownMs;
     } finally {
       setIsPrefetching(false);
