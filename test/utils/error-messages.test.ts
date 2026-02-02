@@ -146,4 +146,63 @@ describe("extractErrorMessage", () => {
       expect(extractErrorMessage(error)).toBe("HTTP 418: Strange error");
     });
   });
+
+  describe("duck-typed error properties", () => {
+    it("extracts status from Error with duck-typed status property", () => {
+      const error = new Error("Request failed");
+      (error as Error & { status: number }).status = 404;
+      expect(extractErrorMessage(error)).toBe("Not Found: Request failed");
+    });
+
+    it("extracts isNetworkError from Error with duck-typed property", () => {
+      const error = new Error("Connection failed");
+      (error as Error & { isNetworkError: boolean }).isNetworkError = true;
+      expect(extractErrorMessage(error)).toBe(
+        "Network error: Connection failed",
+      );
+    });
+
+    it("handles retry error with duck-typed root cause", () => {
+      // Simulate a root cause that has AttioError-like properties but isn't instanceof AttioError
+      const rootCause = new Error("Service unavailable");
+      (rootCause as Error & { status: number }).status = 503;
+
+      const retryError = new AttioRetryError("Retry attempts exhausted.", {
+        code: "RETRY_EXHAUSTED",
+        cause: rootCause,
+      });
+
+      expect(extractErrorMessage(retryError)).toBe(
+        "Service Unavailable: Service unavailable (retries exhausted)",
+      );
+    });
+
+    it("handles retry error with duck-typed network error root cause", () => {
+      const rootCause = new Error("ECONNREFUSED");
+      (rootCause as Error & { isNetworkError: boolean }).isNetworkError = true;
+
+      const retryError = new AttioRetryError("Retry attempts exhausted.", {
+        code: "RETRY_EXHAUSTED",
+        cause: rootCause,
+      });
+
+      expect(extractErrorMessage(retryError)).toBe(
+        "Network error: ECONNREFUSED (retries exhausted)",
+      );
+    });
+
+    it("handles retry error with duck-typed rate limit root cause", () => {
+      const rootCause = new Error("Rate limit exceeded");
+      (rootCause as Error & { status: number }).status = 429;
+
+      const retryError = new AttioRetryError("Retry attempts exhausted.", {
+        code: "RETRY_EXHAUSTED",
+        cause: rootCause,
+      });
+
+      expect(extractErrorMessage(retryError)).toBe(
+        "Rate limited by Attio API: Rate limit exceeded (retries exhausted)",
+      );
+    });
+  });
 });
