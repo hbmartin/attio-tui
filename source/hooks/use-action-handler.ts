@@ -97,31 +97,28 @@ function handleTabNavigation(
   }
 }
 
-function handleJumpToTop(
-  focusedPane: PaneId,
-  navigatorItemCount: number,
-  resultsItemCount: number,
-  dispatch: React.Dispatch<AppAction>,
-): void {
-  if (focusedPane === "navigator" && navigatorItemCount > 0) {
-    dispatch({ type: "SELECT_CATEGORY", index: 0 });
-  } else if (focusedPane === "results" && resultsItemCount > 0) {
-    dispatch({ type: "SELECT_RESULT", index: 0 });
-  }
+interface HandleJumpOptions {
+  readonly position: "top" | "bottom";
+  readonly focusedPane: PaneId;
+  readonly navigatorItemCount: number;
+  readonly resultsItemCount: number;
+  readonly dispatch: React.Dispatch<AppAction>;
 }
 
-function handleJumpToBottom(
-  focusedPane: PaneId,
-  navigatorItemCount: number,
-  resultsItemCount: number,
-  dispatch: React.Dispatch<AppAction>,
-): void {
+function handleJump(options: HandleJumpOptions): void {
+  const {
+    position,
+    focusedPane,
+    navigatorItemCount,
+    resultsItemCount,
+    dispatch,
+  } = options;
+  const getIndex = (count: number) => (position === "top" ? 0 : count - 1);
+
   if (focusedPane === "navigator" && navigatorItemCount > 0) {
-    const lastIndex = navigatorItemCount - 1;
-    dispatch({ type: "SELECT_CATEGORY", index: lastIndex });
+    dispatch({ type: "SELECT_CATEGORY", index: getIndex(navigatorItemCount) });
   } else if (focusedPane === "results" && resultsItemCount > 0) {
-    const lastIndex = resultsItemCount - 1;
-    dispatch({ type: "SELECT_RESULT", index: lastIndex });
+    dispatch({ type: "SELECT_RESULT", index: getIndex(resultsItemCount) });
   }
 }
 
@@ -208,20 +205,22 @@ export function useActionHandler(options: UseActionHandlerOptions) {
           handleTabNavigation(action, focusedPane, dispatch);
           break;
         case "jumpToTop":
-          handleJumpToTop(
+          handleJump({
+            position: "top",
             focusedPane,
             navigatorItemCount,
             resultsItemCount,
             dispatch,
-          );
+          });
           break;
         case "jumpToBottom":
-          handleJumpToBottom(
+          handleJump({
+            position: "bottom",
             focusedPane,
             navigatorItemCount,
             resultsItemCount,
             dispatch,
-          );
+          });
           break;
         case "pageUp":
           handlePageNavigation("up", focusedPane, dispatch);

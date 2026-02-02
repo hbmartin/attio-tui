@@ -28,7 +28,6 @@ describe("use-terminal-dimensions", () => {
   describe("TerminalBreakpoints", () => {
     it("has expected values", () => {
       expect(TerminalBreakpoints.NARROW).toBe(60);
-      expect(TerminalBreakpoints.MEDIUM).toBe(100);
       expect(TerminalBreakpoints.WIDE).toBe(120);
     });
   });

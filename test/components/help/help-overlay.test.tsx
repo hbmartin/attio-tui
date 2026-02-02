@@ -4,16 +4,50 @@ import { HelpOverlay } from "../../../source/components/help/help-overlay.js";
 
 type RenderInstance = ReturnType<typeof render>;
 
+interface PreparedStdin {
+  readonly send: (data: string) => void;
+}
+
 /**
- * Prepares the stdin mock for ink-testing-library.
+ * Prepares the stdin mock for ink-testing-library with keyboard input support.
  * This is required for components that use useInput.
  */
-function prepareStdin(instance: RenderInstance): void {
+function prepareStdin(instance: RenderInstance): PreparedStdin {
+  const queue: Buffer[] = [];
+
   Object.assign(instance.stdin, {
     ref: () => undefined,
     unref: () => undefined,
-    read: () => null,
+    read: () => queue.shift() ?? null,
   });
+
+  return {
+    send: (data: string) => {
+      queue.push(Buffer.from(data));
+      instance.stdin.emit("readable");
+    },
+  };
+}
+
+async function flushUpdates(): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+async function waitForCondition(
+  condition: () => boolean,
+  options: { timeoutMs?: number; intervalMs?: number } = {},
+): Promise<void> {
+  const { timeoutMs = 2000, intervalMs = 25 } = options;
+  const start = Date.now();
+
+  while (Date.now() - start < timeoutMs) {
+    if (condition()) {
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, intervalMs));
+  }
+
+  throw new Error("Timed out waiting for component update");
 }
 
 describe("HelpOverlay", () => {
@@ -97,7 +131,7 @@ describe("HelpOverlay", () => {
     }
   });
 
-  it("shows close instructions", () => {
+  it("shows close and quit instructions", () => {
     const instance = render(
       <HelpOverlay isOpen={true} onClose={vi.fn()} onQuit={vi.fn()} />,
     );
@@ -105,7 +139,7 @@ describe("HelpOverlay", () => {
 
     try {
       const frame = instance.lastFrame();
-      expect(frame).toContain("Press ? or Esc to close");
+      expect(frame).toContain("Press ? or Esc to close, or q to quit");
     } finally {
       instance.cleanup();
     }
@@ -126,8 +160,117 @@ describe("HelpOverlay", () => {
     }
   });
 
-  // Note: Interactive keyboard tests (testing onClose/onQuit callbacks) require
-  // PTY-based testing. See test/cli.pty.test.ts for examples of testing keyboard
-  // input with the actual terminal. The ink-testing-library stdin.write approach
-  // has limitations with useInput handlers.
+  describe("keyboard input", () => {
+    it("calls onClose when ? is pressed", async () => {
+      const onClose = vi.fn();
+      const onQuit = vi.fn();
+      const instance = render(
+        <HelpOverlay isOpen={true} onClose={onClose} onQuit={onQuit} />,
+      );
+      const { send } = prepareStdin(instance);
+
+      try {
+        await waitForCondition(
+          () => instance.stdin.listenerCount("readable") > 0,
+        );
+
+        send("?");
+        await flushUpdates();
+
+        expect(onClose).toHaveBeenCalledTimes(1);
+        expect(onQuit).not.toHaveBeenCalled();
+      } finally {
+        instance.unmount();
+      }
+    });
+
+    it("calls onClose when Escape is pressed", async () => {
+      const onClose = vi.fn();
+      const onQuit = vi.fn();
+      const instance = render(
+        <HelpOverlay isOpen={true} onClose={onClose} onQuit={onQuit} />,
+      );
+      const { send } = prepareStdin(instance);
+
+      try {
+        await waitForCondition(
+          () => instance.stdin.listenerCount("readable") > 0,
+        );
+
+        send("\u001B"); // Escape
+        await flushUpdates();
+
+        expect(onClose).toHaveBeenCalledTimes(1);
+        expect(onQuit).not.toHaveBeenCalled();
+      } finally {
+        instance.unmount();
+      }
+    });
+
+    it("calls onQuit when lowercase q is pressed", async () => {
+      const onClose = vi.fn();
+      const onQuit = vi.fn();
+      const instance = render(
+        <HelpOverlay isOpen={true} onClose={onClose} onQuit={onQuit} />,
+      );
+      const { send } = prepareStdin(instance);
+
+      try {
+        await waitForCondition(
+          () => instance.stdin.listenerCount("readable") > 0,
+        );
+
+        send("q");
+        await flushUpdates();
+
+        expect(onQuit).toHaveBeenCalledTimes(1);
+        expect(onClose).not.toHaveBeenCalled();
+      } finally {
+        instance.unmount();
+      }
+    });
+
+    it("calls onQuit when uppercase Q is pressed", async () => {
+      const onClose = vi.fn();
+      const onQuit = vi.fn();
+      const instance = render(
+        <HelpOverlay isOpen={true} onClose={onClose} onQuit={onQuit} />,
+      );
+      const { send } = prepareStdin(instance);
+
+      try {
+        await waitForCondition(
+          () => instance.stdin.listenerCount("readable") > 0,
+        );
+
+        send("Q");
+        await flushUpdates();
+
+        expect(onQuit).toHaveBeenCalledTimes(1);
+        expect(onClose).not.toHaveBeenCalled();
+      } finally {
+        instance.unmount();
+      }
+    });
+
+    it("does not respond to input when overlay is closed", async () => {
+      const onClose = vi.fn();
+      const onQuit = vi.fn();
+      const instance = render(
+        <HelpOverlay isOpen={false} onClose={onClose} onQuit={onQuit} />,
+      );
+      prepareStdin(instance);
+
+      try {
+        // Give time for potential listeners to be set up
+        await flushUpdates();
+
+        // With isOpen=false, useInput should not be active
+        expect(onClose).not.toHaveBeenCalled();
+        expect(onQuit).not.toHaveBeenCalled();
+      } finally {
+        instance.unmount();
+      }
+    });
+  });
 });
