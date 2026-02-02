@@ -1,5 +1,5 @@
-import { appendFileSync } from "node:fs";
-import { join } from "node:path";
+import { appendFileSync, mkdirSync } from "node:fs";
+import { dirname, join } from "node:path";
 import process from "node:process";
 import { getConfigDir } from "./config-path.js";
 
@@ -23,6 +23,7 @@ function resolveLogPath(): string {
 function writeLogToFile(line: string): void {
   const filePath = resolveLogPath();
   try {
+    mkdirSync(dirname(filePath), { recursive: true });
     appendFileSync(filePath, `${line}\n`);
   } catch (error) {
     if (!fileErrorReported) {

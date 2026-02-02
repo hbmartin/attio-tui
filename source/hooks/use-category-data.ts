@@ -220,9 +220,7 @@ export function useCategoryData({
           `request error label="${requestLabel}" durationMs=${durationMs} message="${message}"`,
         );
         // Re-throw with improved message for display
-        const displayError = new Error(message);
-        displayError.cause = err;
-        throw displayError;
+        throw new Error(message, { cause: err });
       }
     },
     [client, categoryType, categorySlug, onRequestLog],
