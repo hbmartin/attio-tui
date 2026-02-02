@@ -62,7 +62,13 @@ function extractErrorInfo(error: unknown): ErrorInfo {
         isRateLimited: status === 429,
       };
     }
-    return { message: String(error) };
+    return {
+      message: String(error),
+      status: undefined,
+      code: undefined,
+      isNetworkError: undefined,
+      isRateLimited: undefined,
+    };
   }
 
   // For AttioError instances, access properties directly
