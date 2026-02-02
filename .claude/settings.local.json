@@ -31,7 +31,12 @@
       "Bash(ls:*)",
       "Bash(pnpm dupes:*)",
       "Bash(grep:*)",
-      "Bash(xargs:*)"
+      "Bash(xargs:*)",
+      "Bash(pnpm typecheck:*)",
+      "WebSearch",
+      "WebFetch(domain:www.npmjs.com)",
+      "Bash(npm view:*)",
+      "Bash(gh repo view:*)"
     ]
   }
 }
