@@ -39,11 +39,22 @@ describe("DebugPanel", () => {
     };
 
     const { lastFrame } = render(
-      <DebugPanel requestLog={requestLog} timing={timing} state={state} />,
+      <DebugPanel
+        requestLog={requestLog}
+        timing={timing}
+        state={state}
+        ptyDebugEnabled={true}
+        ptyLogPath="/tmp/attio-tui/debug.log"
+        accessibleMode={false}
+      />,
     );
 
     const frame = lastFrame();
     expect(frame).toContain("Debug Panel");
+    expect(frame).toContain("Configuration");
+    expect(frame).toContain("PTY logging: enabled");
+    expect(frame).toContain("Log file: /tmp/attio-tui/debug.log");
+    expect(frame).toContain("Accessible mode: off");
     expect(frame).toContain("fetch notes");
     expect(frame).toContain("Pane: results");
     expect(frame).toContain("Requests");

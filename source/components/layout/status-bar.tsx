@@ -11,6 +11,7 @@ interface StatusBarProps {
   readonly selectedIndex?: number;
   readonly loading?: boolean;
   readonly statusMessage?: StatusMessage;
+  readonly debugEnabled?: boolean;
 }
 
 function getStatusMessageColor(statusMessage: StatusMessage): "red" | "green" {
@@ -68,6 +69,7 @@ export function StatusBar({
   selectedIndex,
   loading,
   statusMessage,
+  debugEnabled,
 }: StatusBarProps) {
   // Get contextual hints based on focused pane
   const hints = getContextualHints(focusedPane);
@@ -99,6 +101,7 @@ export function StatusBar({
             {selectedIndex + 1}/{itemCount}
           </Text>
         )}
+        {debugEnabled && <Text color="yellow">[DEBUG]</Text>}
         <Text color="blue">[{focusedPane}]</Text>
       </Box>
     </Box>
