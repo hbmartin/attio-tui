@@ -184,4 +184,45 @@ describe("useConfig", () => {
       instance.unmount();
     }
   });
+
+  it("clears error after a successful save following a failed one", async () => {
+    mockFsAccess.mockRejectedValue(new Error("ENOENT"));
+    mockFsReadFile.mockResolvedValue(JSON.stringify(DEFAULT_CONFIG));
+    mockFsWriteFile.mockRejectedValue(new Error("Disk full"));
+    mockFsMkdir.mockResolvedValue(undefined);
+
+    let latest: HookSnapshot | undefined;
+
+    const instance = render(
+      <HookHarness
+        onUpdate={(snapshot) => {
+          latest = snapshot;
+        }}
+      />,
+    );
+
+    try {
+      await waitForCondition(() => Boolean(latest) && !latest?.loading);
+
+      if (!latest) {
+        throw new Error("Expected hook state to be available");
+      }
+
+      // Trigger a failing save
+      latest.saveConfig({ apiKey: "fail-key" });
+      await waitForCondition(
+        () => latest?.error === "Failed to save config: Disk full",
+      );
+
+      // Now make the next save succeed
+      mockFsWriteFile.mockResolvedValue(undefined);
+      latest.saveConfig({ apiKey: "success-key" });
+
+      // Error should be cleared after successful save
+      await waitForCondition(() => latest?.error === undefined);
+      expect(latest?.error).toBeUndefined();
+    } finally {
+      instance.unmount();
+    }
+  });
 });

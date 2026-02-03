@@ -139,6 +139,9 @@ export function useConfig(): UseConfigResult {
     const prevSave = saveInFlightRef.current ?? Promise.resolve();
     saveInFlightRef.current = prevSave
       .then(() => saveConfigToDiskAsync(newConfig))
+      .then(() => {
+        setError(undefined);
+      })
       .catch((err) => {
         const message = err instanceof Error ? err.message : "Unknown error";
         PtyDebug.log(`config save error: ${message}`);
