@@ -139,6 +139,7 @@ export function usePaginatedData<T>({
     }
     resetKeyRef.current = resetKey;
     setData([]);
+    setLoading(true);
     setNextCursor(null);
     setError(undefined);
     loadMoreCooldownUntilRef.current = 0;
