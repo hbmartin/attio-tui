@@ -1,4 +1,4 @@
-import { existsSync, promises as fs, mkdirSync, readFileSync } from "node:fs";
+import { existsSync, promises as fs, readFileSync } from "node:fs";
 import process from "node:process";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { DEFAULT_COLUMNS } from "../constants/default-columns.js";
@@ -21,10 +21,13 @@ interface UseColumnsResult {
   ) => Promise<void>;
 }
 
-function ensureConfigDir(): void {
+// Ensure config directory exists (async)
+async function ensureConfigDirAsync(): Promise<void> {
   const dir = getConfigDir();
-  if (!existsSync(dir)) {
-    mkdirSync(dir, { recursive: true });
+  try {
+    await fs.access(dir);
+  } catch {
+    await fs.mkdir(dir, { recursive: true });
   }
 }
 
@@ -36,6 +39,21 @@ function parseColumns(input: unknown): ColumnsConfig {
   return DEFAULT_COLUMNS;
 }
 
+// Load columns from disk (async)
+async function loadColumnsFromDiskAsync(): Promise<ColumnsConfig> {
+  const columnsPath = getColumnsPath();
+  try {
+    await fs.access(columnsPath);
+  } catch {
+    return DEFAULT_COLUMNS;
+  }
+
+  const content = await fs.readFile(columnsPath, "utf-8");
+  const parsed: unknown = JSON.parse(content);
+  return parseColumns(parsed);
+}
+
+// Load columns from disk (sync - for CLI initialization)
 function loadColumnsFromDisk(): ColumnsConfig {
   const columnsPath = getColumnsPath();
   if (!existsSync(columnsPath)) {
@@ -48,7 +66,7 @@ function loadColumnsFromDisk(): ColumnsConfig {
 }
 
 async function saveColumnsToDisk(columns: ColumnsConfig): Promise<void> {
-  ensureConfigDir();
+  await ensureConfigDirAsync();
   const columnsPath = getColumnsPath();
   await fs.writeFile(columnsPath, JSON.stringify(columns, undefined, 2));
 }
@@ -59,22 +77,43 @@ export function useColumns(): UseColumnsResult {
   const [error, setError] = useState<string | undefined>();
   const latestColumnsRef = useRef<ColumnsConfig>(DEFAULT_COLUMNS);
 
+  // Load columns on mount (async)
   useEffect(() => {
-    setLoading(true);
-    setError(undefined);
+    let cancelled = false;
 
-    try {
-      const loadedColumns = loadColumnsFromDisk();
-      latestColumnsRef.current = loadedColumns;
-      setColumns(loadedColumns);
-    } catch (err) {
-      const message = err instanceof Error ? err.message : "Unknown error";
-      setError(`Failed to load columns: ${message}`);
-      latestColumnsRef.current = DEFAULT_COLUMNS;
-      setColumns(DEFAULT_COLUMNS);
-    } finally {
-      setLoading(false);
+    async function load() {
+      setLoading(true);
+      setError(undefined);
+
+      try {
+        const loadedColumns = await loadColumnsFromDiskAsync();
+        if (cancelled) {
+          return;
+        }
+        latestColumnsRef.current = loadedColumns;
+        setColumns(loadedColumns);
+      } catch (err) {
+        if (cancelled) {
+          return;
+        }
+        const message = err instanceof Error ? err.message : "Unknown error";
+        setError(`Failed to load columns: ${message}`);
+        latestColumnsRef.current = DEFAULT_COLUMNS;
+        setColumns(DEFAULT_COLUMNS);
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
     }
+
+    load().catch(() => {
+      // Error is already handled in load()
+    });
+
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const saveColumns = useCallback(async (nextColumns: ColumnsConfig) => {
@@ -116,6 +155,7 @@ export function useColumns(): UseColumnsResult {
   };
 }
 
+// Synchronous columns loading for CLI initialization
 export function loadColumns(): ColumnsConfig {
   try {
     return loadColumnsFromDisk();
@@ -124,6 +164,7 @@ export function loadColumns(): ColumnsConfig {
   }
 }
 
+// Async columns saving
 export async function saveColumns(columns: ColumnsConfig): Promise<void> {
   try {
     await saveColumnsToDisk(columns);

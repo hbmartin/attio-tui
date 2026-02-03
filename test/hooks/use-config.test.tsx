@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import fs from "node:fs/promises";
 import { Text } from "ink";
 import { render } from "ink-testing-library";
 import { useEffect } from "react";
@@ -15,6 +15,16 @@ vi.mock("node:fs", () => ({
   mkdirSync: vi.fn(),
   readFileSync: vi.fn(),
   writeFileSync: vi.fn(),
+}));
+
+// use-config.ts imports from node:fs/promises directly
+vi.mock("node:fs/promises", () => ({
+  default: {
+    access: vi.fn(),
+    readFile: vi.fn(),
+    writeFile: vi.fn(),
+    mkdir: vi.fn(),
+  },
 }));
 
 vi.mock("../../source/utils/config-path.js", () => ({
@@ -66,9 +76,10 @@ async function waitForCondition(
   throw new Error("Timed out waiting for hook state to update");
 }
 
-const mockExistsSync = vi.mocked(existsSync);
-const mockReadFileSync = vi.mocked(readFileSync);
-const mockWriteFileSync = vi.mocked(writeFileSync);
+const mockFsAccess = vi.mocked(fs.access);
+const mockFsReadFile = vi.mocked(fs.readFile);
+const mockFsWriteFile = vi.mocked(fs.writeFile);
+const mockFsMkdir = vi.mocked(fs.mkdir);
 
 afterEach(() => {
   vi.clearAllMocks();
@@ -82,8 +93,11 @@ describe("useConfig", () => {
       debugEnabled: true,
     };
 
-    mockExistsSync.mockReturnValue(true);
-    mockReadFileSync.mockReturnValue(JSON.stringify(initialConfig));
+    // Mock async fs.promises functions used by the hook
+    mockFsAccess.mockResolvedValue(undefined); // File exists
+    mockFsReadFile.mockResolvedValue(JSON.stringify(initialConfig));
+    mockFsWriteFile.mockResolvedValue(undefined);
+    mockFsMkdir.mockResolvedValue(undefined);
 
     let latest: HookSnapshot | undefined;
 
@@ -108,11 +122,17 @@ describe("useConfig", () => {
         () => latest?.config.baseUrl === "https://api.next.test",
       );
 
+      // Wait for the async write to complete
+      await waitForCondition(() => mockFsWriteFile.mock.calls.length > 0);
+
       latest.saveConfig({ debugEnabled: false });
 
       await waitForCondition(() => latest?.config.debugEnabled === false);
 
-      const writeCalls = mockWriteFileSync.mock.calls;
+      // Wait for both writes to complete
+      await waitForCondition(() => mockFsWriteFile.mock.calls.length >= 2);
+
+      const writeCalls = mockFsWriteFile.mock.calls;
       expect(writeCalls).toHaveLength(2);
 
       const lastPayload = writeCalls[1]?.[1];
@@ -132,11 +152,11 @@ describe("useConfig", () => {
   });
 
   it("sets an error when saving fails", async () => {
-    mockExistsSync.mockReturnValue(false);
-    mockReadFileSync.mockReturnValue(JSON.stringify(DEFAULT_CONFIG));
-    mockWriteFileSync.mockImplementation(() => {
-      throw new Error("Disk full");
-    });
+    // Mock async fs.promises functions used by the hook
+    mockFsAccess.mockRejectedValue(new Error("ENOENT")); // File doesn't exist
+    mockFsReadFile.mockResolvedValue(JSON.stringify(DEFAULT_CONFIG));
+    mockFsWriteFile.mockRejectedValue(new Error("Disk full"));
+    mockFsMkdir.mockResolvedValue(undefined);
 
     let latest: HookSnapshot | undefined;
 

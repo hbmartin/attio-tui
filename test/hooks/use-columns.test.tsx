@@ -1,4 +1,4 @@
-import { existsSync, promises as fs, readFileSync } from "node:fs";
+import { promises as fs } from "node:fs";
 import { Text } from "ink";
 import { render } from "ink-testing-library";
 import { useEffect } from "react";
@@ -17,7 +17,10 @@ vi.mock("node:fs", () => ({
   mkdirSync: vi.fn(),
   readFileSync: vi.fn(),
   promises: {
+    access: vi.fn(),
+    readFile: vi.fn(),
     writeFile: vi.fn(),
+    mkdir: vi.fn(),
   },
 }));
 
@@ -73,9 +76,10 @@ async function waitForCondition(
   throw new Error("Timed out waiting for hook state to update");
 }
 
-const mockExistsSync = vi.mocked(existsSync);
-const mockReadFileSync = vi.mocked(readFileSync);
-const mockWriteFile = vi.mocked(fs.writeFile);
+const mockFsAccess = vi.mocked(fs.access);
+const mockFsReadFile = vi.mocked(fs.readFile);
+const mockFsWriteFile = vi.mocked(fs.writeFile);
+const mockFsMkdir = vi.mocked(fs.mkdir);
 
 afterEach(() => {
   vi.clearAllMocks();
@@ -88,9 +92,11 @@ describe("useColumns", () => {
       notes: [{ attribute: "title" }],
     };
 
-    mockExistsSync.mockReturnValue(true);
-    mockReadFileSync.mockReturnValue(JSON.stringify(initialColumns));
-    mockWriteFile.mockResolvedValue(undefined);
+    // Mock async fs.promises functions used by the hook
+    mockFsAccess.mockResolvedValue(undefined); // File exists
+    mockFsReadFile.mockResolvedValue(JSON.stringify(initialColumns));
+    mockFsWriteFile.mockResolvedValue(undefined);
+    mockFsMkdir.mockResolvedValue(undefined);
 
     let latest: HookSnapshot | undefined;
 
@@ -119,7 +125,7 @@ describe("useColumns", () => {
         return columns ? columns.length === 2 : false;
       });
 
-      const writeCalls = mockWriteFile.mock.calls;
+      const writeCalls = mockFsWriteFile.mock.calls;
       expect(writeCalls).toHaveLength(1);
 
       const lastPayload = writeCalls[0]?.[1];
@@ -144,9 +150,11 @@ describe("useColumns", () => {
   });
 
   it("sets an error when saving fails", async () => {
-    mockExistsSync.mockReturnValue(false);
-    mockReadFileSync.mockReturnValue(JSON.stringify(DEFAULT_COLUMNS));
-    mockWriteFile.mockRejectedValue(new Error("Disk full"));
+    // Mock async fs.promises functions used by the hook
+    mockFsAccess.mockRejectedValue(new Error("ENOENT")); // File doesn't exist
+    mockFsReadFile.mockResolvedValue(JSON.stringify(DEFAULT_COLUMNS));
+    mockFsWriteFile.mockRejectedValue(new Error("Disk full"));
+    mockFsMkdir.mockResolvedValue(undefined);
 
     let latest: HookSnapshot | undefined;
 
@@ -184,11 +192,13 @@ describe("useColumns", () => {
   });
 
   it("clears the error after a successful save", async () => {
-    mockExistsSync.mockReturnValue(false);
-    mockReadFileSync.mockReturnValue(JSON.stringify(DEFAULT_COLUMNS));
-    mockWriteFile
+    // Mock async fs.promises functions used by the hook
+    mockFsAccess.mockRejectedValue(new Error("ENOENT")); // File doesn't exist
+    mockFsReadFile.mockResolvedValue(JSON.stringify(DEFAULT_COLUMNS));
+    mockFsWriteFile
       .mockRejectedValueOnce(new Error("Disk full"))
       .mockResolvedValue(undefined);
+    mockFsMkdir.mockResolvedValue(undefined);
 
     let latest: HookSnapshot | undefined;
 
