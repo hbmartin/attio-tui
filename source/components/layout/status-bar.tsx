@@ -12,6 +12,7 @@ interface StatusBarProps {
   readonly loading?: boolean;
   readonly statusMessage?: StatusMessage;
   readonly debugEnabled?: boolean;
+  readonly lastUpdatedAt?: Date;
 }
 
 function getStatusMessageColor(statusMessage: StatusMessage): "red" | "green" {
@@ -70,6 +71,7 @@ export function StatusBar({
   loading,
   statusMessage,
   debugEnabled,
+  lastUpdatedAt,
 }: StatusBarProps) {
   // Get contextual hints based on focused pane
   const hints = getContextualHints(focusedPane);
@@ -96,6 +98,11 @@ export function StatusBar({
           </Text>
         )}
         {loading && <Text color="yellow">Loading...</Text>}
+        {!loading && lastUpdatedAt && (
+          <Text dimColor={true}>
+            Updated {lastUpdatedAt.toLocaleTimeString()}, r to refresh
+          </Text>
+        )}
         {itemCount !== undefined && selectedIndex !== undefined && (
           <Text dimColor={true}>
             {selectedIndex + 1}/{itemCount}

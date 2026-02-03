@@ -1,8 +1,11 @@
 import { Text } from "ink";
 import { render } from "ink-testing-library";
 import { useEffect, useState } from "react";
-import { describe, expect, it, vi } from "vitest";
-import { usePaginatedData } from "../../source/hooks/use-paginated-data.js";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  clearCategoryCache,
+  usePaginatedData,
+} from "../../source/hooks/use-paginated-data.js";
 
 interface PaginatedResult<T> {
   readonly items: readonly T[];
@@ -58,6 +61,7 @@ interface HookSnapshot {
   readonly loading: boolean;
   readonly error: string | undefined;
   readonly hasNextPage: boolean;
+  readonly lastUpdatedAt: Date | undefined;
   readonly loadMore: () => Promise<void>;
   readonly refresh: () => Promise<void>;
   readonly checkPrefetch: (selectedIndex: number) => void;
@@ -91,6 +95,10 @@ function HookHarness({
 }
 
 describe("usePaginatedData", () => {
+  beforeEach(() => {
+    clearCategoryCache();
+  });
+
   it("prefetches when selection nears the end of the list", async () => {
     const fetchFn = vi
       .fn()
@@ -393,6 +401,268 @@ describe("usePaginatedData", () => {
       await new Promise((resolve) => setTimeout(resolve, 0));
 
       expect(fetchFn).toHaveBeenCalledTimes(callsAfterError);
+    } finally {
+      instance.cleanup();
+    }
+  });
+
+  it("sets lastUpdatedAt after a successful fetch", async () => {
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValueOnce({ items: ["alpha"], nextCursor: null });
+
+    let latest: HookSnapshot | undefined;
+
+    const instance = render(
+      <HookHarness
+        fetchFn={fetchFn}
+        options={{ resetKey: "test-updated" }}
+        onUpdate={(snapshot) => {
+          latest = snapshot;
+        }}
+      />,
+    );
+
+    try {
+      await waitForCondition(
+        () => Boolean(latest) && latest?.data.length === 1,
+      );
+
+      expect(latest?.lastUpdatedAt).toBeInstanceOf(Date);
+    } finally {
+      instance.cleanup();
+    }
+  });
+
+  it("restores cached data when switching back to a previously loaded resetKey", async () => {
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValueOnce({ items: ["alpha"], nextCursor: null })
+      .mockResolvedValueOnce({ items: ["beta"], nextCursor: null });
+
+    let setKey: (key: string) => void = () => {
+      throw new Error("setKey not initialized");
+    };
+    let latest: HookSnapshot | undefined;
+
+    function CacheHarness(): JSX.Element {
+      const [resetKey, setResetKey] = useState("key-a");
+      setKey = setResetKey;
+
+      const snapshot = usePaginatedData<string>({ fetchFn, resetKey });
+
+      useEffect(() => {
+        latest = snapshot;
+      }, [snapshot]);
+
+      return (
+        <Text>
+          {snapshot.loading ? "loading" : "idle"}|{snapshot.data.join(",")}
+        </Text>
+      );
+    }
+
+    const instance = render(<CacheHarness />);
+
+    try {
+      // Wait for key-a to load
+      await waitForCondition(
+        () => Boolean(latest) && latest?.data.length === 1 && !latest?.loading,
+      );
+      expect(latest?.data[0]).toBe("alpha");
+      const firstFetchedAt = latest?.lastUpdatedAt;
+      expect(firstFetchedAt).toBeInstanceOf(Date);
+
+      // Switch to key-b
+      setKey("key-b");
+      await waitForCondition(
+        () =>
+          Boolean(latest) &&
+          latest?.data.length === 1 &&
+          latest?.data[0] === "beta",
+      );
+      expect(fetchFn).toHaveBeenCalledTimes(2);
+
+      // Switch back to key-a — should restore from cache without a new fetch
+      setKey("key-a");
+      await waitForCondition(
+        () =>
+          Boolean(latest) &&
+          latest?.data.length === 1 &&
+          latest?.data[0] === "alpha",
+      );
+      expect(fetchFn).toHaveBeenCalledTimes(2); // No new fetch
+      expect(latest?.loading).toBe(false);
+      expect(latest?.lastUpdatedAt).toEqual(firstFetchedAt);
+    } finally {
+      instance.cleanup();
+    }
+  });
+
+  it("refresh overwrites cache and updates lastUpdatedAt", async () => {
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValueOnce({ items: ["alpha"], nextCursor: null })
+      .mockResolvedValueOnce({ items: ["alpha-refreshed"], nextCursor: null });
+
+    let latest: HookSnapshot | undefined;
+
+    const instance = render(
+      <HookHarness
+        fetchFn={fetchFn}
+        options={{ resetKey: "refresh-test" }}
+        onUpdate={(snapshot) => {
+          latest = snapshot;
+        }}
+      />,
+    );
+
+    try {
+      await waitForCondition(
+        () => Boolean(latest) && latest?.data.length === 1 && !latest?.loading,
+      );
+
+      const firstFetchedAt = latest?.lastUpdatedAt;
+      expect(firstFetchedAt).toBeInstanceOf(Date);
+
+      // Small delay to ensure a different timestamp
+      await new Promise((resolve) => setTimeout(resolve, 10));
+
+      await latest?.refresh();
+
+      await waitForCondition(
+        () => latest?.data[0] === "alpha-refreshed" && !latest?.loading,
+      );
+
+      expect(latest?.lastUpdatedAt).toBeInstanceOf(Date);
+      expect(latest?.lastUpdatedAt?.getTime()).toBeGreaterThanOrEqual(
+        firstFetchedAt?.getTime() ?? 0,
+      );
+      expect(fetchFn).toHaveBeenCalledTimes(2);
+    } finally {
+      instance.cleanup();
+    }
+  });
+
+  it("cache includes loadMore data with original fetchedAt", async () => {
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValueOnce({ items: ["alpha"], nextCursor: "next" })
+      .mockResolvedValueOnce({ items: ["beta"], nextCursor: null })
+      // key-b fetch
+      .mockResolvedValueOnce({ items: ["gamma"], nextCursor: null });
+
+    let setKey: (key: string) => void = () => {
+      throw new Error("setKey not initialized");
+    };
+    let latest: HookSnapshot | undefined;
+
+    function LoadMoreCacheHarness(): JSX.Element {
+      const [resetKey, setResetKey] = useState("key-a");
+      setKey = setResetKey;
+
+      const snapshot = usePaginatedData<string>({ fetchFn, resetKey });
+
+      useEffect(() => {
+        latest = snapshot;
+      }, [snapshot]);
+
+      return (
+        <Text>
+          {snapshot.loading ? "loading" : "idle"}|{snapshot.data.join(",")}
+        </Text>
+      );
+    }
+
+    const instance = render(<LoadMoreCacheHarness />);
+
+    try {
+      // Wait for initial fetch
+      await waitForCondition(
+        () => Boolean(latest) && latest?.data.length === 1 && !latest?.loading,
+      );
+      const originalFetchedAt = latest?.lastUpdatedAt;
+
+      // Load more
+      await latest?.loadMore();
+      await waitForCondition(() => latest?.data.length === 2);
+      expect(latest?.data).toEqual(["alpha", "beta"]);
+      // lastUpdatedAt should be preserved from initial fetch
+      expect(latest?.lastUpdatedAt).toEqual(originalFetchedAt);
+
+      // Switch to key-b
+      setKey("key-b");
+      await waitForCondition(
+        () => latest?.data[0] === "gamma" && !latest?.loading,
+      );
+
+      // Switch back to key-a — should restore both pages from cache
+      setKey("key-a");
+      await waitForCondition(
+        () => latest?.data.length === 2 && latest?.data[0] === "alpha",
+      );
+      expect(latest?.data).toEqual(["alpha", "beta"]);
+      expect(latest?.loading).toBe(false);
+      expect(latest?.lastUpdatedAt).toEqual(originalFetchedAt);
+    } finally {
+      instance.cleanup();
+    }
+  });
+
+  it("clearCategoryCache removes all cached entries", async () => {
+    const fetchFn = vi
+      .fn()
+      .mockResolvedValueOnce({ items: ["alpha"], nextCursor: null })
+      .mockResolvedValueOnce({ items: ["alpha-fresh"], nextCursor: null });
+
+    let setKey: (key: string) => void = () => {
+      throw new Error("setKey not initialized");
+    };
+    let latest: HookSnapshot | undefined;
+
+    function ClearCacheHarness(): JSX.Element {
+      const [resetKey, setResetKey] = useState("key-a");
+      setKey = setResetKey;
+
+      const snapshot = usePaginatedData<string>({ fetchFn, resetKey });
+
+      useEffect(() => {
+        latest = snapshot;
+      }, [snapshot]);
+
+      return (
+        <Text>
+          {snapshot.loading ? "loading" : "idle"}|{snapshot.data.join(",")}
+        </Text>
+      );
+    }
+
+    const instance = render(<ClearCacheHarness />);
+
+    try {
+      // Wait for initial fetch
+      await waitForCondition(
+        () => Boolean(latest) && latest?.data.length === 1 && !latest?.loading,
+      );
+      expect(latest?.data[0]).toBe("alpha");
+
+      // Clear the cache
+      clearCategoryCache();
+
+      // Force a resetKey change and back to trigger cache miss
+      setKey("key-temp");
+      // Immediately switch back before key-temp finishes
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      setKey("key-a");
+
+      await waitForCondition(
+        () =>
+          latest?.data[0] === "alpha-fresh" &&
+          !latest?.loading &&
+          latest?.data.length === 1,
+      );
+      // A new fetch was required because cache was cleared
+      expect(latest?.data[0]).toBe("alpha-fresh");
     } finally {
       instance.cleanup();
     }

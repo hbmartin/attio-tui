@@ -40,7 +40,7 @@ const HELP_SECTIONS: readonly KeyBindingSection[] = [
       { keys: ":", description: "Open command palette" },
       { keys: "y", description: "Copy selected ID" },
       { keys: "Ctrl+O", description: "Open in browser" },
-      { keys: "Ctrl+R", description: "Refresh data" },
+      { keys: "r / Ctrl+R", description: "Refresh data" },
       { keys: "Ctrl+D", description: "Toggle debug panel" },
     ],
   },

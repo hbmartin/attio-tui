@@ -19,9 +19,23 @@ interface UsePaginatedDataResult<T> {
   readonly loading: boolean;
   readonly error: string | undefined;
   readonly hasNextPage: boolean;
+  readonly lastUpdatedAt: Date | undefined;
   readonly loadMore: () => Promise<void>;
   readonly refresh: () => Promise<void>;
   readonly checkPrefetch: (selectedIndex: number) => void;
+}
+
+interface CacheEntry {
+  readonly items: readonly unknown[];
+  readonly nextCursor: string | null;
+  readonly fetchedAt: Date;
+}
+
+const categoryCache = new Map<string, CacheEntry>();
+
+/** Clear the in-memory category cache. Exported for testing. */
+export function clearCategoryCache(): void {
+  categoryCache.clear();
 }
 
 export function usePaginatedData<T>({
@@ -36,6 +50,8 @@ export function usePaginatedData<T>({
   const [error, setError] = useState<string | undefined>();
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [isPrefetching, setIsPrefetching] = useState(false);
+  const [lastUpdatedAt, setLastUpdatedAt] = useState<Date | undefined>();
+  const lastUpdatedAtRef = useRef<Date | undefined>(undefined);
   const loadMoreInFlightRef = useRef(false);
   const initialInFlightRef = useRef<Promise<void> | null>(null);
   const resetKeyRef = useRef(resetKey);
@@ -70,8 +86,19 @@ export function usePaginatedData<T>({
         if (generation !== generationRef.current) {
           return;
         }
+        const now = new Date();
         setData(result.items);
         setNextCursor(result.nextCursor);
+        setLastUpdatedAt(now);
+        lastUpdatedAtRef.current = now;
+        // Write to cache
+        if (resetKeyRef.current !== undefined) {
+          categoryCache.set(resetKeyRef.current, {
+            items: result.items,
+            nextCursor: result.nextCursor,
+            fetchedAt: now,
+          });
+        }
       } catch (err) {
         if (generation !== generationRef.current) {
           return;
@@ -117,7 +144,18 @@ export function usePaginatedData<T>({
       if (generation !== generationRef.current) {
         return;
       }
-      setData((prev) => [...prev, ...result.items]);
+      setData((prev) => {
+        const merged = [...prev, ...result.items];
+        // Update cache with accumulated data, preserving original fetchedAt
+        if (resetKeyRef.current !== undefined && lastUpdatedAtRef.current) {
+          categoryCache.set(resetKeyRef.current, {
+            items: merged,
+            nextCursor: result.nextCursor,
+            fetchedAt: lastUpdatedAtRef.current,
+          });
+        }
+        return merged;
+      });
       setNextCursor(result.nextCursor);
     } catch (err) {
       if (generation !== generationRef.current) {
@@ -162,13 +200,29 @@ export function usePaginatedData<T>({
     resetKeyRef.current = resetKey;
     // Invalidate any in-flight requests from the previous generation
     generationRef.current += 1;
+    loadMoreCooldownUntilRef.current = 0;
+    initialInFlightRef.current = null;
+    loadMoreInFlightRef.current = false;
+
+    // Check cache before fetching
+    const cached =
+      resetKey !== undefined ? categoryCache.get(resetKey) : undefined;
+    if (cached) {
+      setData(cached.items as readonly T[]);
+      setNextCursor(cached.nextCursor);
+      setLastUpdatedAt(cached.fetchedAt);
+      lastUpdatedAtRef.current = cached.fetchedAt;
+      setLoading(false);
+      setError(undefined);
+      return;
+    }
+
     setData([]);
     setLoading(true);
     setNextCursor(null);
     setError(undefined);
-    loadMoreCooldownUntilRef.current = 0;
-    initialInFlightRef.current = null;
-    loadMoreInFlightRef.current = false;
+    setLastUpdatedAt(undefined);
+    lastUpdatedAtRef.current = undefined;
     setFetchTrigger((prev) => prev + 1);
   }, [resetKey]);
 
@@ -187,6 +241,7 @@ export function usePaginatedData<T>({
     loading,
     error,
     hasNextPage: Boolean(nextCursor),
+    lastUpdatedAt,
     loadMore,
     refresh,
     checkPrefetch,
