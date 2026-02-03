@@ -94,6 +94,27 @@ describe("formatValue", () => {
     expect(result.length).toBeLessThanOrEqual(200);
   });
 
+  it("caps very large currency values at MAX_FORMATTED_LENGTH", () => {
+    const currencyValue: RecordValue = {
+      ...baseValue,
+      attribute_type: "currency",
+      currency_value: 1e100,
+      currency_code: "USD",
+    };
+    const result = formatValue(currencyValue);
+    expect(result.length).toBeLessThanOrEqual(200);
+  });
+
+  it("caps very long email addresses at MAX_FORMATTED_LENGTH", () => {
+    const emailValue: RecordValue = {
+      ...baseValue,
+      attribute_type: "email-address",
+      email_address: `${"a".repeat(250)}@example.com`,
+    };
+    const result = formatValue(emailValue);
+    expect(result.length).toBeLessThanOrEqual(200);
+  });
+
   it("returns dash for empty arrays", () => {
     expect(formatValue([])).toBe("-");
   });

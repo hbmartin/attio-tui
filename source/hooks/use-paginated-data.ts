@@ -57,10 +57,9 @@ export function usePaginatedData<T>({
     setLoading(true);
     setError(undefined);
 
-    // Yield to allow React to render the loading state before starting the fetch
-    await new Promise((resolve) => setImmediate(resolve));
-
     const request = (async () => {
+      // Yield to allow React to render the loading state before starting the fetch
+      await new Promise((resolve) => setImmediate(resolve));
       try {
         const result = await fetchFn();
         setData(result.items);
@@ -74,8 +73,8 @@ export function usePaginatedData<T>({
         initialInFlightRef.current = null;
       }
     })();
-
     initialInFlightRef.current = request;
+
     await request;
   }, [fetchFn, enabled, loadMoreCooldownMs]);
 

@@ -19,25 +19,34 @@ export function formatValue(
     if (value.length === 0) {
       return "-";
     }
-    // Build incrementally and stop once we exceed the display limit
-    let result = "";
-    for (let i = 0; i < value.length; i += 1) {
-      const item = value[i];
+    // Collect parts and track total length to avoid intermediate string allocations
+    const parts: string[] = [];
+    let totalLength = 0;
+    for (const item of value) {
       if (item) {
         const formatted = formatRecordValue(item);
-        result = i === 0 ? formatted : `${result}, ${formatted}`;
-        if (result.length >= MAX_FORMATTED_LENGTH) {
-          return result.slice(0, MAX_FORMATTED_LENGTH);
+        // Account for ", " separator between parts
+        totalLength += (parts.length > 0 ? 2 : 0) + formatted.length;
+        parts.push(formatted);
+        if (totalLength >= MAX_FORMATTED_LENGTH) {
+          return parts.join(", ").slice(0, MAX_FORMATTED_LENGTH);
         }
       }
     }
-    return result;
+    return parts.join(", ");
   }
 
   return formatRecordValue(value);
 }
 
 function formatRecordValue(value: RecordValue): string {
+  const result = formatRecordValueRaw(value);
+  return result.length > MAX_FORMATTED_LENGTH
+    ? result.slice(0, MAX_FORMATTED_LENGTH)
+    : result;
+}
+
+function formatRecordValueRaw(value: RecordValue): string {
   if ("currency_value" in value && typeof value.currency_value === "number") {
     const code = "currency_code" in value ? value.currency_code : undefined;
     return code
@@ -98,11 +107,7 @@ function formatRecordValue(value: RecordValue): string {
     return parts.join(", ") || "-";
   }
 
-  const json = JSON.stringify(value);
-  if (json.length > MAX_FORMATTED_LENGTH) {
-    return json.slice(0, MAX_FORMATTED_LENGTH);
-  }
-  return json;
+  return JSON.stringify(value);
 }
 
 function formatPrimitive(value: string | number | boolean): string {
