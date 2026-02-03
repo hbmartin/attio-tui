@@ -8,6 +8,13 @@ export function errorToDebugString(error: unknown): string {
   if (error instanceof Error) {
     return error.stack ?? error.message;
   }
+  if (typeof error === "object" && error !== null) {
+    try {
+      return JSON.stringify(error, null, 2);
+    } catch {
+      // Fallback for circular references or other serialization errors
+    }
+  }
   return String(error);
 }
 
