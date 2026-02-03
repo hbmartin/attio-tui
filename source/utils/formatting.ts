@@ -38,6 +38,13 @@ export function formatValue(
 }
 
 function formatRecordValue(value: RecordValue): string {
+  const result = formatRecordValueRaw(value);
+  return result.length > MAX_FORMATTED_LENGTH
+    ? result.slice(0, MAX_FORMATTED_LENGTH)
+    : result;
+}
+
+function formatRecordValueRaw(value: RecordValue): string {
   if ("currency_value" in value && typeof value.currency_value === "number") {
     const code = "currency_code" in value ? value.currency_code : undefined;
     return code
@@ -98,11 +105,7 @@ function formatRecordValue(value: RecordValue): string {
     return parts.join(", ") || "-";
   }
 
-  const json = JSON.stringify(value);
-  if (json.length > MAX_FORMATTED_LENGTH) {
-    return json.slice(0, MAX_FORMATTED_LENGTH);
-  }
-  return json;
+  return JSON.stringify(value);
 }
 
 function formatPrimitive(value: string | number | boolean): string {
