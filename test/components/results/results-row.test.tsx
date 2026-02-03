@@ -53,6 +53,74 @@ function getRowContent(frame: string | undefined): string {
   return line.startsWith("  ") ? line.slice(2) : line;
 }
 
+describe("ResultsRow ASCII fast path", () => {
+  it("truncates and pads ASCII text correctly", () => {
+    const columns: readonly Columns.ResolvedColumn[] = [
+      {
+        attribute: "name",
+        label: "Name",
+        width: 10,
+        value: () => "Hello World, this is too long",
+      },
+      {
+        attribute: "status",
+        label: "Status",
+        width: 6,
+        value: () => "ok",
+      },
+    ];
+
+    const instance = render(
+      <ResultsRow
+        item={createWebhookItem()}
+        selected={false}
+        focused={false}
+        columns={columns}
+      />,
+    );
+
+    try {
+      const content = getRowContent(instance.lastFrame());
+      const { consumed, rest } = consumeByWidth(content, 10);
+      // "Hello W..." = 10 chars (truncated with ellipsis)
+      expect(stringWidth(consumed)).toBe(10);
+      expect(consumed).toContain("...");
+      // 2-space gap then "ok" padded to 6
+      expect(rest).toMatch(/^ {2}ok/);
+    } finally {
+      instance.cleanup();
+    }
+  });
+
+  it("does not truncate ASCII text that fits within column width", () => {
+    const columns: readonly Columns.ResolvedColumn[] = [
+      {
+        attribute: "name",
+        label: "Name",
+        width: 10,
+        value: () => "Short",
+      },
+    ];
+
+    const instance = render(
+      <ResultsRow
+        item={createWebhookItem()}
+        selected={false}
+        focused={false}
+        columns={columns}
+      />,
+    );
+
+    try {
+      const content = getRowContent(instance.lastFrame());
+      expect(content).toContain("Short");
+      expect(content).not.toContain("...");
+    } finally {
+      instance.cleanup();
+    }
+  });
+});
+
 describe("ResultsRow column alignment", () => {
   it("pads columns by visual width for CJK text", () => {
     const columns: readonly Columns.ResolvedColumn[] = [
