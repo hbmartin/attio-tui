@@ -37,6 +37,24 @@ describe("ApiKeyPrompt", () => {
     return join(tempDir, "pty-debug.log");
   }
 
+  async function waitForLogMessage(
+    logPath: string,
+    message: string,
+    timeoutMs = 1000,
+  ): Promise<string> {
+    const start = Date.now();
+    while (Date.now() - start < timeoutMs) {
+      const contents = readFileSync(logPath, "utf8");
+      if (contents.includes(message)) {
+        return contents;
+      }
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    throw new Error(
+      `Timed out waiting for log message: "${message}" after ${timeoutMs}ms`,
+    );
+  }
+
   it("logs mount and unmount when PTY debug is enabled", async () => {
     process.env[ENV_KEY] = "1";
     const logPath = createTempLogPath();
@@ -51,10 +69,11 @@ describe("ApiKeyPrompt", () => {
 
     instance.unmount();
 
-    // Wait for React's useEffect cleanup to run
-    await new Promise((resolve) => setTimeout(resolve, 50));
-
-    contents = readFileSync(logPath, "utf8");
+    // Poll until React's useEffect cleanup logs the unmount message
+    contents = await waitForLogMessage(
+      logPath,
+      "[PTY-DEBUG] api-key prompt unmount\n",
+    );
     expect(contents).toContain("[PTY-DEBUG] api-key prompt unmount\n");
   });
 });

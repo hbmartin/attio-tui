@@ -24,9 +24,21 @@ const GRAPHEME_SEGMENTER = new Intl.Segmenter(undefined, {
   granularity: "grapheme",
 });
 
+// For ASCII-only strings, string.length === visual width, so we can skip
+// the expensive stringWidth/Intl.Segmenter calls entirely
+const NON_ASCII_RE = /[^\x20-\x7E]/;
+
+function isAsciiOnly(value: string): boolean {
+  return !NON_ASCII_RE.test(value);
+}
+
 function sliceToWidth(value: string, width: number): string {
   if (width <= 0) {
     return "";
+  }
+
+  if (isAsciiOnly(value)) {
+    return value.slice(0, width);
   }
 
   let result = "";
@@ -50,6 +62,16 @@ function truncateToWidth(value: string, width: number): string {
     return "";
   }
 
+  if (isAsciiOnly(value)) {
+    if (value.length <= width) {
+      return value;
+    }
+    if (width <= 3) {
+      return value.slice(0, width);
+    }
+    return `${value.slice(0, width - 3)}...`;
+  }
+
   if (stringWidth(value) <= width) {
     return value;
   }
@@ -62,6 +84,14 @@ function truncateToWidth(value: string, width: number): string {
 }
 
 function padToWidth(value: string, width: number): string {
+  if (isAsciiOnly(value)) {
+    const padding = Math.max(width - value.length, 0);
+    if (padding === 0) {
+      return value;
+    }
+    return `${value}${" ".repeat(padding)}`;
+  }
+
   const padding = Math.max(width - stringWidth(value), 0);
   if (padding === 0) {
     return value;

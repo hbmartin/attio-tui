@@ -373,19 +373,18 @@ describe("useCategoryData", () => {
       nextCursor: null,
     });
 
-    let latest: CategorySnapshot | undefined;
-
     const instance = render(
       <CategoryHarness
         options={{ client, categoryType: "notes", onRequestLog }}
-        onUpdate={(snapshot) => {
-          latest = snapshot;
+        onUpdate={() => {
+          // We don't need the snapshot for this test
         }}
       />,
     );
 
     try {
-      await waitForCondition(() => Boolean(latest));
+      // Wait for the request to complete and onRequestLog to be called
+      await waitForCondition(() => onRequestLog.mock.calls.length > 0);
 
       expect(onRequestLog).toHaveBeenCalledTimes(1);
       const entry = onRequestLog.mock.calls[0]?.[0];

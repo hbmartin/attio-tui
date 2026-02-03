@@ -75,4 +75,32 @@ describe("formatValue", () => {
       "Ada Lovelace",
     );
   });
+
+  it("caps long arrays at MAX_FORMATTED_LENGTH", () => {
+    const manyValues = Array.from({ length: 50 }, (_, i) =>
+      textValue(`Item number ${i} with extra padding text`),
+    );
+    const result = formatValue(manyValues);
+    expect(result.length).toBeLessThanOrEqual(200);
+  });
+
+  it("caps JSON.stringify fallback for unrecognized types", () => {
+    const unknownValue: RecordValue = {
+      ...baseValue,
+      attribute_type: "unknown",
+      some_long_field: "x".repeat(300),
+    };
+    const result = formatValue(unknownValue);
+    expect(result.length).toBeLessThanOrEqual(200);
+  });
+
+  it("returns dash for empty arrays", () => {
+    expect(formatValue([])).toBe("-");
+  });
+
+  it("joins multiple text values with commas", () => {
+    expect(formatValue([textValue("A"), textValue("B"), textValue("C")])).toBe(
+      "A, B, C",
+    );
+  });
 });

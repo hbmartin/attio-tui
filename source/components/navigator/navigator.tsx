@@ -48,7 +48,7 @@ export function Navigator({
   loading,
 }: NavigatorProps) {
   return (
-    <Pane title="Navigator" focused={focused}>
+    <Pane title="Navigator" focused={focused} width="100%">
       <NavigatorContent
         loading={loading}
         categories={categories}

@@ -47,7 +47,7 @@ export function Pane({ title, focused, width, children }: PaneProps) {
           backgroundColor={titleBackground}
           wrap="truncate"
         >
-          {focused ? ` ${headerLabel} ` : headerLabel}
+          {` ${headerLabel} `}
         </Text>
       </Box>
       <Box flexDirection="column" flexGrow={1}>

@@ -229,6 +229,8 @@ describe("errorToDebugString", () => {
     expect(errorToDebugString(null)).toBe("null");
     expect(errorToDebugString(undefined)).toBe("undefined");
     expect(errorToDebugString(42)).toBe("42");
-    expect(errorToDebugString({ custom: "object" })).toBe("[object Object]");
+    expect(errorToDebugString({ custom: "object" })).toBe(
+      '{\n  "custom": "object"\n}',
+    );
   });
 });

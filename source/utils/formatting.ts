@@ -7,6 +7,10 @@ function isRecordValueArray(
   return Array.isArray(value);
 }
 
+// Maximum length for formatted values - prevents expensive stringWidth/segmenter
+// operations on strings far longer than any column can display
+const MAX_FORMATTED_LENGTH = 200;
+
 // Format various Attio value types for display
 export function formatValue(
   value: RecordValue | readonly RecordValue[],
@@ -15,7 +19,19 @@ export function formatValue(
     if (value.length === 0) {
       return "-";
     }
-    return value.map((item) => formatRecordValue(item)).join(", ");
+    // Build incrementally and stop once we exceed the display limit
+    let result = "";
+    for (let i = 0; i < value.length; i += 1) {
+      const item = value[i];
+      if (item) {
+        const formatted = formatRecordValue(item);
+        result = i === 0 ? formatted : `${result}, ${formatted}`;
+        if (result.length >= MAX_FORMATTED_LENGTH) {
+          return result.slice(0, MAX_FORMATTED_LENGTH);
+        }
+      }
+    }
+    return result;
   }
 
   return formatRecordValue(value);
@@ -82,7 +98,11 @@ function formatRecordValue(value: RecordValue): string {
     return parts.join(", ") || "-";
   }
 
-  return JSON.stringify(value);
+  const json = JSON.stringify(value);
+  if (json.length > MAX_FORMATTED_LENGTH) {
+    return json.slice(0, MAX_FORMATTED_LENGTH);
+  }
+  return json;
 }
 
 function formatPrimitive(value: string | number | boolean): string {

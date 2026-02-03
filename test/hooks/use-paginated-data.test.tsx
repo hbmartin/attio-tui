@@ -169,6 +169,9 @@ describe("usePaginatedData", () => {
       const firstLoad = latest.loadMore();
       const secondLoad = latest.loadMore();
 
+      // Wait for the async yield before the fetch starts
+      await waitForCondition(() => fetchFn.mock.calls.length >= 2);
+
       expect(fetchFn).toHaveBeenCalledTimes(2);
 
       deferred.resolve({ items: ["beta"], nextCursor: null });
@@ -236,7 +239,8 @@ describe("usePaginatedData", () => {
     );
 
     try {
-      await waitForCondition(() => Boolean(latest));
+      // Wait for the initial fetch to start (after setImmediate yield)
+      await waitForCondition(() => fetchFn.mock.calls.length > 0);
 
       if (!latest) {
         throw new Error("Expected hook state to be available");
@@ -244,6 +248,7 @@ describe("usePaginatedData", () => {
 
       const refreshPromise = latest.refresh();
 
+      // The initial fetch is still in flight, so refresh should reuse it
       expect(fetchFn).toHaveBeenCalledTimes(1);
 
       deferred.resolve({ items: ["alpha"], nextCursor: null });
