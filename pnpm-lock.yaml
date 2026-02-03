@@ -12,8 +12,8 @@ importers:
   .:
     dependencies:
       attio-ts-sdk:
-        specifier: ^1.1.1
-        version: 1.1.1(zod@4.3.6)
+        specifier: ^1.2.1
+        version: 1.2.1(zod@4.3.6)
       fullscreen-ink:
         specifier: ^0.1.0
         version: 0.1.0(@types/react@19.2.10)
@@ -1254,8 +1254,8 @@ packages:
   async-sema@3.1.1:
     resolution: {integrity: sha512-tLRNUXati5MFePdAk8dw7Qt7DpxPB60ofAgn8WRhW6a2rcimZnYBP9oxHiv0OHy+Wz7kPMG+t4LGdt31+4EmGg==}
 
-  attio-ts-sdk@1.1.1:
-    resolution: {integrity: sha512-ACTZUEeXTzcfnsMJm45fNsqDpZG44ukFEVZBXmGqmr/1zRnCFws5/7Jz8GyNGyAIEGgSSEHecIRfoYEr9i3yIA==}
+  attio-ts-sdk@1.2.1:
+    resolution: {integrity: sha512-rCJM6hF4k2DP9yntY9qjIVe5PZeALBs8N5+7nFQDqH9L9YmbzwC0hUUm0wptGuxd8eTGORZ7+gG6kMbXgJqUvA==}
     engines: {node: '>=24'}
     peerDependencies:
       zod: ^4
@@ -4933,7 +4933,7 @@ snapshots:
 
   async-sema@3.1.1: {}
 
-  attio-ts-sdk@1.1.1(zod@4.3.6):
+  attio-ts-sdk@1.2.1(zod@4.3.6):
     dependencies:
       zod: 4.3.6
 

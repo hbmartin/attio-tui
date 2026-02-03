@@ -40,7 +40,7 @@
     "dist"
   ],
   "dependencies": {
-    "attio-ts-sdk": "^1.1.1",
+    "attio-ts-sdk": "^1.2.1",
     "fullscreen-ink": "^0.1.0",
     "ink": "^6.6.0",
     "meow": "^14.0.0",
