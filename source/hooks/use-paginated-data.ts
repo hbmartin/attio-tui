@@ -40,6 +40,10 @@ export function usePaginatedData<T>({
   const initialInFlightRef = useRef<Promise<void> | null>(null);
   const resetKeyRef = useRef(resetKey);
   const loadMoreCooldownUntilRef = useRef(0);
+  // Generation counter: incremented on reset so stale requests are ignored
+  const generationRef = useRef(0);
+  // Trigger counter: incremented on reset to re-run the fetch effect
+  const [fetchTrigger, setFetchTrigger] = useState(0);
 
   // Initial fetch
   const fetchInitial = useCallback(async () => {
@@ -57,20 +61,29 @@ export function usePaginatedData<T>({
     setLoading(true);
     setError(undefined);
 
+    const generation = generationRef.current;
     const request = (async () => {
       // Yield to allow React to render the loading state before starting the fetch
       await new Promise((resolve) => setImmediate(resolve));
       try {
         const result = await fetchFn();
+        if (generation !== generationRef.current) {
+          return;
+        }
         setData(result.items);
         setNextCursor(result.nextCursor);
       } catch (err) {
+        if (generation !== generationRef.current) {
+          return;
+        }
         setError(extractErrorMessage(err));
         loadMoreCooldownUntilRef.current = Date.now() + loadMoreCooldownMs;
         throw err;
       } finally {
-        setLoading(false);
-        initialInFlightRef.current = null;
+        if (generation === generationRef.current) {
+          setLoading(false);
+          initialInFlightRef.current = null;
+        }
       }
     })();
     initialInFlightRef.current = request;
@@ -95,19 +108,28 @@ export function usePaginatedData<T>({
     setIsPrefetching(true);
     loadMoreInFlightRef.current = true;
 
+    const generation = generationRef.current;
     // Yield to allow React to render before starting the fetch
     await new Promise((resolve) => setImmediate(resolve));
 
     try {
       const result = await fetchFn(nextCursor);
+      if (generation !== generationRef.current) {
+        return;
+      }
       setData((prev) => [...prev, ...result.items]);
       setNextCursor(result.nextCursor);
     } catch (err) {
+      if (generation !== generationRef.current) {
+        return;
+      }
       setError(extractErrorMessage(err));
       loadMoreCooldownUntilRef.current = Date.now() + loadMoreCooldownMs;
     } finally {
-      setIsPrefetching(false);
-      loadMoreInFlightRef.current = false;
+      if (generation === generationRef.current) {
+        setIsPrefetching(false);
+        loadMoreInFlightRef.current = false;
+      }
     }
   }, [fetchFn, nextCursor, loading, isPrefetching, loadMoreCooldownMs]);
 
@@ -138,6 +160,8 @@ export function usePaginatedData<T>({
       return;
     }
     resetKeyRef.current = resetKey;
+    // Invalidate any in-flight requests from the previous generation
+    generationRef.current += 1;
     setData([]);
     setLoading(true);
     setNextCursor(null);
@@ -145,14 +169,18 @@ export function usePaginatedData<T>({
     loadMoreCooldownUntilRef.current = 0;
     initialInFlightRef.current = null;
     loadMoreInFlightRef.current = false;
+    setFetchTrigger((prev) => prev + 1);
   }, [resetKey]);
 
-  // Fetch on mount and when enabled changes
+  // Fetch on mount, when enabled changes, or when resetKey triggers a new generation.
+  // fetchTrigger is intentionally included to re-run the effect when resetKey changes
+  // even if fetchFn identity hasn't changed.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: fetchTrigger is an intentional re-fetch trigger
   useEffect(() => {
     fetchInitial().catch(() => {
       // Error is already handled in fetchInitial
     });
-  }, [fetchInitial]);
+  }, [fetchInitial, fetchTrigger]);
 
   return {
     data,

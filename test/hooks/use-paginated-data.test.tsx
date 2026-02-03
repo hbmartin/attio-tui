@@ -1,6 +1,6 @@
 import { Text } from "ink";
 import { render } from "ink-testing-library";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { usePaginatedData } from "../../source/hooks/use-paginated-data.js";
 
@@ -285,6 +285,73 @@ describe("usePaginatedData", () => {
       await latest.refresh();
 
       expect(fetchFn).toHaveBeenCalledTimes(1);
+    } finally {
+      instance.cleanup();
+    }
+  });
+
+  it("ignores stale request when resetKey changes during in-flight fetch", async () => {
+    const oldDeferred = createDeferred<PaginatedResult<string>>();
+    const newDeferred = createDeferred<PaginatedResult<string>>();
+    let callCount = 0;
+
+    const fetchFn = vi.fn(() => {
+      callCount += 1;
+      if (callCount === 1) {
+        return oldDeferred.promise;
+      }
+      return newDeferred.promise;
+    });
+
+    let setKey: (key: string) => void = () => {
+      throw new Error("setKey not initialized");
+    };
+    let latest: HookSnapshot | undefined;
+
+    function ResetKeyHarness(): JSX.Element {
+      const [resetKey, setResetKey] = useState("key-a");
+      setKey = setResetKey;
+
+      const snapshot = usePaginatedData<string>({ fetchFn, resetKey });
+
+      useEffect(() => {
+        latest = snapshot;
+      }, [snapshot]);
+
+      return (
+        <Text>
+          {snapshot.loading ? "loading" : "idle"}|{snapshot.data.join(",")}
+        </Text>
+      );
+    }
+
+    const instance = render(<ResetKeyHarness />);
+
+    try {
+      // Wait for the first fetch to start
+      await waitForCondition(() => fetchFn.mock.calls.length > 0);
+
+      // Change resetKey while the old fetch is still in flight
+      setKey("key-b");
+
+      // Wait for the new fetch to start
+      await waitForCondition(() => fetchFn.mock.calls.length >= 2);
+
+      // Resolve the OLD request - its state updates should be ignored
+      oldDeferred.resolve({ items: ["stale-data"], nextCursor: null });
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      // Loading should still be true because only the new request matters
+      expect(latest?.loading).toBe(true);
+      expect(latest?.data).toHaveLength(0);
+
+      // Resolve the NEW request
+      newDeferred.resolve({ items: ["fresh-data"], nextCursor: null });
+
+      await waitForCondition(() => latest?.data.length === 1);
+
+      expect(latest?.data[0]).toBe("fresh-data");
+      expect(latest?.loading).toBe(false);
     } finally {
       instance.cleanup();
     }
