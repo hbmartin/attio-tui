@@ -1,5 +1,5 @@
 {
-  "name": "attio-tui",
+  "name": "@hbmartin/attio-tui",
   "version": "0.0.0",
   "license": "MIT",
   "keywords": [
@@ -12,7 +12,9 @@
     "contacts",
     "sales"
   ],
-  "bin": "dist/cli.js",
+  "bin": {
+    "attio": "dist/cli.js"
+  },
   "type": "module",
   "engines": {
     "node": ">=24"
@@ -54,7 +56,7 @@
     "@commitlint/config-conventional": "^20.4.1",
     "@sindresorhus/tsconfig": "^8.1.0",
     "@types/node": "^24.10.10",
-    "@types/react": "^19.2.10",
+    "@types/react": "^19.2.11",
     "@vitest/coverage-istanbul": "^4.0.18",
     "ava": "^6.4.1",
     "chalk": "^5.6.2",
