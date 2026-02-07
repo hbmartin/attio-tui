@@ -31,6 +31,7 @@ interface UseCategoryDataResult {
   readonly loading: boolean;
   readonly error: string | undefined;
   readonly hasNextPage: boolean;
+  readonly lastUpdatedAt: Date | undefined;
   readonly loadMore: () => Promise<void>;
   readonly refresh: () => Promise<void>;
   readonly checkPrefetch: (selectedIndex: number) => void;
@@ -231,6 +232,7 @@ export function useCategoryData({
     loading,
     error,
     hasNextPage,
+    lastUpdatedAt,
     loadMore,
     refresh,
     checkPrefetch,
@@ -249,6 +251,7 @@ export function useCategoryData({
     loading,
     error,
     hasNextPage,
+    lastUpdatedAt,
     loadMore,
     refresh,
     checkPrefetch,

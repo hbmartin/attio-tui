@@ -2,7 +2,7 @@
 
 > Your CRM, but make it terminal.
 
-[![npm version](https://img.shields.io/npm/v/attio-tui.svg)](https://www.npmjs.com/package/attio-tui)
+[![npm version](https://img.shields.io/npm/v/@hbmartin/attio-tui.svg)](https://www.npmjs.com/package/@hbmartin/attio-tui)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D24-brightgreen)](https://nodejs.org)
 
@@ -41,20 +41,20 @@ A blazing-fast terminal UI for [Attio](https://attio.com) CRM. Browse companies,
 
 ```bash
 # npm
-npm install --global attio-tui
+npm install --global @hbmartin/attio-tui
 
 # pnpm (recommended)
-pnpm add --global attio-tui
+pnpm add --global @hbmartin/attio-tui
 
 # yarn
-yarn global add attio-tui
+yarn global add @hbmartin/attio-tui
 ```
 
 ## Quick Start
 
 ```bash
 # Run it
-attio-tui
+attio
 
 # First time? You'll be prompted for your Attio API key
 # Get one from: Attio → Workspace Settings → Developers → API Keys

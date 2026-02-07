@@ -236,41 +236,72 @@ export function appReducer(state: AppState, action: AppAction): AppState {
             ...state.navigation.navigator,
             selectedIndex: action.index,
           },
+          results: {
+            ...state.navigation.results,
+            items: [],
+            selectedIndex: 0,
+            loading: true,
+            hasNextPage: false,
+          },
         },
       };
 
     case "NAVIGATE_CATEGORY": {
       const maxIndex = state.navigation.navigator.categories.length - 1;
+      const nextIndex = navigateIndex(
+        state.navigation.navigator.selectedIndex,
+        action.direction,
+        maxIndex,
+      );
+      const categoryChanged =
+        nextIndex !== state.navigation.navigator.selectedIndex;
       return {
         ...state,
         navigation: {
           ...state.navigation,
           navigator: {
             ...state.navigation.navigator,
-            selectedIndex: navigateIndex(
-              state.navigation.navigator.selectedIndex,
-              action.direction,
-              maxIndex,
-            ),
+            selectedIndex: nextIndex,
           },
+          ...(categoryChanged && {
+            results: {
+              ...state.navigation.results,
+              items: [],
+              selectedIndex: 0,
+              loading: true,
+              hasNextPage: false,
+            },
+          }),
         },
       };
     }
 
     case "NAVIGATE_CATEGORY_BY_OFFSET": {
       const maxIndex = state.navigation.navigator.categories.length - 1;
+      const nextIndex = navigateByOffset(
+        state.navigation.navigator.selectedIndex,
+        action.offset,
+        maxIndex,
+      );
+      const categoryChanged =
+        nextIndex !== state.navigation.navigator.selectedIndex;
       return {
         ...state,
         navigation: {
           ...state.navigation,
           navigator: {
             ...state.navigation.navigator,
-            selectedIndex: navigateByOffset(
-              state.navigation.navigator.selectedIndex,
-              action.offset,
-              maxIndex,
-            ),
+            selectedIndex: nextIndex,
           },
+          ...(categoryChanged && {
+            results: {
+              ...state.navigation.results,
+              items: [],
+              selectedIndex: 0,
+              loading: true,
+              hasNextPage: false,
+            },
+          }),
         },
       };
     }

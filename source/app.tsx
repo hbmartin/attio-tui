@@ -226,6 +226,7 @@ function MainApp() {
     loading: categoryLoading,
     error: categoryError,
     hasNextPage,
+    lastUpdatedAt,
     refresh,
     checkPrefetch,
   } = useCategoryData({
@@ -664,6 +665,7 @@ function MainApp() {
             loading={navigatorLoading || resultsLoading}
             statusMessage={statusMessage}
             debugEnabled={debugEnabled}
+            lastUpdatedAt={lastUpdatedAt}
           />
         }
       />

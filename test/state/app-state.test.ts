@@ -119,6 +119,33 @@ describe("appReducer", () => {
       expect(result.navigation.navigator.selectedIndex).toBe(1);
     });
 
+    it("should set results loading when selecting a category", () => {
+      const state: AppState = {
+        ...initialState,
+        navigation: {
+          ...initialState.navigation,
+          navigator: {
+            ...initialState.navigation.navigator,
+            categories: [
+              { type: "object", objectSlug: parseObjectSlug("companies") },
+              { type: "notes" },
+            ],
+          },
+          results: {
+            ...initialState.navigation.results,
+            items: [makeNoteItem("1", "Item 1")],
+            selectedIndex: 0,
+            loading: false,
+          },
+        },
+      };
+      const action: AppAction = { type: "SELECT_CATEGORY", index: 1 };
+      const result = appReducer(state, action);
+      expect(result.navigation.results.loading).toBe(true);
+      expect(result.navigation.results.items).toHaveLength(0);
+      expect(result.navigation.results.selectedIndex).toBe(0);
+    });
+
     it("should navigate category down", () => {
       const state: AppState = {
         ...initialState,
@@ -140,6 +167,62 @@ describe("appReducer", () => {
       };
       const result = appReducer(state, action);
       expect(result.navigation.navigator.selectedIndex).toBe(1);
+    });
+
+    it("should set results loading when navigating to a different category", () => {
+      const state: AppState = {
+        ...initialState,
+        navigation: {
+          ...initialState.navigation,
+          navigator: {
+            ...initialState.navigation.navigator,
+            categories: [
+              { type: "object", objectSlug: parseObjectSlug("companies") },
+              { type: "notes" },
+            ],
+            selectedIndex: 0,
+          },
+          results: {
+            ...initialState.navigation.results,
+            items: [makeNoteItem("1", "Item 1")],
+            loading: false,
+          },
+        },
+      };
+      const action: AppAction = {
+        type: "NAVIGATE_CATEGORY",
+        direction: "down",
+      };
+      const result = appReducer(state, action);
+      expect(result.navigation.results.loading).toBe(true);
+      expect(result.navigation.results.items).toHaveLength(0);
+    });
+
+    it("should not reset results when navigating stays on same category", () => {
+      const items = [makeNoteItem("1", "Item 1")];
+      const state: AppState = {
+        ...initialState,
+        navigation: {
+          ...initialState.navigation,
+          navigator: {
+            ...initialState.navigation.navigator,
+            categories: [{ type: "notes" }],
+            selectedIndex: 0,
+          },
+          results: {
+            ...initialState.navigation.results,
+            items,
+            loading: false,
+          },
+        },
+      };
+      const action: AppAction = {
+        type: "NAVIGATE_CATEGORY",
+        direction: "down",
+      };
+      const result = appReducer(state, action);
+      expect(result.navigation.results.loading).toBe(false);
+      expect(result.navigation.results.items).toHaveLength(1);
     });
 
     it("should navigate category up", () => {

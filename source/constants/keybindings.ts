@@ -62,6 +62,7 @@ export const GLOBAL_KEYBINDINGS: readonly KeyBinding[] = [
   // Quick actions
   { key: "y", action: "copyId" },
   { key: "o", ctrl: true, action: "openInBrowser" },
+  { key: "r", action: "refresh" },
   { key: "r", ctrl: true, action: "refresh" },
   { key: "d", ctrl: true, action: "toggleDebug" },
 
