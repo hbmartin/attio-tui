@@ -1,5 +1,8 @@
 import { z } from "zod";
 
+// Re-export SDK's ListId type and factory
+export { createListId, type ListId } from "attio-ts-sdk";
+
 // Branded ID schemas for type-safe identifiers
 // All IDs are UUIDs but branded for compile-time safety
 
@@ -11,9 +14,6 @@ export type ObjectSlug = z.infer<typeof ObjectSlugSchema>;
 
 export const RecordIdSchema = z.string().uuid().brand<"RecordId">();
 export type RecordId = z.infer<typeof RecordIdSchema>;
-
-export const ListIdSchema = z.string().uuid().brand<"ListId">();
-export type ListId = z.infer<typeof ListIdSchema>;
 
 export const ListEntryIdSchema = z.string().uuid().brand<"ListEntryId">();
 export type ListEntryId = z.infer<typeof ListEntryIdSchema>;
@@ -53,10 +53,6 @@ export function parseObjectSlug(value: string): ObjectSlug {
 
 export function parseRecordId(value: string): RecordId {
   return RecordIdSchema.parse(value);
-}
-
-export function parseListId(value: string): ListId {
-  return ListIdSchema.parse(value);
 }
 
 export function parseNoteId(value: string): NoteId {

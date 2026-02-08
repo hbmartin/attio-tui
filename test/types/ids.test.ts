@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  createListId,
   ObjectIdSchema,
   ObjectSlugSchema,
   parseObjectId,
@@ -88,6 +89,17 @@ describe("parse helpers", () => {
 
     it("should throw for invalid UUID", () => {
       expect(() => parseRecordId("invalid")).toThrow();
+    });
+  });
+
+  describe("createListId (SDK re-export)", () => {
+    it("should return branded ListId for valid string", () => {
+      const result = createListId("sales-pipeline");
+      expect(result).toBe("sales-pipeline");
+    });
+
+    it("should throw for empty string", () => {
+      expect(() => createListId("")).toThrow("ListId cannot be empty");
     });
   });
 });
