@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseListId, parseObjectSlug } from "../../source/types/ids.js";
+import { createListId, parseObjectSlug } from "../../source/types/ids.js";
 import {
   createInitialNavigationState,
   DETAIL_TABS,
@@ -86,7 +86,7 @@ describe("getNavigatorCategoryKey", () => {
   it("should return key for list category", () => {
     const category: NavigatorCategory = {
       type: "list",
-      listId: parseListId("550e8400-e29b-41d4-a716-446655440000"),
+      listId: createListId("550e8400-e29b-41d4-a716-446655440000"),
     };
     expect(getNavigatorCategoryKey(category)).toBe(
       "list-550e8400-e29b-41d4-a716-446655440000",
@@ -130,11 +130,11 @@ describe("getNavigatorCategoryKey", () => {
   it("should return unique keys for different lists", () => {
     const cat1: NavigatorCategory = {
       type: "list",
-      listId: parseListId("550e8400-e29b-41d4-a716-446655440000"),
+      listId: createListId("550e8400-e29b-41d4-a716-446655440000"),
     };
     const cat2: NavigatorCategory = {
       type: "list",
-      listId: parseListId("550e8400-e29b-41d4-a716-446655440001"),
+      listId: createListId("550e8400-e29b-41d4-a716-446655440001"),
     };
     expect(getNavigatorCategoryKey(cat1)).not.toBe(
       getNavigatorCategoryKey(cat2),

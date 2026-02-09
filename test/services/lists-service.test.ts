@@ -10,7 +10,7 @@ import {
   fetchLists,
   queryListEntries,
 } from "../../source/services/lists-service.js";
-import { parseListId } from "../../source/types/ids.js";
+import { createListId } from "../../source/types/ids.js";
 
 vi.mock("attio-ts-sdk", async () => {
   const actual =
@@ -163,7 +163,7 @@ describe("queryListEntries", () => {
   });
 
   it("omits invalid cursor and enforces positive limit", async () => {
-    const listId = parseListId("11111111-1111-1111-8111-111111111111");
+    const listId = createListId("11111111-1111-1111-8111-111111111111");
 
     mockQueryListEntries.mockResolvedValue(
       buildSuccess({ data: [buildEntry(listId, "entry-1")] }),
@@ -183,7 +183,7 @@ describe("queryListEntries", () => {
   });
 
   it("passes valid cursor offsets through to the API", async () => {
-    const listId = parseListId("22222222-2222-2222-8222-222222222222");
+    const listId = createListId("22222222-2222-2222-8222-222222222222");
 
     mockQueryListEntries.mockResolvedValue(
       buildSuccess({ data: [buildEntry(listId, "entry-1")] }),
@@ -199,7 +199,7 @@ describe("queryListEntries", () => {
   });
 
   it("returns null nextCursor when total rows equal limit (no extra row)", async () => {
-    const listId = parseListId("33333333-3333-3333-8333-333333333333");
+    const listId = createListId("33333333-3333-3333-8333-333333333333");
 
     // API returns exactly 2 rows when we requested 3 (limit=2, request=limit+1)
     // This means there are no more pages
@@ -216,7 +216,7 @@ describe("queryListEntries", () => {
   });
 
   it("returns nextCursor when more rows exist (extra row returned)", async () => {
-    const listId = parseListId("44444444-4444-4444-8444-444444444444");
+    const listId = createListId("44444444-4444-4444-8444-444444444444");
 
     // API returns 3 rows when we requested 3 (limit=2, request=limit+1)
     // This means there are more pages - we should trim and signal hasMore

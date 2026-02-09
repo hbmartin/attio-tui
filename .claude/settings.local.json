@@ -36,7 +36,8 @@
       "WebSearch",
       "WebFetch(domain:www.npmjs.com)",
       "Bash(npm view:*)",
-      "Bash(gh repo view:*)"
+      "Bash(gh repo view:*)",
+      "Bash(pnpm tsc:*)"
     ]
   }
 }

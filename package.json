@@ -42,7 +42,7 @@
     "dist"
   ],
   "dependencies": {
-    "attio-ts-sdk": "^1.2.1",
+    "attio-ts-sdk": "^2.0.0",
     "fullscreen-ink": "^0.1.0",
     "ink": "^6.6.0",
     "meow": "^14.0.0",
@@ -55,8 +55,8 @@
     "@commitlint/cli": "^20.4.1",
     "@commitlint/config-conventional": "^20.4.1",
     "@sindresorhus/tsconfig": "^8.1.0",
-    "@types/node": "^24.10.10",
-    "@types/react": "^19.2.11",
+    "@types/node": "^24.10.11",
+    "@types/react": "^19.2.13",
     "@vitest/coverage-istanbul": "^4.0.18",
     "ava": "^6.4.1",
     "chalk": "^5.6.2",
