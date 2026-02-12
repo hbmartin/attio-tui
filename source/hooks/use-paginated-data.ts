@@ -25,13 +25,13 @@ interface UsePaginatedDataResult<T> {
   readonly checkPrefetch: (selectedIndex: number) => void;
 }
 
-interface CacheEntry {
-  readonly items: readonly unknown[];
+interface CacheEntry<T> {
+  readonly items: readonly T[];
   readonly nextCursor: string | null;
   readonly fetchedAt: Date;
 }
 
-const categoryCache = new Map<string, CacheEntry>();
+const categoryCache = new Map<string, CacheEntry<unknown>>();
 
 /** Clear the in-memory category cache. Exported for testing. */
 export function clearCategoryCache(): void {
@@ -207,9 +207,11 @@ export function usePaginatedData<T>({
 
     // Check cache before fetching
     const cached =
-      resetKey !== undefined ? categoryCache.get(resetKey) : undefined;
+      resetKey !== undefined
+        ? (categoryCache.get(resetKey) as CacheEntry<T> | undefined)
+        : undefined;
     if (cached) {
-      setData(cached.items as readonly T[]);
+      setData(cached.items);
       setNextCursor(cached.nextCursor);
       setLastUpdatedAt(cached.fetchedAt);
       lastUpdatedAtRef.current = cached.fetchedAt;
