@@ -6,6 +6,7 @@ export namespace Columns {
     | "object-default"
     | "object-companies"
     | "object-people"
+    | "objects"
     | "list"
     | "notes"
     | "tasks"
@@ -43,6 +44,8 @@ export namespace Columns {
       case "list":
       case "lists":
         return "list";
+      case "objects":
+        return "objects";
       case "notes":
       case "tasks":
       case "meetings":

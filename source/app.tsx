@@ -30,6 +30,7 @@ import { useCategoryData } from "./hooks/use-category-data.js";
 import { useColumns } from "./hooks/use-columns.js";
 import { useKeyboard } from "./hooks/use-keyboard.js";
 import { useListDrill } from "./hooks/use-list-drill.js";
+import { useObjectDrill } from "./hooks/use-object-drill.js";
 import { useTemporaryStatusMessage } from "./hooks/use-temporary-status-message.js";
 import { useWebhookOperations } from "./hooks/use-webhook-operations.js";
 import type { ColumnConfig } from "./schemas/columns-schema.js";
@@ -53,6 +54,7 @@ import {
   COMMAND_PALETTE_MAX_VISIBLE,
   type ListDrillState,
   type NavigatorCategory,
+  type ObjectDrillState,
 } from "./types/navigation.js";
 import { writeToClipboard } from "./utils/clipboard.js";
 import {
@@ -70,6 +72,7 @@ function getStaticCategories(): readonly NavigatorCategory[] {
   return [
     { type: "object", objectSlug: parseObjectSlug("companies") },
     { type: "object", objectSlug: parseObjectSlug("people") },
+    { type: "objects" },
     { type: "lists" },
     { type: "notes" },
     { type: "tasks" },
@@ -93,10 +96,19 @@ function getListsBreadcrumb(listDrill: ListDrillState): string {
   return parts.join(" > ");
 }
 
+// Build breadcrumb for objects drill-down
+function getObjectsBreadcrumb(objectDrill: ObjectDrillState): string {
+  if (objectDrill.level === "objects") {
+    return "Objects";
+  }
+  return `Objects > ${objectDrill.objectName}`;
+}
+
 // Get category label for display
 function getCategoryLabel(
   category: NavigatorCategory | undefined,
   listDrill?: ListDrillState,
+  objectDrill?: ObjectDrillState,
 ): string | undefined {
   if (!category) {
     return;
@@ -108,6 +120,8 @@ function getCategoryLabel(
       return "List";
     case "lists":
       return listDrill ? getListsBreadcrumb(listDrill) : "Lists";
+    case "objects":
+      return objectDrill ? getObjectsBreadcrumb(objectDrill) : "Objects";
     case "notes":
       return "Notes";
     case "tasks":
@@ -212,6 +226,7 @@ function MainApp() {
     webhookModal,
     columnPicker,
     listDrill,
+    objectDrill,
   } = navigation;
   const { mode: webhookModalMode } = webhookModal;
   const { mode: columnPickerMode } = columnPicker;
@@ -234,6 +249,9 @@ function MainApp() {
     dispatch,
   });
 
+  // Object drill-down
+  const { drillIntoObject } = useObjectDrill({ dispatch });
+
   const handleSelectItem = useCallback(() => {
     if (focusedPane !== "results") {
       return;
@@ -254,6 +272,11 @@ function MainApp() {
           status: selectedItem.data,
         });
       }
+    } else if (
+      selectedItem.type === "object-info" &&
+      selectedCategory?.type === "objects"
+    ) {
+      drillIntoObject(selectedItem.data);
     } else {
       // For non-drillable items, focus the detail pane
       dispatch({ type: "FOCUS_PANE", paneId: "detail" });
@@ -266,23 +289,36 @@ function MainApp() {
     listDrill,
     drillIntoList,
     drillIntoStatus,
+    drillIntoObject,
     dispatch,
   ]);
 
   const handleGoBack = useCallback(() => {
     if (selectedCategory?.type === "lists" && listDrill.level !== "lists") {
       dispatch({ type: "LIST_DRILL_BACK" });
+    } else if (
+      selectedCategory?.type === "objects" &&
+      objectDrill.level !== "objects"
+    ) {
+      dispatch({ type: "OBJECT_DRILL_BACK" });
     } else if (focusedPane === "results") {
       dispatch({ type: "FOCUS_PANE", paneId: "navigator" });
     } else if (focusedPane === "detail") {
       dispatch({ type: "FOCUS_PANE", paneId: "results" });
     }
-  }, [selectedCategory, listDrill, focusedPane, dispatch]);
+  }, [selectedCategory, listDrill, objectDrill, focusedPane, dispatch]);
 
-  const categoryLabel = getCategoryLabel(selectedCategory, listDrill);
+  const categoryLabel = getCategoryLabel(
+    selectedCategory,
+    listDrill,
+    objectDrill,
+  );
   const categoryType = getCategoryType(selectedCategory);
   const categorySlug = getCategorySlug(selectedCategory);
-  const columnsEntityKey = Columns.getEntityKey(selectedCategory);
+  const columnsEntityKey =
+    categoryType === "objects" && objectDrill.level === "records"
+      ? (`object-${objectDrill.objectSlug}` as Columns.EntityKey)
+      : Columns.getEntityKey(selectedCategory);
   const resolvedColumns = resolveColumns({
     entityKey: columnsEntityKey,
     columnsConfig,
@@ -308,6 +344,7 @@ function MainApp() {
     categoryType,
     categorySlug,
     listDrill: categoryType === "lists" ? listDrill : undefined,
+    objectDrill: categoryType === "objects" ? objectDrill : undefined,
     onRequestLog: recordRequest,
   });
   const refreshWithFeedback = useCallback((): void => {

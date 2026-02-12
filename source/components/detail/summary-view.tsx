@@ -4,6 +4,7 @@ import type {
   ListInfo,
   MeetingInfo,
   NoteInfo,
+  ObjectInfo,
   RecordInfo,
   StatusInfo,
   TaskInfo,
@@ -276,6 +277,18 @@ function ListEntrySummary({ data }: { readonly data: ListEntryInfo }) {
   );
 }
 
+// Object info summary
+function ObjectInfoSummary({ data }: { readonly data: ObjectInfo }) {
+  return (
+    <Box flexDirection="column" gap={1}>
+      <SummaryRow label="Name" value={data.singularNoun ?? undefined} />
+      <SummaryRow label="Plural" value={data.pluralNoun ?? undefined} />
+      <SummaryRow label="Slug" value={data.apiSlug} />
+      <SummaryRow label="ID" value={data.id} dimValue={true} />
+    </Box>
+  );
+}
+
 // Generic fallback summary
 function GenericSummary({ item }: { readonly item: ResultItem }) {
   return (
@@ -295,6 +308,8 @@ export function SummaryView({ item }: SummaryViewProps) {
   switch (item.type) {
     case "object":
       return <RecordSummary data={item.data} />;
+    case "object-info":
+      return <ObjectInfoSummary data={item.data} />;
     case "list":
       return <ListSummary data={item.data} />;
     case "list-status":

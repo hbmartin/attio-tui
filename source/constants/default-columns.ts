@@ -75,6 +75,19 @@ function withWebhookData(
   };
 }
 
+function withObjectInfoData(
+  getter: (
+    data: Extract<ResultItem, { type: "object-info" }>["data"],
+  ) => string,
+): (item: ResultItem) => string {
+  return (item) => {
+    if (item.type !== "object-info") {
+      return "-";
+    }
+    return getter(item.data);
+  };
+}
+
 function withValueOrDash(value: string | null | undefined): string {
   if (!value) {
     return "-";
@@ -196,6 +209,27 @@ const LIST_COLUMNS: readonly Columns.Definition[] = [
   },
 ];
 
+const OBJECTS_COLUMNS: readonly Columns.Definition[] = [
+  {
+    attribute: "singularNoun",
+    label: "Name",
+    width: 22,
+    value: withObjectInfoData((data) => data.singularNoun ?? "-"),
+  },
+  {
+    attribute: "pluralNoun",
+    label: "Plural",
+    width: 22,
+    value: withObjectInfoData((data) => data.pluralNoun ?? "-"),
+  },
+  {
+    attribute: "apiSlug",
+    label: "Slug",
+    width: 22,
+    value: withObjectInfoData((data) => data.apiSlug),
+  },
+];
+
 const NOTE_COLUMNS: readonly Columns.Definition[] = [
   {
     attribute: "title",
@@ -299,6 +333,7 @@ export const COLUMN_DEFINITIONS: Record<
   [Columns.DEFAULT_OBJECT_KEY]: DEFAULT_OBJECT_COLUMNS,
   "object-companies": COMPANY_COLUMNS,
   "object-people": PEOPLE_COLUMNS,
+  objects: OBJECTS_COLUMNS,
   list: LIST_COLUMNS,
   notes: NOTE_COLUMNS,
   tasks: TASK_COLUMNS,
@@ -323,6 +358,11 @@ export const DEFAULT_COLUMNS: ColumnsConfig = {
     defaultOnly("full_name"),
     defaultOnly("email_addresses"),
     defaultOnly("job_title"),
+  ],
+  objects: [
+    defaultOnly("singularNoun"),
+    defaultOnly("pluralNoun"),
+    defaultOnly("apiSlug"),
   ],
   list: [defaultOnly("name"), defaultOnly("parentObject")],
   notes: [
