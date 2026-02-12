@@ -609,6 +609,98 @@ describe("usePaginatedData", () => {
     }
   });
 
+  it("resets isPrefetching when resetKey changes during in-flight loadMore", async () => {
+    const loadMoreDeferred = createDeferred<PaginatedResult<string>>();
+    let callCount = 0;
+
+    const fetchFn = vi.fn((_cursor?: string) => {
+      callCount += 1;
+      // Call 1: initial fetch for key-a
+      if (callCount === 1) {
+        return Promise.resolve({
+          items: ["alpha"],
+          nextCursor: "cursor-a",
+        });
+      }
+      // Call 2: loadMore for key-a (will be deferred)
+      if (callCount === 2) {
+        return loadMoreDeferred.promise;
+      }
+      // Call 3: initial fetch for key-b (with its own next page)
+      if (callCount === 3) {
+        return Promise.resolve({
+          items: ["beta"],
+          nextCursor: "cursor-b",
+        });
+      }
+      // Call 4: loadMore for key-b (proves isPrefetching was reset)
+      return Promise.resolve({
+        items: ["gamma"],
+        nextCursor: null,
+      });
+    });
+
+    let setKey: (key: string) => void = () => {
+      throw new Error("setKey not initialized");
+    };
+    let latest: HookSnapshot | undefined;
+
+    function ResetPrefetchHarness(): JSX.Element {
+      const [resetKey, setResetKey] = useState("key-a");
+      setKey = setResetKey;
+
+      const snapshot = usePaginatedData<string>({ fetchFn, resetKey });
+
+      useEffect(() => {
+        latest = snapshot;
+      }, [snapshot]);
+
+      return (
+        <Text>
+          {snapshot.loading ? "loading" : "idle"}|{snapshot.data.join(",")}
+        </Text>
+      );
+    }
+
+    const instance = render(<ResetPrefetchHarness />);
+
+    try {
+      // Wait for initial fetch of key-a
+      await waitForCondition(
+        () => Boolean(latest) && latest?.data.length === 1 && !latest?.loading,
+      );
+      expect(latest?.data[0]).toBe("alpha");
+
+      // Start loadMore (sets isPrefetching = true)
+      const loadMorePromise = latest?.loadMore();
+
+      // Wait for the loadMore fetch to start
+      await waitForCondition(() => fetchFn.mock.calls.length >= 2);
+
+      // Change resetKey while loadMore is still in flight
+      setKey("key-b");
+
+      // Wait for key-b's initial data to load
+      await waitForCondition(
+        () => latest?.data[0] === "beta" && !latest?.loading,
+      );
+
+      // Resolve the stale loadMore — its results should be ignored
+      loadMoreDeferred.resolve({ items: ["stale"], nextCursor: null });
+      await loadMorePromise;
+
+      // The critical assertion: loadMore should work for key-b
+      // (this would hang if isPrefetching was stuck as true)
+      await latest?.loadMore();
+
+      await waitForCondition(() => latest?.data.length === 2);
+
+      expect(latest?.data).toEqual(["beta", "gamma"]);
+    } finally {
+      instance.cleanup();
+    }
+  });
+
   it("clearCategoryCache removes all cached entries", async () => {
     const fetchFn = vi
       .fn()

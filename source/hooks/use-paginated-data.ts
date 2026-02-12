@@ -203,6 +203,7 @@ export function usePaginatedData<T>({
     loadMoreCooldownUntilRef.current = 0;
     initialInFlightRef.current = null;
     loadMoreInFlightRef.current = false;
+    setIsPrefetching(false);
 
     // Check cache before fetching
     const cached =
