@@ -5,12 +5,14 @@ interface SdkViewProps {
   readonly item: ResultItem | undefined;
 }
 
-// Typed dispatch keyed on ResultItem["type"] — each entry produces SDK code lines
-const sdkCodeGenerators: {
+// Mapped type: each key produces a generator that receives the narrowed item
+type SdkCodeGenerators = {
   readonly [T in ResultItem["type"]]: (
     item: Extract<ResultItem, { type: T }>,
   ) => string[];
-} = {
+};
+
+const sdkCodeGenerators: SdkCodeGenerators = {
   object: (item) => [
     "// Fetch this record",
     "const record = await client.records.get({",
@@ -69,15 +71,21 @@ const sdkCodeGenerators: {
   ],
 };
 
+// Generic helper that preserves the correlation between the discriminant
+// key and the narrowed item so the mapped-type lookup yields a single
+// parameterised function signature instead of a union of functions.
+function invokeSdkGenerator<T extends ResultItem["type"]>(
+  type: T,
+  item: Extract<ResultItem, { type: T }>,
+): string[] {
+  return sdkCodeGenerators[type](item);
+}
+
 function generateSdkCode(item: ResultItem | undefined): string[] {
   if (!item) {
     return ["// Select an item to view SDK code"];
   }
-
-  const generator = sdkCodeGenerators[item.type] as (
-    item: ResultItem,
-  ) => string[];
-  return generator(item);
+  return invokeSdkGenerator(item.type, item);
 }
 
 export function SdkView({ item }: SdkViewProps) {
