@@ -731,7 +731,6 @@ function MainApp() {
             item={detailItem}
             activeTab={detailActiveTab}
             focused={focusedPane === "detail"}
-            category={selectedCategory}
           />
         }
         statusBar={
