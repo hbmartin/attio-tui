@@ -11,6 +11,7 @@ import {
 } from "attio-ts-sdk";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  buildStatusFilter,
   fetchListStatuses,
   fetchLists,
   findListStatusAttribute,
@@ -246,6 +247,31 @@ describe("queryListEntries", () => {
     expect(result.entries[1]?.id).toBe("entry-2");
     // Should have nextCursor since there was an extra row
     expect(result.nextCursor).toBe("2");
+  });
+});
+
+describe("buildStatusFilter", () => {
+  it("returns filter object without outer filter key", () => {
+    const result = buildStatusFilter("stage", "status-123");
+
+    expect(result).toEqual({
+      stage: { status: { $eq: "status-123" } },
+    });
+  });
+
+  it("produces correct query shape when spread into filter property", () => {
+    const filter = buildStatusFilter("pipeline", "s-456");
+    const body = {
+      limit: 26,
+      ...(filter ? { filter } : {}),
+    };
+
+    expect(body).toEqual({
+      limit: 26,
+      filter: {
+        pipeline: { status: { $eq: "s-456" } },
+      },
+    });
   });
 });
 

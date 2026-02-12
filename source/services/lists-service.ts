@@ -216,8 +216,6 @@ export function buildStatusFilter(
   statusId: string,
 ): Record<string, unknown> {
   return {
-    filter: {
-      [attributeSlug]: { status: { $eq: statusId } },
-    },
+    [attributeSlug]: { status: { $eq: statusId } },
   };
 }
