@@ -29,6 +29,7 @@ import { useActionHandler } from "./hooks/use-action-handler.js";
 import { useCategoryData } from "./hooks/use-category-data.js";
 import { useColumns } from "./hooks/use-columns.js";
 import { useKeyboard } from "./hooks/use-keyboard.js";
+import { useListDrill } from "./hooks/use-list-drill.js";
 import { useTemporaryStatusMessage } from "./hooks/use-temporary-status-message.js";
 import { useWebhookOperations } from "./hooks/use-webhook-operations.js";
 import type { ColumnConfig } from "./schemas/columns-schema.js";
@@ -50,6 +51,7 @@ import type {
 import { type ObjectSlug, parseObjectSlug } from "./types/ids.js";
 import {
   COMMAND_PALETTE_MAX_VISIBLE,
+  type ListDrillState,
   type NavigatorCategory,
 } from "./types/navigation.js";
 import { writeToClipboard } from "./utils/clipboard.js";
@@ -68,6 +70,7 @@ function getStaticCategories(): readonly NavigatorCategory[] {
   return [
     { type: "object", objectSlug: parseObjectSlug("companies") },
     { type: "object", objectSlug: parseObjectSlug("people") },
+    { type: "lists" },
     { type: "notes" },
     { type: "tasks" },
     { type: "meetings" },
@@ -75,9 +78,25 @@ function getStaticCategories(): readonly NavigatorCategory[] {
   ];
 }
 
+// Build breadcrumb for lists drill-down
+function getListsBreadcrumb(listDrill: ListDrillState): string {
+  if (listDrill.level === "lists") {
+    return "Lists";
+  }
+  if (listDrill.level === "statuses") {
+    return `Lists > ${listDrill.listName}`;
+  }
+  const parts = ["Lists", listDrill.listName];
+  if (listDrill.statusTitle) {
+    parts.push(listDrill.statusTitle);
+  }
+  return parts.join(" > ");
+}
+
 // Get category label for display
 function getCategoryLabel(
   category: NavigatorCategory | undefined,
+  listDrill?: ListDrillState,
 ): string | undefined {
   if (!category) {
     return;
@@ -87,6 +106,8 @@ function getCategoryLabel(
       return category.objectSlug;
     case "list":
       return "List";
+    case "lists":
+      return listDrill ? getListsBreadcrumb(listDrill) : "Lists";
     case "notes":
       return "Notes";
     case "tasks":
@@ -190,6 +211,7 @@ function MainApp() {
     },
     webhookModal,
     columnPicker,
+    listDrill,
   } = navigation;
   const { mode: webhookModalMode } = webhookModal;
   const { mode: columnPickerMode } = columnPicker;
@@ -205,7 +227,59 @@ function MainApp() {
 
   // Get selected category
   const selectedCategory = navigatorCategories[navigatorSelectedIndex];
-  const categoryLabel = getCategoryLabel(selectedCategory);
+
+  // List drill-down
+  const { drillIntoList, drillIntoStatus } = useListDrill({
+    client,
+    dispatch,
+  });
+
+  const handleSelectItem = useCallback(() => {
+    if (focusedPane !== "results") {
+      return;
+    }
+    const selectedItem = resultItems[resultSelectedIndex];
+    if (!selectedItem) {
+      return;
+    }
+
+    if (selectedItem.type === "list" && selectedCategory?.type === "lists") {
+      drillIntoList(selectedItem.data);
+    } else if (selectedItem.type === "list-status") {
+      if (listDrill.level === "statuses") {
+        drillIntoStatus({
+          listId: listDrill.listId,
+          listName: listDrill.listName,
+          statusAttributeSlug: listDrill.statusAttributeSlug,
+          status: selectedItem.data,
+        });
+      }
+    } else {
+      // For non-drillable items, focus the detail pane
+      dispatch({ type: "FOCUS_PANE", paneId: "detail" });
+    }
+  }, [
+    focusedPane,
+    resultItems,
+    resultSelectedIndex,
+    selectedCategory,
+    listDrill,
+    drillIntoList,
+    drillIntoStatus,
+    dispatch,
+  ]);
+
+  const handleGoBack = useCallback(() => {
+    if (selectedCategory?.type === "lists" && listDrill.level !== "lists") {
+      dispatch({ type: "LIST_DRILL_BACK" });
+    } else if (focusedPane === "results") {
+      dispatch({ type: "FOCUS_PANE", paneId: "navigator" });
+    } else if (focusedPane === "detail") {
+      dispatch({ type: "FOCUS_PANE", paneId: "results" });
+    }
+  }, [selectedCategory, listDrill, focusedPane, dispatch]);
+
+  const categoryLabel = getCategoryLabel(selectedCategory, listDrill);
   const categoryType = getCategoryType(selectedCategory);
   const categorySlug = getCategorySlug(selectedCategory);
   const columnsEntityKey = Columns.getEntityKey(selectedCategory);
@@ -233,6 +307,7 @@ function MainApp() {
     client,
     categoryType,
     categorySlug,
+    listDrill: categoryType === "lists" ? listDrill : undefined,
     onRequestLog: recordRequest,
   });
   const refreshWithFeedback = useCallback((): void => {
@@ -442,6 +517,8 @@ function MainApp() {
     onRefresh: refreshWithFeedback,
     onToggleDebug: toggleDebugPanel,
     onToggleHelp: toggleHelp,
+    onSelectItem: handleSelectItem,
+    onGoBack: handleGoBack,
   });
 
   // Setup keyboard handling (disabled when webhook modal is open)

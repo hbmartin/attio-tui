@@ -19,6 +19,8 @@ interface UseActionHandlerOptions {
   readonly onRefresh: () => void;
   readonly onToggleDebug: () => void;
   readonly onToggleHelp: () => void;
+  readonly onSelectItem?: () => void;
+  readonly onGoBack?: () => void;
 }
 
 // Action dispatch map for simple actions
@@ -154,6 +156,8 @@ export function useActionHandler(options: UseActionHandlerOptions) {
     onRefresh,
     onToggleDebug,
     onToggleHelp,
+    onSelectItem,
+    onGoBack,
   } = options;
 
   return useCallback(
@@ -171,6 +175,8 @@ export function useActionHandler(options: UseActionHandlerOptions) {
         refresh: onRefresh,
         toggleDebug: onToggleDebug,
         toggleHelp: onToggleHelp,
+        selectItem: onSelectItem,
+        goBack: onGoBack,
       };
 
       const actionHandler = actionHandlers[action];
@@ -249,6 +255,8 @@ export function useActionHandler(options: UseActionHandlerOptions) {
       onRefresh,
       onToggleDebug,
       onToggleHelp,
+      onSelectItem,
+      onGoBack,
     ],
   );
 }

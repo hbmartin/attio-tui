@@ -4,6 +4,7 @@ import {
   createInitialNavigationState,
   DETAIL_TABS,
   type DetailTab,
+  type ListDrillState,
   type NavigationState,
   type NavigatorCategory,
   PANE_ORDER,
@@ -91,12 +92,30 @@ export type AppAction =
   | {
       readonly type: "WEBHOOK_NAVIGATE_STEP";
       readonly direction: "next" | "previous";
-    };
+    }
+  // List drill-down
+  | {
+      readonly type: "LIST_DRILL_INTO_STATUSES";
+      readonly listId: string;
+      readonly listName: string;
+      readonly statusAttributeSlug: string;
+    }
+  | {
+      readonly type: "LIST_DRILL_INTO_ENTRIES";
+      readonly listId: string;
+      readonly listName: string;
+      readonly statusId?: string;
+      readonly statusTitle?: string;
+      readonly statusAttributeSlug?: string;
+    }
+  | { readonly type: "LIST_DRILL_BACK" };
 
 export interface AppState {
   readonly navigation: NavigationState;
   readonly debugEnabled: boolean;
 }
+
+const INITIAL_LIST_DRILL: ListDrillState = { level: "lists" };
 
 function resetResultsForCategoryChange(current: ResultsState): ResultsState {
   return {
@@ -248,6 +267,7 @@ export function appReducer(state: AppState, action: AppAction): AppState {
             selectedIndex: action.index,
           },
           results: resetResultsForCategoryChange(state.navigation.results),
+          listDrill: INITIAL_LIST_DRILL,
         },
       };
 
@@ -270,6 +290,7 @@ export function appReducer(state: AppState, action: AppAction): AppState {
           },
           ...(categoryChanged && {
             results: resetResultsForCategoryChange(state.navigation.results),
+            listDrill: INITIAL_LIST_DRILL,
           }),
         },
       };
@@ -294,6 +315,7 @@ export function appReducer(state: AppState, action: AppAction): AppState {
           },
           ...(categoryChanged && {
             results: resetResultsForCategoryChange(state.navigation.results),
+            listDrill: INITIAL_LIST_DRILL,
           }),
         },
       };
@@ -655,6 +677,71 @@ export function appReducer(state: AppState, action: AppAction): AppState {
             ...webhookModal,
             step: navigateWebhookStep(webhookModal.step, action.direction),
           },
+        },
+      };
+    }
+
+    // List drill-down
+    case "LIST_DRILL_INTO_STATUSES":
+      return {
+        ...state,
+        navigation: {
+          ...state.navigation,
+          results: resetResultsForCategoryChange(state.navigation.results),
+          listDrill: {
+            level: "statuses",
+            listId: action.listId,
+            listName: action.listName,
+            statusAttributeSlug: action.statusAttributeSlug,
+          },
+        },
+      };
+
+    case "LIST_DRILL_INTO_ENTRIES":
+      return {
+        ...state,
+        navigation: {
+          ...state.navigation,
+          results: resetResultsForCategoryChange(state.navigation.results),
+          listDrill: {
+            level: "entries",
+            listId: action.listId,
+            listName: action.listName,
+            statusId: action.statusId,
+            statusTitle: action.statusTitle,
+            statusAttributeSlug: action.statusAttributeSlug,
+          },
+        },
+      };
+
+    case "LIST_DRILL_BACK": {
+      const { listDrill } = state.navigation;
+      if (listDrill.level === "lists") {
+        return state;
+      }
+      if (listDrill.level === "entries" && listDrill.statusAttributeSlug) {
+        // Go back from filtered entries to statuses
+        return {
+          ...state,
+          navigation: {
+            ...state.navigation,
+            results: resetResultsForCategoryChange(state.navigation.results),
+            listDrill: {
+              level: "statuses",
+              listId: listDrill.listId,
+              listName: listDrill.listName,
+              statusAttributeSlug: listDrill.statusAttributeSlug,
+            },
+          },
+        };
+      }
+      // Go back from entries (no status) or statuses to lists
+      return {
+        ...state,
+        navigation: {
+          ...state.navigation,
+          results: resetResultsForCategoryChange(state.navigation.results),
+          listDrill: INITIAL_LIST_DRILL,
         },
       };
     }

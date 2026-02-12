@@ -1,13 +1,19 @@
 import {
   createAttioClient,
+  type GetV2ByTargetByIdentifierAttributesByAttributeStatusesResponses,
+  type GetV2ByTargetByIdentifierAttributesResponses,
   type GetV2ListsResponses,
+  getV2ByTargetByIdentifierAttributes,
+  getV2ByTargetByIdentifierAttributesByAttributeStatuses,
   getV2Lists,
   type PostV2ListsByListEntriesQueryResponses,
   postV2ListsByListEntriesQuery,
 } from "attio-ts-sdk";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  fetchListStatuses,
   fetchLists,
+  findListStatusAttribute,
   queryListEntries,
 } from "../../source/services/lists-service.js";
 import { createListId } from "../../source/types/ids.js";
@@ -20,6 +26,8 @@ vi.mock("attio-ts-sdk", async () => {
     ...actual,
     getV2Lists: vi.fn(),
     postV2ListsByListEntriesQuery: vi.fn(),
+    getV2ByTargetByIdentifierAttributes: vi.fn(),
+    getV2ByTargetByIdentifierAttributesByAttributeStatuses: vi.fn(),
   };
 });
 
@@ -238,5 +246,184 @@ describe("queryListEntries", () => {
     expect(result.entries[1]?.id).toBe("entry-2");
     // Should have nextCursor since there was an extra row
     expect(result.nextCursor).toBe("2");
+  });
+});
+
+describe("findListStatusAttribute", () => {
+  const client = createAttioClient({
+    apiKey: "at_0123456789abcdef0123456789abcdef0123456789abcdef",
+  });
+  const mockGetAttributes = vi.mocked(getV2ByTargetByIdentifierAttributes);
+
+  beforeEach(() => {
+    mockGetAttributes.mockReset();
+  });
+
+  const buildAttribute = (
+    type: string,
+    slug: string,
+  ): GetV2ByTargetByIdentifierAttributesResponses[200]["data"][number] =>
+    ({
+      id: {
+        workspace_id: "ws-1",
+        object_id: "obj-1",
+        attribute_id: `attr-${slug}`,
+      },
+      title: slug.charAt(0).toUpperCase() + slug.slice(1),
+      api_slug: slug,
+      type,
+      description: null,
+      is_system_attribute: false,
+      is_writable: true,
+      is_required: false,
+      is_unique: false,
+      is_multiselect: false,
+      is_default_value_enabled: false,
+      is_archived: false,
+      default_value: null,
+      relationship: null,
+      created_at: "2025-01-01T00:00:00Z",
+      config: { currency: null, record_reference: null },
+    }) as GetV2ByTargetByIdentifierAttributesResponses[200]["data"][number];
+
+  it("should return the first status attribute when found", async () => {
+    mockGetAttributes.mockResolvedValue(
+      buildSuccess({
+        data: [
+          buildAttribute("text", "name"),
+          buildAttribute("status", "stage"),
+          buildAttribute("number", "amount"),
+        ],
+      }),
+    );
+
+    const result = await findListStatusAttribute(client, "list-1");
+
+    expect(result).toEqual({
+      slug: "stage",
+      title: "Stage",
+      attributeId: "attr-stage",
+    });
+  });
+
+  it("should return undefined when no status attribute exists", async () => {
+    mockGetAttributes.mockResolvedValue(
+      buildSuccess({
+        data: [
+          buildAttribute("text", "name"),
+          buildAttribute("number", "amount"),
+        ],
+      }),
+    );
+
+    const result = await findListStatusAttribute(client, "list-1");
+
+    expect(result).toBeUndefined();
+  });
+
+  it("should throw on API error", async () => {
+    mockGetAttributes.mockResolvedValue(
+      buildError(
+        {
+          status_code: 500,
+          type: "api_error",
+          code: "server_error",
+          message: "Server error",
+        },
+        500,
+      ),
+    );
+
+    await expect(findListStatusAttribute(client, "list-1")).rejects.toThrow(
+      "Failed to fetch list attributes",
+    );
+  });
+});
+
+describe("fetchListStatuses", () => {
+  const client = createAttioClient({
+    apiKey: "at_0123456789abcdef0123456789abcdef0123456789abcdef",
+  });
+  const mockGetStatuses = vi.mocked(
+    getV2ByTargetByIdentifierAttributesByAttributeStatuses,
+  );
+
+  beforeEach(() => {
+    mockGetStatuses.mockReset();
+  });
+
+  const buildStatus = (
+    statusId: string,
+    title: string,
+    isArchived = false,
+  ): GetV2ByTargetByIdentifierAttributesByAttributeStatusesResponses[200]["data"][number] => ({
+    id: {
+      workspace_id: "ws-1",
+      object_id: "obj-1",
+      attribute_id: "attr-1",
+      status_id: statusId,
+    },
+    title,
+    is_archived: isArchived,
+    celebration_enabled: false,
+    target_time_in_status: null,
+  });
+
+  it("should map statuses to StatusInfo", async () => {
+    mockGetStatuses.mockResolvedValue(
+      buildSuccess({
+        data: [
+          buildStatus("s-1", "Prospecting"),
+          buildStatus("s-2", "Negotiation"),
+          buildStatus("s-3", "Won"),
+        ],
+      }),
+    );
+
+    const result = await fetchListStatuses(client, "list-1", "stage");
+
+    expect(result).toHaveLength(3);
+    expect(result[0]).toEqual({
+      statusId: "s-1",
+      attributeId: "attr-1",
+      title: "Prospecting",
+      isArchived: false,
+      celebrationEnabled: false,
+      targetTimeInStatus: null,
+    });
+  });
+
+  it("should include archived statuses in the result", async () => {
+    mockGetStatuses.mockResolvedValue(
+      buildSuccess({
+        data: [
+          buildStatus("s-1", "Active"),
+          buildStatus("s-2", "Archived", true),
+        ],
+      }),
+    );
+
+    const result = await fetchListStatuses(client, "list-1", "stage");
+
+    expect(result).toHaveLength(2);
+    expect(result[1]?.isArchived).toBe(true);
+  });
+
+  it("should throw on API error", async () => {
+    mockGetStatuses.mockResolvedValue(
+      buildError(
+        {
+          status_code: 404,
+          type: "not_found",
+          code: "not_found",
+          message: "Attribute not found",
+        },
+        404,
+      ),
+    );
+
+    await expect(fetchListStatuses(client, "list-1", "stage")).rejects.toThrow(
+      "Failed to fetch statuses",
+    );
   });
 });

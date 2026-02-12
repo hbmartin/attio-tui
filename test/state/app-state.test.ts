@@ -785,4 +785,216 @@ describe("appReducer", () => {
       }
     });
   });
+
+  describe("list drill-down", () => {
+    const stateWithListsCategory: AppState = {
+      ...initialState,
+      navigation: {
+        ...initialState.navigation,
+        navigator: {
+          categories: [{ type: "lists" }],
+          selectedIndex: 0,
+          loading: false,
+        },
+      },
+    };
+
+    it("should drill into statuses from lists", () => {
+      const result = appReducer(stateWithListsCategory, {
+        type: "LIST_DRILL_INTO_STATUSES",
+        listId: "list-1",
+        listName: "Sales Pipeline",
+        statusAttributeSlug: "stage",
+      });
+
+      expect(result.navigation.listDrill).toEqual({
+        level: "statuses",
+        listId: "list-1",
+        listName: "Sales Pipeline",
+        statusAttributeSlug: "stage",
+      });
+      expect(result.navigation.results.loading).toBe(true);
+      expect(result.navigation.results.items).toEqual([]);
+    });
+
+    it("should drill into entries from statuses", () => {
+      const stateAtStatuses: AppState = {
+        ...stateWithListsCategory,
+        navigation: {
+          ...stateWithListsCategory.navigation,
+          listDrill: {
+            level: "statuses",
+            listId: "list-1",
+            listName: "Sales Pipeline",
+            statusAttributeSlug: "stage",
+          },
+        },
+      };
+
+      const result = appReducer(stateAtStatuses, {
+        type: "LIST_DRILL_INTO_ENTRIES",
+        listId: "list-1",
+        listName: "Sales Pipeline",
+        statusId: "status-1",
+        statusTitle: "Prospecting",
+        statusAttributeSlug: "stage",
+      });
+
+      expect(result.navigation.listDrill).toEqual({
+        level: "entries",
+        listId: "list-1",
+        listName: "Sales Pipeline",
+        statusId: "status-1",
+        statusTitle: "Prospecting",
+        statusAttributeSlug: "stage",
+      });
+      expect(result.navigation.results.loading).toBe(true);
+    });
+
+    it("should drill into entries without status (no status attribute)", () => {
+      const result = appReducer(stateWithListsCategory, {
+        type: "LIST_DRILL_INTO_ENTRIES",
+        listId: "list-1",
+        listName: "Simple List",
+      });
+
+      expect(result.navigation.listDrill).toEqual({
+        level: "entries",
+        listId: "list-1",
+        listName: "Simple List",
+        statusId: undefined,
+        statusTitle: undefined,
+        statusAttributeSlug: undefined,
+      });
+    });
+
+    it("should go back from entries to statuses when status attribute exists", () => {
+      const stateAtEntries: AppState = {
+        ...stateWithListsCategory,
+        navigation: {
+          ...stateWithListsCategory.navigation,
+          listDrill: {
+            level: "entries",
+            listId: "list-1",
+            listName: "Sales Pipeline",
+            statusId: "status-1",
+            statusTitle: "Prospecting",
+            statusAttributeSlug: "stage",
+          },
+        },
+      };
+
+      const result = appReducer(stateAtEntries, { type: "LIST_DRILL_BACK" });
+
+      expect(result.navigation.listDrill).toEqual({
+        level: "statuses",
+        listId: "list-1",
+        listName: "Sales Pipeline",
+        statusAttributeSlug: "stage",
+      });
+      expect(result.navigation.results.loading).toBe(true);
+    });
+
+    it("should go back from entries to lists when no status attribute", () => {
+      const stateAtEntries: AppState = {
+        ...stateWithListsCategory,
+        navigation: {
+          ...stateWithListsCategory.navigation,
+          listDrill: {
+            level: "entries",
+            listId: "list-1",
+            listName: "Simple List",
+          },
+        },
+      };
+
+      const result = appReducer(stateAtEntries, { type: "LIST_DRILL_BACK" });
+
+      expect(result.navigation.listDrill).toEqual({ level: "lists" });
+      expect(result.navigation.results.loading).toBe(true);
+    });
+
+    it("should go back from statuses to lists", () => {
+      const stateAtStatuses: AppState = {
+        ...stateWithListsCategory,
+        navigation: {
+          ...stateWithListsCategory.navigation,
+          listDrill: {
+            level: "statuses",
+            listId: "list-1",
+            listName: "Sales Pipeline",
+            statusAttributeSlug: "stage",
+          },
+        },
+      };
+
+      const result = appReducer(stateAtStatuses, { type: "LIST_DRILL_BACK" });
+
+      expect(result.navigation.listDrill).toEqual({ level: "lists" });
+    });
+
+    it("should be a no-op when going back at the lists level", () => {
+      const result = appReducer(stateWithListsCategory, {
+        type: "LIST_DRILL_BACK",
+      });
+
+      expect(result).toBe(stateWithListsCategory);
+    });
+
+    it("should reset listDrill on SELECT_CATEGORY", () => {
+      const stateAtStatuses: AppState = {
+        ...stateWithListsCategory,
+        navigation: {
+          ...stateWithListsCategory.navigation,
+          navigator: {
+            categories: [{ type: "lists" }, { type: "notes" }],
+            selectedIndex: 0,
+            loading: false,
+          },
+          listDrill: {
+            level: "statuses",
+            listId: "list-1",
+            listName: "Sales Pipeline",
+            statusAttributeSlug: "stage",
+          },
+        },
+      };
+
+      const result = appReducer(stateAtStatuses, {
+        type: "SELECT_CATEGORY",
+        index: 1,
+      });
+
+      expect(result.navigation.listDrill).toEqual({ level: "lists" });
+    });
+
+    it("should reset listDrill on NAVIGATE_CATEGORY when category changes", () => {
+      const stateAtStatuses: AppState = {
+        ...stateWithListsCategory,
+        navigation: {
+          ...stateWithListsCategory.navigation,
+          navigator: {
+            categories: [{ type: "lists" }, { type: "notes" }],
+            selectedIndex: 0,
+            loading: false,
+          },
+          listDrill: {
+            level: "entries",
+            listId: "list-1",
+            listName: "Pipeline",
+            statusId: "s-1",
+            statusTitle: "Won",
+            statusAttributeSlug: "stage",
+          },
+        },
+      };
+
+      const result = appReducer(stateAtStatuses, {
+        type: "NAVIGATE_CATEGORY",
+        direction: "down",
+      });
+
+      expect(result.navigation.listDrill).toEqual({ level: "lists" });
+    });
+  });
 });
