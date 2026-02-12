@@ -31,6 +31,13 @@ function generateSdkCode(
         `  entryId: "${item.id}",`,
         "});",
       ];
+    case "lists":
+      return [
+        "// Query entries for this list",
+        "const entries = await client.lists.entries.query({",
+        `  listId: "${item.id}",`,
+        "});",
+      ];
     case "notes":
       return [
         "// Fetch this note",

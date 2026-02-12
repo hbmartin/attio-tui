@@ -14,6 +14,8 @@ function getCategoryLabel(category: NavigatorCategory): string {
       return category.objectSlug;
     case "list":
       return `List: ${category.listId}`;
+    case "lists":
+      return "Lists";
     case "notes":
       return "Notes";
     case "tasks":
@@ -30,6 +32,7 @@ function getCategoryIcon(category: NavigatorCategory): string {
     case "object":
       return ">";
     case "list":
+    case "lists":
       return "#";
     case "notes":
       return "N";

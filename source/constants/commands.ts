@@ -15,6 +15,12 @@ export const DEFAULT_COMMANDS: readonly Command[] = [
     action: { type: "navigation", target: "people" },
   },
   {
+    id: "goto-lists",
+    label: "Go to Lists",
+    description: "Navigate to workspace lists",
+    action: { type: "navigation", target: "lists" },
+  },
+  {
     id: "goto-notes",
     label: "Go to Notes",
     description: "Navigate to notes",

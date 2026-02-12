@@ -1,8 +1,11 @@
 import { Box, Text } from "ink";
 import type {
+  ListEntryInfo,
+  ListInfo,
   MeetingInfo,
   NoteInfo,
   RecordInfo,
+  StatusInfo,
   TaskInfo,
   WebhookInfo,
 } from "../../types/attio.js";
@@ -223,6 +226,56 @@ function WebhookSummary({ data }: { readonly data: WebhookInfo }) {
   );
 }
 
+// List summary
+function ListSummary({ data }: { readonly data: ListInfo }) {
+  return (
+    <Box flexDirection="column" gap={1}>
+      <SummaryRow label="Name" value={data.name} />
+      <SummaryRow label="ID" value={data.id} dimValue={true} />
+      <SummaryRow label="Slug" value={data.apiSlug} />
+      <SummaryRow label="Parent Object" value={data.parentObject} />
+    </Box>
+  );
+}
+
+// Status summary
+function StatusSummary({ data }: { readonly data: StatusInfo }) {
+  return (
+    <Box flexDirection="column" gap={1}>
+      <SummaryRow label="Title" value={data.title} />
+      <SummaryRow label="Status ID" value={data.statusId} dimValue={true} />
+      <Box>
+        <Text bold={true}>Archived: </Text>
+        <Text color={data.isArchived ? "red" : "green"}>
+          {data.isArchived ? "Yes" : "No"}
+        </Text>
+      </Box>
+      {data.celebrationEnabled && (
+        <SummaryRow label="Celebration" value="Enabled" />
+      )}
+      {data.targetTimeInStatus && (
+        <SummaryRow label="Target Time" value={data.targetTimeInStatus} />
+      )}
+    </Box>
+  );
+}
+
+// List entry summary
+function ListEntrySummary({ data }: { readonly data: ListEntryInfo }) {
+  return (
+    <Box flexDirection="column" gap={1}>
+      <SummaryRow label="Entry ID" value={data.id} dimValue={true} />
+      <SummaryRow label="List ID" value={data.listId} dimValue={true} />
+      <SummaryRow
+        label="Parent Record"
+        value={data.parentRecordId}
+        dimValue={true}
+      />
+      <SummaryRow label="Created" value={formatDateTime(data.createdAt)} />
+    </Box>
+  );
+}
+
 // Generic fallback summary
 function GenericSummary({ item }: { readonly item: ResultItem }) {
   return (
@@ -242,6 +295,12 @@ export function SummaryView({ item }: SummaryViewProps) {
   switch (item.type) {
     case "object":
       return <RecordSummary data={item.data} />;
+    case "list":
+      return <ListSummary data={item.data} />;
+    case "list-status":
+      return <StatusSummary data={item.data} />;
+    case "list-entry":
+      return <ListEntrySummary data={item.data} />;
     case "notes":
       return <NoteSummary data={item.data} />;
     case "tasks":

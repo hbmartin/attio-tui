@@ -140,4 +140,16 @@ describe("getNavigatorCategoryKey", () => {
       getNavigatorCategoryKey(cat2),
     );
   });
+
+  it("should return type for lists category", () => {
+    const category: NavigatorCategory = { type: "lists" };
+    expect(getNavigatorCategoryKey(category)).toBe("lists");
+  });
+});
+
+describe("createInitialNavigationState listDrill", () => {
+  it("should initialize listDrill at lists level", () => {
+    const state = createInitialNavigationState();
+    expect(state.listDrill).toEqual({ level: "lists" });
+  });
 });

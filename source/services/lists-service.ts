@@ -1,6 +1,11 @@
 import type { AttioClient } from "attio-ts-sdk";
-import { getV2Lists, postV2ListsByListEntriesQuery } from "attio-ts-sdk";
-import type { ListEntryInfo, ListInfo } from "../types/attio.js";
+import {
+  getV2ByTargetByIdentifierAttributes,
+  getV2ByTargetByIdentifierAttributesByAttributeStatuses,
+  getV2Lists,
+  postV2ListsByListEntriesQuery,
+} from "attio-ts-sdk";
+import type { ListEntryInfo, ListInfo, StatusInfo } from "../types/attio.js";
 import type { ListId } from "../types/ids.js";
 import { parseCursorOffset } from "../utils/pagination.js";
 
@@ -80,16 +85,17 @@ export async function fetchLists(
   };
 }
 
-// Query entries for a specific list
+// Query entries for a specific list, optionally filtered by status
 export async function queryListEntries(
   client: AttioClient,
   listId: ListId,
   options: {
     readonly limit?: number;
     readonly cursor?: string;
+    readonly filter?: Record<string, unknown>;
   } = {},
 ): Promise<QueryListEntriesResult> {
-  const { limit, cursor } = options;
+  const { limit, cursor, filter } = options;
   const normalizedLimit = normalizeLimit(limit);
   const offset = parseCursorOffset(cursor);
 
@@ -100,6 +106,7 @@ export async function queryListEntries(
     body: {
       limit: normalizedLimit + 1,
       ...(offset !== undefined ? { offset } : {}),
+      ...(filter ? { filter } : {}),
     },
   });
 
@@ -128,5 +135,89 @@ export async function queryListEntries(
   return {
     entries,
     nextCursor,
+  };
+}
+
+// Result for finding a status attribute on a list
+export interface ListStatusAttributeInfo {
+  readonly slug: string;
+  readonly title: string;
+  readonly attributeId: string;
+}
+
+// Find the first status-type attribute on a list, if any
+export async function findListStatusAttribute(
+  client: AttioClient,
+  listId: string,
+): Promise<ListStatusAttributeInfo | undefined> {
+  const response = await getV2ByTargetByIdentifierAttributes({
+    client,
+    path: { target: "lists", identifier: listId },
+  });
+
+  if (response.error) {
+    throw new Error(
+      `Failed to fetch list attributes: ${JSON.stringify(response.error)}`,
+    );
+  }
+
+  const attributes = response.data?.data ?? [];
+  const statusAttr = attributes.find((attr) => attr.type === "status");
+
+  if (!statusAttr) {
+    return;
+  }
+
+  return {
+    slug: statusAttr.api_slug,
+    title: statusAttr.title,
+    attributeId: statusAttr.id.attribute_id,
+  };
+}
+
+// Fetch statuses for a list's status attribute
+export async function fetchListStatuses(
+  client: AttioClient,
+  listId: string,
+  attributeSlug: string,
+): Promise<readonly StatusInfo[]> {
+  const response = await getV2ByTargetByIdentifierAttributesByAttributeStatuses(
+    {
+      client,
+      path: {
+        target: "lists",
+        identifier: listId,
+        attribute: attributeSlug,
+      },
+    },
+  );
+
+  if (response.error) {
+    throw new Error(
+      `Failed to fetch statuses: ${JSON.stringify(response.error)}`,
+    );
+  }
+
+  const statuses = response.data?.data ?? [];
+
+  return statuses.map((status) => ({
+    statusId: status.id.status_id,
+    attributeId: status.id.attribute_id,
+    title: status.title,
+    isArchived: status.is_archived,
+    celebrationEnabled: status.celebration_enabled,
+    targetTimeInStatus: status.target_time_in_status,
+  }));
+}
+
+// Build a status filter for list entry queries
+export function buildStatusFilter(
+  attributeSlug: string,
+  statusId: string,
+): Record<string, unknown> {
+  return {
+    filter: {
+      [attributeSlug]: { status: { $eq: statusId } },
+    },
   };
 }

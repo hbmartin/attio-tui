@@ -77,4 +77,15 @@ describe("DEFAULT_COMMANDS", () => {
     const uniqueIds = new Set(ids);
     expect(uniqueIds.size).toBe(ids.length);
   });
+
+  it("should include goto-lists navigation command", () => {
+    const listsCommand = DEFAULT_COMMANDS.find(
+      (cmd) => cmd.id === "goto-lists",
+    );
+    expect(listsCommand).toBeDefined();
+    expect(listsCommand?.action).toEqual({
+      type: "navigation",
+      target: "lists",
+    });
+  });
 });

@@ -41,6 +41,7 @@ export namespace Columns {
       case "object":
         return `object-${category.objectSlug}`;
       case "list":
+      case "lists":
         return "list";
       case "notes":
       case "tasks":

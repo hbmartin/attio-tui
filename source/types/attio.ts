@@ -66,6 +66,15 @@ export namespace AttioTypes {
     readonly createdAt: ListEntryPayload["created_at"];
   }
 
+  export interface StatusInfo {
+    readonly statusId: string;
+    readonly attributeId: string;
+    readonly title: string;
+    readonly isArchived: boolean;
+    readonly celebrationEnabled: boolean;
+    readonly targetTimeInStatus: string | null;
+  }
+
   export type NotePayload = NonNullable<GetV2NotesResponse["data"]>[number];
 
   export interface NoteInfo {
@@ -157,6 +166,7 @@ export type RecordValue = AttioTypes.RecordValue;
 export type RecordValues = AttioTypes.RecordValues;
 export type ListInfo = AttioTypes.ListInfo;
 export type ListEntryInfo = AttioTypes.ListEntryInfo;
+export type StatusInfo = AttioTypes.StatusInfo;
 export type NoteInfo = AttioTypes.NoteInfo;
 export type TaskInfo = AttioTypes.TaskInfo;
 export type MeetingInfo = AttioTypes.MeetingInfo;

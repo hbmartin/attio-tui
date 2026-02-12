@@ -1,8 +1,10 @@
 import type {
+  ListEntryInfo,
   ListInfo,
   MeetingInfo,
   NoteInfo,
   RecordInfo,
+  StatusInfo,
   TaskInfo,
   WebhookEventType,
   WebhookInfo,
@@ -20,10 +22,29 @@ export const PANE_ORDER: readonly PaneId[] = ["navigator", "results", "detail"];
 export type NavigatorCategory =
   | { readonly type: "object"; readonly objectSlug: ObjectSlug }
   | { readonly type: "list"; readonly listId: ListId }
+  | { readonly type: "lists" }
   | { readonly type: "notes" }
   | { readonly type: "tasks" }
   | { readonly type: "meetings" }
   | { readonly type: "webhooks" };
+
+// Drill-down state for the Lists browser
+export type ListDrillState =
+  | { readonly level: "lists" }
+  | {
+      readonly level: "statuses";
+      readonly listId: string;
+      readonly listName: string;
+      readonly statusAttributeSlug: string;
+    }
+  | {
+      readonly level: "entries";
+      readonly listId: string;
+      readonly listName: string;
+      readonly statusId?: string;
+      readonly statusTitle?: string;
+      readonly statusAttributeSlug?: string;
+    };
 
 // Detail pane tabs
 export type DetailTab = "summary" | "json" | "sdk" | "actions";
@@ -55,7 +76,7 @@ export interface ResultsState {
 }
 
 // Result items are typed by category and backed by SDK-derived entity shapes
-interface ResultItemBase<TType extends NavigatorCategory["type"], TData> {
+interface ResultItemBase<TType extends string, TData> {
   readonly type: TType;
   readonly id: string;
   readonly title: string;
@@ -66,6 +87,8 @@ interface ResultItemBase<TType extends NavigatorCategory["type"], TData> {
 export type ResultItem =
   | ResultItemBase<"object", RecordInfo>
   | ResultItemBase<"list", ListInfo>
+  | ResultItemBase<"list-status", StatusInfo>
+  | ResultItemBase<"list-entry", ListEntryInfo>
   | ResultItemBase<"notes", NoteInfo>
   | ResultItemBase<"tasks", TaskInfo>
   | ResultItemBase<"meetings", MeetingInfo>
@@ -133,6 +156,7 @@ export interface NavigationState {
   readonly commandPalette: CommandPaletteState;
   readonly webhookModal: WebhookModalState;
   readonly columnPicker: ColumnPickerState;
+  readonly listDrill: ListDrillState;
 }
 
 // Generate a stable key for a NavigatorCategory
@@ -142,6 +166,7 @@ export function getNavigatorCategoryKey(category: NavigatorCategory): string {
       return `object-${category.objectSlug}`;
     case "list":
       return `list-${category.listId}`;
+    case "lists":
     case "notes":
     case "tasks":
     case "meetings":
@@ -180,6 +205,9 @@ export function createInitialNavigationState(): NavigationState {
     },
     columnPicker: {
       mode: "closed",
+    },
+    listDrill: {
+      level: "lists",
     },
   };
 }

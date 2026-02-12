@@ -17,6 +17,7 @@ export type CommandAction =
 export type NavigationTarget =
   | "companies"
   | "people"
+  | "lists"
   | "notes"
   | "tasks"
   | "meetings"
