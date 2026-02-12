@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.2.0](https://github.com/hbmartin/attio-tui/compare/attio-tui-v1.1.0...attio-tui-v1.2.0) (2026-02-12)
+
+
+### Features
+
+* **lists:** add Lists navigator with three-level drill-down ([29e4859](https://github.com/hbmartin/attio-tui/commit/29e48596e5709064ed238e13927ba29d79590333))
+* **lists:** add Lists navigator with three-level drill-down ([29e4859](https://github.com/hbmartin/attio-tui/commit/29e48596e5709064ed238e13927ba29d79590333))
+* **lists:** add Lists navigator with three-level drill-down ([3a99ce4](https://github.com/hbmartin/attio-tui/commit/3a99ce46f4907d431a09aefc8e983a40a973f664))
+
+
+### Bug Fixes
+
+* **hooks:** reset isPrefetching when resetKey changes during in-flight loadMore ([ed9ca3a](https://github.com/hbmartin/attio-tui/commit/ed9ca3ad1996edb0fb3d75fffdaf65335197a0f7))
+* **lists:** remove double-nested filter in buildStatusFilter ([8b2f692](https://github.com/hbmartin/attio-tui/commit/8b2f692cff2f53c0c84c0cf7be9d8c8b810f2651))
+* **lists:** remove double-nested filter in buildStatusFilter ([20d4e57](https://github.com/hbmartin/attio-tui/commit/20d4e577c327d3ae38ac33ea13172a5e2845239d))
+* **sdk-view:** dispatch on item.type to fix list drill-down snippets ([cc352ac](https://github.com/hbmartin/attio-tui/commit/cc352ac561a50efe30868a5998ac0f4ec7e79957))
+
 ## [1.1.0](https://github.com/hbmartin/attio-tui/compare/attio-tui-v1.0.0...attio-tui-v1.1.0) (2026-02-07)
 
 
