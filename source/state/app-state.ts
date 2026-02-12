@@ -9,6 +9,7 @@ import {
   PANE_ORDER,
   type PaneId,
   type ResultItem,
+  type ResultsState,
   WEBHOOK_FORM_STEPS,
   type WebhookFormStep,
 } from "../types/navigation.js";
@@ -95,6 +96,16 @@ export type AppAction =
 export interface AppState {
   readonly navigation: NavigationState;
   readonly debugEnabled: boolean;
+}
+
+function resetResultsForCategoryChange(current: ResultsState): ResultsState {
+  return {
+    ...current,
+    items: [],
+    selectedIndex: 0,
+    loading: true,
+    hasNextPage: false,
+  };
 }
 
 export function createInitialAppState(): AppState {
@@ -236,13 +247,7 @@ export function appReducer(state: AppState, action: AppAction): AppState {
             ...state.navigation.navigator,
             selectedIndex: action.index,
           },
-          results: {
-            ...state.navigation.results,
-            items: [],
-            selectedIndex: 0,
-            loading: true,
-            hasNextPage: false,
-          },
+          results: resetResultsForCategoryChange(state.navigation.results),
         },
       };
 
@@ -264,13 +269,7 @@ export function appReducer(state: AppState, action: AppAction): AppState {
             selectedIndex: nextIndex,
           },
           ...(categoryChanged && {
-            results: {
-              ...state.navigation.results,
-              items: [],
-              selectedIndex: 0,
-              loading: true,
-              hasNextPage: false,
-            },
+            results: resetResultsForCategoryChange(state.navigation.results),
           }),
         },
       };
@@ -294,13 +293,7 @@ export function appReducer(state: AppState, action: AppAction): AppState {
             selectedIndex: nextIndex,
           },
           ...(categoryChanged && {
-            results: {
-              ...state.navigation.results,
-              items: [],
-              selectedIndex: 0,
-              loading: true,
-              hasNextPage: false,
-            },
+            results: resetResultsForCategoryChange(state.navigation.results),
           }),
         },
       };
