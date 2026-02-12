@@ -74,7 +74,7 @@ That's it. You're in.
 | `:` | Open command palette |
 | `y` | Copy selected item's ID (yank) |
 | `Ctrl+O` | Open in browser |
-| `Ctrl+R` | Refresh data |
+| `r` / `Ctrl+R` | Refresh data |
 | `Ctrl+D` | Toggle debug panel |
 | `Escape` | Close palette / Go back |
 
@@ -151,9 +151,9 @@ All configs are validated with Zod on load — no mystery crashes from malformed
 ## CLI Options
 
 ```bash
-attio-tui --help     # Show help
-attio-tui --version  # Show version
-attio-tui --debug    # Start with debug panel open
+attio --help     # Show help
+attio --version  # Show version
+attio --debug    # Start with debug panel open
 ```
 
 ## Development
@@ -175,7 +175,7 @@ node dist/cli.js
 
 # Or link it globally for local testing
 pnpm link --global
-attio-tui
+attio
 
 # Run tests
 pnpm test
@@ -237,7 +237,7 @@ Toggle the debug panel to see real-time diagnostics while using the app:
 
 - **Keyboard:** Press `Ctrl+D` to toggle
 - **Command palette:** Type `:debug` or `:toggle debug`
-- **CLI flag:** Start with `attio-tui --debug` to open the panel on launch
+- **CLI flag:** Start with `attio --debug` to open the panel on launch
 
 The debug panel shows:
 
@@ -253,7 +253,7 @@ For deep diagnostics including terminal issues, raw mode bugs, and CI debugging,
 
 ```bash
 # Enable PTY debugging with a log file
-ATTIO_TUI_PTY_DEBUG=1 ATTIO_TUI_PTY_DEBUG_FILE=/tmp/attio-debug.log attio-tui
+ATTIO_TUI_PTY_DEBUG=1 ATTIO_TUI_PTY_DEBUG_FILE=/tmp/attio-debug.log attio
 
 # In another terminal, watch the log
 tail -f /tmp/attio-debug.log
@@ -274,7 +274,7 @@ Enable screen reader mode for accessible output:
 
 ```bash
 # Explicitly enable
-ATTIO_TUI_ACCESSIBLE=1 attio-tui
+ATTIO_TUI_ACCESSIBLE=1 attio
 ```
 
 Auto-detected when `TERM_PROGRAM` contains: `screen-reader`, `orca`, `nvda`, or `jaws`.
@@ -299,7 +299,7 @@ This mode:
 Non-fatal errors (config save failures, column save failures) are written to stderr to avoid interfering with the TUI. Redirect stderr to capture:
 
 ```bash
-attio-tui 2>/tmp/attio-errors.log
+attio 2>/tmp/attio-errors.log
 ```
 
 ## Troubleshooting
