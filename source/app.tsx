@@ -315,10 +315,7 @@ function MainApp() {
   );
   const categoryType = getCategoryType(selectedCategory);
   const categorySlug = getCategorySlug(selectedCategory);
-  const columnsEntityKey =
-    categoryType === "objects" && objectDrill.level === "records"
-      ? (`object-${objectDrill.objectSlug}` as Columns.EntityKey)
-      : Columns.getEntityKey(selectedCategory);
+  const columnsEntityKey = Columns.getEntityKey(selectedCategory, objectDrill);
   const resolvedColumns = resolveColumns({
     entityKey: columnsEntityKey,
     columnsConfig,
@@ -441,14 +438,15 @@ function MainApp() {
 
   const openColumnsPicker = useCallback(() => {
     const entityKey =
-      Columns.getEntityKey(selectedCategory) ?? Columns.DEFAULT_OBJECT_KEY;
+      Columns.getEntityKey(selectedCategory, objectDrill) ??
+      Columns.DEFAULT_OBJECT_KEY;
     const title = categoryLabel ?? "Results";
     dispatch({
       type: "OPEN_COLUMN_PICKER",
       entityKey,
       title: `Columns: ${title}`,
     });
-  }, [dispatch, selectedCategory, categoryLabel]);
+  }, [dispatch, selectedCategory, objectDrill, categoryLabel]);
 
   const copySelectedId = useCallback((): void => {
     const selectedItem = resultItems[resultSelectedIndex];

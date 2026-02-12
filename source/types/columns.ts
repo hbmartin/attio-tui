@@ -1,4 +1,8 @@
-import type { NavigatorCategory, ResultItem } from "./navigation.js";
+import type {
+  NavigatorCategory,
+  ObjectDrillState,
+  ResultItem,
+} from "./navigation.js";
 
 // biome-ignore lint/style/noNamespace: Use a namespace to group column types and helpers.
 export namespace Columns {
@@ -33,6 +37,7 @@ export namespace Columns {
 
   export function getEntityKey(
     category: NavigatorCategory | undefined,
+    objectDrill?: ObjectDrillState,
   ): EntityKey | undefined {
     if (!category) {
       return;
@@ -45,6 +50,10 @@ export namespace Columns {
       case "lists":
         return "list";
       case "objects":
+        // When drilled into a specific object's records, use that object's key
+        if (objectDrill?.level === "records") {
+          return `object-${objectDrill.objectSlug}`;
+        }
         return "objects";
       case "notes":
       case "tasks":
