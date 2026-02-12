@@ -1,5 +1,6 @@
 import type { WebhookEventType } from "../types/attio.js";
 import type { Columns } from "../types/columns.js";
+import type { ObjectSlug } from "../types/ids.js";
 import {
   createInitialNavigationState,
   DETAIL_TABS,
@@ -7,6 +8,7 @@ import {
   type ListDrillState,
   type NavigationState,
   type NavigatorCategory,
+  type ObjectDrillState,
   PANE_ORDER,
   type PaneId,
   type ResultItem,
@@ -108,7 +110,14 @@ export type AppAction =
       readonly statusTitle?: string;
       readonly statusAttributeSlug?: string;
     }
-  | { readonly type: "LIST_DRILL_BACK" };
+  | { readonly type: "LIST_DRILL_BACK" }
+  // Object drill-down
+  | {
+      readonly type: "OBJECT_DRILL_INTO_RECORDS";
+      readonly objectSlug: ObjectSlug;
+      readonly objectName: string;
+    }
+  | { readonly type: "OBJECT_DRILL_BACK" };
 
 export interface AppState {
   readonly navigation: NavigationState;
@@ -116,6 +125,7 @@ export interface AppState {
 }
 
 const INITIAL_LIST_DRILL: ListDrillState = { level: "lists" };
+const INITIAL_OBJECT_DRILL: ObjectDrillState = { level: "objects" };
 
 function resetResultsForCategoryChange(current: ResultsState): ResultsState {
   return {
@@ -268,6 +278,7 @@ export function appReducer(state: AppState, action: AppAction): AppState {
           },
           results: resetResultsForCategoryChange(state.navigation.results),
           listDrill: INITIAL_LIST_DRILL,
+          objectDrill: INITIAL_OBJECT_DRILL,
         },
       };
 
@@ -291,6 +302,7 @@ export function appReducer(state: AppState, action: AppAction): AppState {
           ...(categoryChanged && {
             results: resetResultsForCategoryChange(state.navigation.results),
             listDrill: INITIAL_LIST_DRILL,
+            objectDrill: INITIAL_OBJECT_DRILL,
           }),
         },
       };
@@ -316,6 +328,7 @@ export function appReducer(state: AppState, action: AppAction): AppState {
           ...(categoryChanged && {
             results: resetResultsForCategoryChange(state.navigation.results),
             listDrill: INITIAL_LIST_DRILL,
+            objectDrill: INITIAL_OBJECT_DRILL,
           }),
         },
       };
@@ -742,6 +755,36 @@ export function appReducer(state: AppState, action: AppAction): AppState {
           ...state.navigation,
           results: resetResultsForCategoryChange(state.navigation.results),
           listDrill: INITIAL_LIST_DRILL,
+        },
+      };
+    }
+
+    // Object drill-down
+    case "OBJECT_DRILL_INTO_RECORDS":
+      return {
+        ...state,
+        navigation: {
+          ...state.navigation,
+          results: resetResultsForCategoryChange(state.navigation.results),
+          objectDrill: {
+            level: "records",
+            objectSlug: action.objectSlug,
+            objectName: action.objectName,
+          },
+        },
+      };
+
+    case "OBJECT_DRILL_BACK": {
+      const { objectDrill } = state.navigation;
+      if (objectDrill.level === "objects") {
+        return state;
+      }
+      return {
+        ...state,
+        navigation: {
+          ...state.navigation,
+          results: resetResultsForCategoryChange(state.navigation.results),
+          objectDrill: INITIAL_OBJECT_DRILL,
         },
       };
     }

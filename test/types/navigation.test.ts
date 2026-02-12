@@ -153,3 +153,17 @@ describe("createInitialNavigationState listDrill", () => {
     expect(state.listDrill).toEqual({ level: "lists" });
   });
 });
+
+describe("getNavigatorCategoryKey objects", () => {
+  it("should return type for objects category", () => {
+    const category: NavigatorCategory = { type: "objects" };
+    expect(getNavigatorCategoryKey(category)).toBe("objects");
+  });
+});
+
+describe("createInitialNavigationState objectDrill", () => {
+  it("should initialize objectDrill at objects level", () => {
+    const state = createInitialNavigationState();
+    expect(state.objectDrill).toEqual({ level: "objects" });
+  });
+});

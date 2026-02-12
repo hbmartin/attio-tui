@@ -968,6 +968,32 @@ describe("appReducer", () => {
       expect(result.navigation.listDrill).toEqual({ level: "lists" });
     });
 
+    it("should reset objectDrill on SELECT_CATEGORY", () => {
+      const stateAtRecords: AppState = {
+        ...stateWithListsCategory,
+        navigation: {
+          ...stateWithListsCategory.navigation,
+          navigator: {
+            categories: [{ type: "objects" }, { type: "notes" }],
+            selectedIndex: 0,
+            loading: false,
+          },
+          objectDrill: {
+            level: "records",
+            objectSlug: parseObjectSlug("companies"),
+            objectName: "Company",
+          },
+        },
+      };
+
+      const result = appReducer(stateAtRecords, {
+        type: "SELECT_CATEGORY",
+        index: 1,
+      });
+
+      expect(result.navigation.objectDrill).toEqual({ level: "objects" });
+    });
+
     it("should reset listDrill on NAVIGATE_CATEGORY when category changes", () => {
       const stateAtStatuses: AppState = {
         ...stateWithListsCategory,
@@ -995,6 +1021,65 @@ describe("appReducer", () => {
       });
 
       expect(result.navigation.listDrill).toEqual({ level: "lists" });
+    });
+  });
+
+  describe("object drill-down", () => {
+    const stateWithObjectsCategory: AppState = {
+      ...initialState,
+      navigation: {
+        ...initialState.navigation,
+        navigator: {
+          categories: [{ type: "objects" }],
+          selectedIndex: 0,
+          loading: false,
+        },
+      },
+    };
+
+    it("should drill into records from objects", () => {
+      const result = appReducer(stateWithObjectsCategory, {
+        type: "OBJECT_DRILL_INTO_RECORDS",
+        objectSlug: parseObjectSlug("companies"),
+        objectName: "Company",
+      });
+
+      expect(result.navigation.objectDrill).toEqual({
+        level: "records",
+        objectSlug: parseObjectSlug("companies"),
+        objectName: "Company",
+      });
+      expect(result.navigation.results.loading).toBe(true);
+      expect(result.navigation.results.items).toEqual([]);
+    });
+
+    it("should go back from records to objects", () => {
+      const stateAtRecords: AppState = {
+        ...stateWithObjectsCategory,
+        navigation: {
+          ...stateWithObjectsCategory.navigation,
+          objectDrill: {
+            level: "records",
+            objectSlug: parseObjectSlug("companies"),
+            objectName: "Company",
+          },
+        },
+      };
+
+      const result = appReducer(stateAtRecords, {
+        type: "OBJECT_DRILL_BACK",
+      });
+
+      expect(result.navigation.objectDrill).toEqual({ level: "objects" });
+      expect(result.navigation.results.loading).toBe(true);
+    });
+
+    it("should be a no-op when going back at the objects level", () => {
+      const result = appReducer(stateWithObjectsCategory, {
+        type: "OBJECT_DRILL_BACK",
+      });
+
+      expect(result).toBe(stateWithObjectsCategory);
     });
   });
 });

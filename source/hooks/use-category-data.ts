@@ -9,7 +9,7 @@ import {
 } from "../services/lists-service.js";
 import { fetchMeetings } from "../services/meetings-service.js";
 import { fetchNotes } from "../services/notes-service.js";
-import { queryRecords } from "../services/objects-service.js";
+import { fetchObjects, queryRecords } from "../services/objects-service.js";
 import { fetchTasks } from "../services/tasks-service.js";
 import { fetchWebhooks } from "../services/webhooks-service.js";
 import type { DebugRequestLogEntryInput } from "../types/debug.js";
@@ -17,6 +17,7 @@ import type { ObjectSlug } from "../types/ids.js";
 import type {
   ListDrillState,
   NavigatorCategory,
+  ObjectDrillState,
   ResultItem,
 } from "../types/navigation.js";
 import { extractErrorMessage } from "../utils/error-messages.js";
@@ -34,6 +35,7 @@ interface UseCategoryDataOptions {
   readonly categoryType: NavigatorCategory["type"];
   readonly categorySlug?: ObjectSlug;
   readonly listDrill?: ListDrillState;
+  readonly objectDrill?: ObjectDrillState;
   readonly onRequestLog?: (entry: DebugRequestLogEntryInput) => void;
 }
 
@@ -57,6 +59,7 @@ function getRequestLabel(
   categoryType: NavigatorCategory["type"],
   categorySlug?: ObjectSlug,
   listDrill?: ListDrillState,
+  objectDrill?: ObjectDrillState,
 ): string {
   if (categoryType === "object") {
     return `query records (${categorySlug ?? "object"})`;
@@ -72,6 +75,12 @@ function getRequestLabel(
       return `query entries (${listDrill.listName})`;
     }
     return "fetch lists";
+  }
+  if (categoryType === "objects") {
+    if (objectDrill?.level === "records") {
+      return `query records (${objectDrill.objectName})`;
+    }
+    return "fetch objects";
   }
   return `fetch ${categoryType}`;
 }
@@ -94,6 +103,7 @@ function computeResetKey(
   categoryType: NavigatorCategory["type"],
   categorySlug?: ObjectSlug,
   listDrill?: ListDrillState,
+  objectDrill?: ObjectDrillState,
 ): string {
   if (categoryType === "object") {
     return `object:${categorySlug ?? "unknown"}`;
@@ -106,6 +116,13 @@ function computeResetKey(
       return `lists:${listDrill.listId}:entries:${listDrill.statusId ?? "all"}`;
     }
   }
+  if (
+    categoryType === "objects" &&
+    objectDrill &&
+    objectDrill.level === "records"
+  ) {
+    return `objects:${objectDrill.objectSlug}:records`;
+  }
   return categoryType;
 }
 
@@ -114,6 +131,7 @@ export function useCategoryData({
   categoryType,
   categorySlug,
   listDrill,
+  objectDrill,
   onRequestLog,
 }: UseCategoryDataOptions): UseCategoryDataResult {
   const fetchData = useCallback(
@@ -129,6 +147,7 @@ export function useCategoryData({
         categoryType,
         categorySlug,
         listDrill,
+        objectDrill,
       );
       PtyDebug.log(`request start label="${requestLabel}" detail=${detail}`);
 
@@ -294,6 +313,37 @@ export function useCategoryData({
             break;
           }
 
+          case "objects": {
+            if (objectDrill?.level === "records") {
+              // Drill-down: show records for the selected object
+              const { records, nextCursor: nc } = await queryRecords(
+                client,
+                objectDrill.objectSlug,
+                { cursor },
+              );
+              items = records.map((record) => ({
+                type: "object",
+                id: record.id,
+                title: getRecordTitle(record.values),
+                subtitle: getRecordSubtitle(record.values),
+                data: record,
+              }));
+              nextCursor = nc;
+            } else {
+              // Top level: show all objects
+              const objects = await fetchObjects(client);
+              items = objects.map((obj) => ({
+                type: "object-info" as const,
+                id: obj.id,
+                title: obj.singularNoun ?? obj.apiSlug,
+                subtitle: obj.apiSlug,
+                data: obj,
+              }));
+              nextCursor = null;
+            }
+            break;
+          }
+
           default:
             return { items: [], nextCursor: null };
         }
@@ -328,10 +378,15 @@ export function useCategoryData({
         throw new Error(message, { cause: err });
       }
     },
-    [client, categoryType, categorySlug, listDrill, onRequestLog],
+    [client, categoryType, categorySlug, listDrill, objectDrill, onRequestLog],
   );
 
-  const resetKey = computeResetKey(categoryType, categorySlug, listDrill);
+  const resetKey = computeResetKey(
+    categoryType,
+    categorySlug,
+    listDrill,
+    objectDrill,
+  );
 
   const {
     data,

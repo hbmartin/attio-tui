@@ -3,6 +3,7 @@ import type {
   ListInfo,
   MeetingInfo,
   NoteInfo,
+  ObjectInfo,
   RecordInfo,
   StatusInfo,
   TaskInfo,
@@ -23,6 +24,7 @@ export type NavigatorCategory =
   | { readonly type: "object"; readonly objectSlug: ObjectSlug }
   | { readonly type: "list"; readonly listId: ListId }
   | { readonly type: "lists" }
+  | { readonly type: "objects" }
   | { readonly type: "notes" }
   | { readonly type: "tasks" }
   | { readonly type: "meetings" }
@@ -44,6 +46,15 @@ export type ListDrillState =
       readonly statusId?: string;
       readonly statusTitle?: string;
       readonly statusAttributeSlug?: string;
+    };
+
+// Drill-down state for the Objects browser
+export type ObjectDrillState =
+  | { readonly level: "objects" }
+  | {
+      readonly level: "records";
+      readonly objectSlug: ObjectSlug;
+      readonly objectName: string;
     };
 
 // Detail pane tabs
@@ -86,6 +97,7 @@ interface ResultItemBase<TType extends string, TData> {
 
 export type ResultItem =
   | ResultItemBase<"object", RecordInfo>
+  | ResultItemBase<"object-info", ObjectInfo>
   | ResultItemBase<"list", ListInfo>
   | ResultItemBase<"list-status", StatusInfo>
   | ResultItemBase<"list-entry", ListEntryInfo>
@@ -157,6 +169,7 @@ export interface NavigationState {
   readonly webhookModal: WebhookModalState;
   readonly columnPicker: ColumnPickerState;
   readonly listDrill: ListDrillState;
+  readonly objectDrill: ObjectDrillState;
 }
 
 // Generate a stable key for a NavigatorCategory
@@ -167,6 +180,7 @@ export function getNavigatorCategoryKey(category: NavigatorCategory): string {
     case "list":
       return `list-${category.listId}`;
     case "lists":
+    case "objects":
     case "notes":
     case "tasks":
     case "meetings":
@@ -208,6 +222,9 @@ export function createInitialNavigationState(): NavigationState {
     },
     listDrill: {
       level: "lists",
+    },
+    objectDrill: {
+      level: "objects",
     },
   };
 }

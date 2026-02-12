@@ -18,6 +18,12 @@ const sdkCodeGenerators: {
     `  recordId: "${item.id}",`,
     "});",
   ],
+  "object-info": (item) => [
+    "// Query records for this object",
+    "const records = await client.records.query({",
+    `  object: "${item.data.apiSlug}",`,
+    "});",
+  ],
   list: (item) => [
     "// Query entries for this list",
     "const entries = await client.lists.entries.query({",

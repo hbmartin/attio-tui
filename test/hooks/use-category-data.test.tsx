@@ -13,16 +13,21 @@ import type { QueryListsResult } from "../../source/services/lists-service.js";
 import { fetchLists } from "../../source/services/lists-service.js";
 import type { QueryNotesResult } from "../../source/services/notes-service.js";
 import { fetchNotes } from "../../source/services/notes-service.js";
-import { queryRecords } from "../../source/services/objects-service.js";
+import {
+  fetchObjects,
+  queryRecords,
+} from "../../source/services/objects-service.js";
 import type {
   ListInfo,
   NoteInfo,
+  ObjectInfo,
   RecordValue,
 } from "../../source/types/attio.js";
 import type { DebugRequestLogEntryInput } from "../../source/types/debug.js";
 import { type ObjectSlug, parseObjectSlug } from "../../source/types/ids.js";
 import type {
   NavigatorCategory,
+  ObjectDrillState,
   ResultItem,
 } from "../../source/types/navigation.js";
 
@@ -39,6 +44,7 @@ vi.mock("../../source/services/notes-service.js", () => ({
 }));
 
 vi.mock("../../source/services/objects-service.js", () => ({
+  fetchObjects: vi.fn(),
   queryRecords: vi.fn(),
 }));
 
@@ -90,6 +96,7 @@ interface CategoryOptions {
   readonly client: AttioClient | undefined;
   readonly categoryType: NavigatorCategory["type"];
   readonly categorySlug?: ObjectSlug;
+  readonly objectDrill?: ObjectDrillState;
   readonly onRequestLog?: (entry: DebugRequestLogEntryInput) => void;
 }
 
@@ -128,6 +135,7 @@ function CategoryHarness({
 
 const mockFetchLists = vi.mocked(fetchLists);
 const mockFetchNotes = vi.mocked(fetchNotes);
+const mockFetchObjects = vi.mocked(fetchObjects);
 const mockQueryRecords = vi.mocked(queryRecords);
 
 const TEST_API_KEY = process.env.TEST_API_KEY ?? "test-api-key-placeholder";
@@ -483,6 +491,113 @@ describe("useCategoryData", () => {
       } else {
         process.env[DEBUG_FILE_ENV_KEY] = originalFile;
       }
+    }
+  });
+
+  it("loads objects at top level with object-info items", async () => {
+    const client = createAttioClient({ apiKey: TEST_API_KEY });
+    const objects: readonly ObjectInfo[] = [
+      {
+        id: "obj-1",
+        apiSlug: "companies",
+        singularNoun: "Company",
+        pluralNoun: "Companies",
+      },
+      {
+        id: "obj-2",
+        apiSlug: "people",
+        singularNoun: "Person",
+        pluralNoun: "People",
+      },
+    ];
+
+    mockFetchObjects.mockResolvedValueOnce(objects);
+
+    let latest: CategorySnapshot | undefined;
+
+    const instance = render(
+      <CategoryHarness
+        options={{ client, categoryType: "objects" }}
+        onUpdate={(snapshot) => {
+          latest = snapshot;
+        }}
+      />,
+    );
+
+    try {
+      await waitForCondition(
+        () => Boolean(latest) && latest?.items.length === 2,
+      );
+
+      if (!latest) {
+        throw new Error("Expected hook state to be available");
+      }
+
+      expect(latest.loading).toBe(false);
+      expect(latest.error).toBeUndefined();
+      expect(latest.items[0]?.type).toBe("object-info");
+      expect(latest.items[0]?.title).toBe("Company");
+      expect(latest.items[0]?.subtitle).toBe("companies");
+      expect(latest.items[1]?.title).toBe("Person");
+      expect(latest.hasNextPage).toBe(false);
+    } finally {
+      instance.cleanup();
+    }
+  });
+
+  it("loads records when objects drill is at records level", async () => {
+    const client = createAttioClient({ apiKey: TEST_API_KEY });
+    const objectSlug = parseObjectSlug("companies");
+
+    mockQueryRecords.mockResolvedValueOnce({
+      records: [
+        {
+          id: "record-1",
+          objectId: "object-1",
+          values: {
+            name: [textRecordValue("Acme Corp")],
+          },
+          createdAt: "2025-01-01T00:00:00Z",
+          webUrl: "https://app.attio.com/record/record-1",
+        },
+      ],
+      nextCursor: null,
+    });
+
+    let latest: CategorySnapshot | undefined;
+
+    const objectDrill: ObjectDrillState = {
+      level: "records",
+      objectSlug,
+      objectName: "Company",
+    };
+
+    const instance = render(
+      <CategoryHarness
+        options={{ client, categoryType: "objects", objectDrill }}
+        onUpdate={(snapshot) => {
+          latest = snapshot;
+        }}
+      />,
+    );
+
+    try {
+      await waitForCondition(
+        () => Boolean(latest) && latest?.items.length === 1,
+      );
+
+      if (!latest) {
+        throw new Error("Expected hook state to be available");
+      }
+
+      expect(latest.items[0]?.type).toBe("object");
+      expect(latest.items[0]?.title).toBe("Acme Corp");
+      expect(latest.hasNextPage).toBe(false);
+      expect(mockQueryRecords).toHaveBeenCalledWith(client, objectSlug, {
+        cursor: undefined,
+      });
+    } finally {
+      instance.cleanup();
     }
   });
 });
