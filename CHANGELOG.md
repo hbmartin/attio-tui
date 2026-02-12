@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.0](https://github.com/hbmartin/attio-tui/compare/attio-tui-v1.2.0...attio-tui-v1.3.0) (2026-02-12)
+
+
+### Features
+
+* **objects:** add Objects browser navigator with two-level drill-down ([0360181](https://github.com/hbmartin/attio-tui/commit/0360181c02af7f7445eb427cb0a3e3aae86af42f))
+
 ## [1.2.0](https://github.com/hbmartin/attio-tui/compare/attio-tui-v1.1.0...attio-tui-v1.2.0) (2026-02-12)
 
 
