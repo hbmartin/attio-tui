@@ -1,9 +1,5 @@
 import { Box } from "ink";
-import type {
-  DetailTab,
-  NavigatorCategory,
-  ResultItem,
-} from "../../types/navigation.js";
+import type { DetailTab, ResultItem } from "../../types/navigation.js";
 import { Pane } from "../layout/pane.js";
 import { ActionsView } from "./actions-view.js";
 import { DetailTabs } from "./detail-tabs.js";
@@ -15,15 +11,9 @@ interface DetailPaneProps {
   readonly item: ResultItem | undefined;
   readonly activeTab: DetailTab;
   readonly focused: boolean;
-  readonly category: NavigatorCategory | undefined;
 }
 
-export function DetailPane({
-  item,
-  activeTab,
-  focused,
-  category,
-}: DetailPaneProps) {
+export function DetailPane({ item, activeTab, focused }: DetailPaneProps) {
   const renderTabContent = () => {
     switch (activeTab) {
       case "summary":
@@ -31,7 +21,7 @@ export function DetailPane({
       case "json":
         return <JsonView item={item} />;
       case "sdk":
-        return <SdkView item={item} category={category} />;
+        return <SdkView item={item} />;
       case "actions":
         return <ActionsView item={item} />;
     }

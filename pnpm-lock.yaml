@@ -46,7 +46,7 @@ importers:
         specifier: ^8.1.0
         version: 8.1.0
       '@types/node':
-        specifier: ^24.10.13
+        specifier: ^24
         version: 24.10.13
       '@types/react':
         specifier: ^19.2.14
