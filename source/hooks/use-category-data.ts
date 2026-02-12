@@ -12,6 +12,7 @@ import { fetchNotes } from "../services/notes-service.js";
 import { fetchObjects, queryRecords } from "../services/objects-service.js";
 import { fetchTasks } from "../services/tasks-service.js";
 import { fetchWebhooks } from "../services/webhooks-service.js";
+import type { RecordInfo } from "../types/attio.js";
 import type { DebugRequestLogEntryInput } from "../types/debug.js";
 import type { ObjectSlug } from "../types/ids.js";
 import type {
@@ -126,6 +127,16 @@ function computeResetKey(
   return categoryType;
 }
 
+function recordToResultItem(record: RecordInfo): ResultItem {
+  return {
+    type: "object",
+    id: record.id,
+    title: getRecordTitle(record.values),
+    subtitle: getRecordSubtitle(record.values),
+    data: record,
+  };
+}
+
 export function useCategoryData({
   client,
   categoryType,
@@ -165,13 +176,7 @@ export function useCategoryData({
               categorySlug,
               { cursor },
             );
-            items = records.map((record) => ({
-              type: "object",
-              id: record.id,
-              title: getRecordTitle(record.values),
-              subtitle: getRecordSubtitle(record.values),
-              data: record,
-            }));
+            items = records.map(recordToResultItem);
             nextCursor = nc;
             break;
           }
@@ -321,13 +326,7 @@ export function useCategoryData({
                 objectDrill.objectSlug,
                 { cursor },
               );
-              items = records.map((record) => ({
-                type: "object",
-                id: record.id,
-                title: getRecordTitle(record.values),
-                subtitle: getRecordSubtitle(record.values),
-                data: record,
-              }));
+              items = records.map(recordToResultItem);
               nextCursor = nc;
             } else {
               // Top level: show all objects
